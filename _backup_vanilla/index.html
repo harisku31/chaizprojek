@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChaizStore - Jual Beli Akun Premium Murah & Bergaransi</title>
+  <meta name="description" content="Pusat jual beli akun premium murah, legal, bergaransi, dan proses cepat. Netflix, Spotify, YouTube, Canva, Gemini Advanced, Disney+, dan lainnya.">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="chaizz.png">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css?v=14">
+</head>
+<body>
+
+  <!-- Announcement Bar -->
+  <div class="announcement-bar">
+    <div class="container announcement-content">
+      <span><i class="fa-solid fa-bolt text-warning"></i> <strong>PROMO SPESIAL:</strong> Diskon hingga 70% akun premium all variant + Full Garansi!</span>
+      <div class="announcement-right">
+        <span><i class="fa-solid fa-clock"></i> Layanan 24/7 Fast Response</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="#" class="logo">
+        <span class="logo-badge"><img src="chaizz.png" alt="ChaizStore" class="logo-img"></span>
+        <div class="logo-text">
+          <span class="brand-name">Chaiz<span>Store</span></span>
+          <span class="brand-tag">Premium Digital Account</span>
+        </div>
+      </a>
+
+      <div class="search-box-desktop" id="searchBoxDesktop">
+        <i class="fa-solid fa-magnifying-glass search-icon" id="searchIconDesktop" style="cursor: pointer;" title="Cari Akun"></i>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Cari akun: Netflix, Spotify, Canva, Gemini..."
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+        <button type="button" id="clearSearchBtn" class="clear-btn hidden" title="Hapus pencarian"><i class="fa-solid fa-xmark"></i></button>
+
+        <!-- Dropdown Pencarian di Laptop (Turun & Lebar) -->
+        <div class="desktop-search-dropdown" id="desktopSearchDropdown">
+          <div class="dropdown-header">
+            <span><i class="fa-solid fa-fire text-warning"></i> Pencarian Populer:</span>
+          </div>
+          <div class="dropdown-tags">
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('Disney')"><i class="fa-solid fa-film text-cyan"></i> Disney+</button>
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('Vidio')"><i class="fa-solid fa-circle-play text-danger"></i> Vidio</button>
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('Netflix')"><i class="fa-solid fa-film text-rose"></i> Netflix</button>
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('Spotify')"><i class="fa-brands fa-spotify text-success"></i> Spotify</button>
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('YouTube')"><i class="fa-brands fa-youtube text-danger"></i> YouTube</button>
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('Canva')"><i class="fa-solid fa-palette text-cyan"></i> Canva</button>
+            <button type="button" class="search-tag-pill" onclick="quickSearchTag('Gemini')"><i class="fa-solid fa-wand-magic-sparkles text-cyan"></i> Gemini</button>
+          </div>
+          <div class="dropdown-footer">
+            <small><i class="fa-solid fa-arrow-turn-down-left"></i> Tekan <strong>Enter</strong> untuk langsung menuju produk</small>
+          </div>
+        </div>
+      </div>
+
+      <nav class="nav-links" id="navLinks">
+        <a href="#katalog" class="nav-item active"><i class="fa-solid fa-layer-group"></i> Akun Premium</a>
+        <a href="javascript:void(0)" class="nav-item nav-cart-link" id="navCartLink">
+          <i class="fa-solid fa-cart-shopping"></i> Keranjang
+          <span class="nav-cart-badge hidden" id="navCartBadge">0</span>
+        </a>
+        <a href="#cara-order" class="nav-item">Cara Order</a>
+        <a href="#testimoni" class="nav-item">Testimoni</a>
+        <a href="#faq" class="nav-item">FAQ</a>
+      </nav>
+
+      <div class="nav-actions">
+        <!-- Tombol Login (Muncul saat belum login) -->
+        <button type="button" class="btn btn-outline" id="navMemberLoginBtn" onclick="openLoginModal()" style="padding: 7px 15px; border-radius: 20px; font-size: 0.85rem;" title="Login">
+          <i class="fa-solid fa-right-to-bracket"></i> <span>Login</span>
+        </button>
+
+        <!-- User Profile Chip saat login Google -->
+        <div class="user-profile-chip hidden" id="userProfileChip">
+          <div class="user-avatar-badge" id="navUserAvatar">G</div>
+          <div class="user-details">
+            <span class="nav-user-name" id="navUserName">Pengguna</span>
+            <span class="nav-user-email" id="navUserEmail">user@gmail.com</span>
+          </div>
+          <button class="btn-logout" id="logoutBtn" title="Keluar / Logout">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
+        <!-- Tombol Search Khusus Layar Device / HP -->
+        <button type="button" class="btn-search-toggle" id="mobileSearchToggleBtn" title="Cari Akun" aria-label="Buka Pencarian">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+
+        <button id="cartBtn" class="cart-btn" title="Keranjang Belanja">
+          <i class="fa-solid fa-bag-shopping"></i>
+          <span class="cart-label">Keranjang</span>
+          <span class="cart-count hidden" id="cartCount">0</span>
+        </button>
+        <a href="https://wa.me/6287795172347?text=Halo%20Admin%20ChaizStore,%20mau%20tanya%20stok%20akun%20premium" target="_blank" class="btn btn-wa-nav">
+          <i class="fa-brands fa-whatsapp"></i> <span>CS WhatsApp</span>
+        </a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Buka Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile / Device Dropdown Search Bar (Turun & Lebar) -->
+    <div class="search-box-mobile" id="searchBoxMobile">
+      <div class="container search-mobile-container">
+        <div class="search-mobile-inner">
+          <div class="search-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon" id="searchIconMobile" title="Cari Akun"></i>
+            <input 
+              type="text" 
+              id="searchInputMobile" 
+              placeholder="Cari akun premium: Netflix, Spotify, Canva, Gemini..." 
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+            >
+            <button type="button" id="clearSearchMobileBtn" class="clear-btn hidden" title="Hapus pencarian">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <button type="button" class="btn-close-search" id="closeMobileSearchBtn" title="Tutup Pencarian" aria-label="Tutup Pencarian">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <!-- Quick Search Tags Populer -->
+        <div class="search-quick-tags">
+          <span class="quick-tag-label"><i class="fa-solid fa-fire text-warning"></i> Populer:</span>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('Disney')">Disney+</button>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('Vidio')">Vidio</button>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('Netflix')">Netflix</button>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('Spotify')">Spotify</button>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('YouTube')">YouTube</button>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('Canva')">Canva</button>
+          <button type="button" class="search-tag-pill" onclick="quickSearchTag('Gemini')">Gemini</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="container hero-container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <i class="fa-solid fa-circle-check"></i> #1 Trusted Digital Store di Indonesia
+        </div>
+        <h1 class="hero-title">
+          Beli Akun Premium <span class="gradient-text">Murah, Legal</span> & Bergaransi Penuh
+        </h1>
+        <p class="hero-desc">
+          Nikmati hiburan streaming, musik, produktivitas, dan AI tanpa batasan iklan. Proses otomatis kilat 1-5 menit langsung aktif ke perangkat kamu.
+        </p>
+        
+        <div class="hero-buttons">
+          <a href="#katalog" class="btn btn-primary">
+            <i class="fa-solid fa-store"></i> Beli Sekarang
+          </a>
+          <a href="#cara-order" class="btn btn-outline">
+            <i class="fa-solid fa-circle-play"></i> Cara Pemesanan
+          </a>
+        </div>
+
+        <!-- Quick Perks Highlights -->
+        <div class="hero-quick-perks">
+          <span><i class="fa-solid fa-circle-check text-success"></i> 100% Legal</span>
+          <span><i class="fa-solid fa-bolt text-warning"></i> Kilat 1-5 Menit</span>
+          <span><i class="fa-solid fa-shield-check text-cyan"></i> Full Garansi</span>
+          <span><i class="fa-solid fa-headset text-primary"></i> CS 24 Jam</span>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-number">1.234+</span>
+            <span class="stat-label">Akun Terjual</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">4.9 / 5.0</span>
+            <span class="stat-label">Rating Pelanggan</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">100%</span>
+            <span class="stat-label">Garansi Aman</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-card-glow"></div>
+        <!-- Bingkai Poster Banner Kotak (1:1 Aspect Ratio) -->
+        <div class="banner-poster-frame">
+          <div class="banner-inner">
+            <img src="banner.jpg" alt="ChaizStore Promo Akun Premium" class="banner-poster-img" id="heroBannerImg">
+            <div class="banner-badge-corner">
+              <i class="fa-solid fa-fire text-warning"></i> PROMO SPESIAL
+            </div>
+            <div class="banner-floating-tag">
+              <i class="fa-solid fa-circle-check text-success"></i> Official & Bergaransi
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Deskripsi & Kelebihan Promo Banner -->
+        <div class="banner-promo-desc-card">
+          <div class="promo-desc-header">
+            <span class="promo-pill-tag"><i class="fa-solid fa-bolt text-warning"></i> PROMO SPESIAL S/D 70%</span>
+            <span class="promo-live-badge"><i class="fa-solid fa-circle text-success pulse-dot"></i> Promo Aktif</span>
+          </div>
+          <h4 class="promo-desc-title">Keunggulan & Kelebihan Beli di ChaizStore:</h4>
+          <div class="promo-perks-grid">
+            <div class="promo-perk-item">
+              <i class="fa-solid fa-shield-halved text-success"></i>
+              <div>
+                <strong>Full Garansi Sesuai Durasi</strong>
+                <small>Kena masalah atau hold? Diganti akun baru langsung tanpa ribet selama masa aktif.</small>
+              </div>
+            </div>
+            <div class="promo-perk-item">
+              <i class="fa-solid fa-bolt text-warning"></i>
+              <div>
+                <strong>Aktivasi Kilat 1 - 5 Menit</strong>
+                <small>Setelah pembayaran terverifikasi, pesanan otomatis dikirim dalam 1-5 menit via WhatsApp.</small>
+              </div>
+            </div>
+            <div class="promo-perk-item">
+              <i class="fa-solid fa-credit-card text-cyan"></i>
+              <div>
+                <strong>Pembayaran Mudah & Lengkap</strong>
+                <small>Support QRIS All Bank & E-Wallet instan (DANA, OVO, GoPay, ShopeePay, BCA, Mandiri).</small>
+              </div>
+            </div>
+            <div class="promo-perk-item">
+              <i class="fa-solid fa-headset text-primary"></i>
+              <div>
+                <strong>CS Siap Bantu 24 Jam Nonstop</strong>
+                <small>Ada kendala atau pertanyaan? Tim admin responsif kami siap membantu kapan pun.</small>
+              </div>
+            </div>
+          </div>
+          <div class="promo-desc-footer">
+            <i class="fa-solid fa-circle-check text-success"></i>
+            <span><strong>100% Legal & Aman:</strong> Akses resmi legal, bebas banned/suspend, dan panduan lengkap pemakaian!</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- Product Catalog Section -->
+  <section class="katalog-section" id="katalog">
+    <div class="container">
+      <div class="section-title text-center">
+        <span class="subheading"><i class="fa-solid fa-layer-group"></i> KATALOG LENGKAP</span>
+        <h2>Pilih Layanan Premium Favoritmu</h2>
+        <p>Tersedia akun Sharing maupun Private dengan harga bersahabat dan garansi penuh.</p>
+      </div>
+
+      <!-- Categories Filter -->
+      <div class="category-tabs" id="categoryTabs">
+        <button class="cat-btn active" data-category="all">
+          <i class="fa-solid fa-border-all"></i> Semua Akun
+        </button>
+        <button class="cat-btn" data-category="streaming">
+          <i class="fa-solid fa-tv"></i> Streaming Video
+        </button>
+        <button class="cat-btn" data-category="musik">
+          <i class="fa-solid fa-music"></i> Musik
+        </button>
+        <button class="cat-btn" data-category="produktivitas">
+          <i class="fa-solid fa-pen-nib"></i> Produktivitas & Desain
+        </button>
+        <button class="cat-btn" data-category="ai">
+          <i class="fa-solid fa-brain"></i> AI & Bot
+        </button>
+        <button class="cat-btn" data-category="utility">
+          <i class="fa-solid fa-shield-virus"></i> VPN & Utilitas
+        </button>
+      </div>
+
+      <!-- Product List Grid -->
+      <div class="product-grid" id="productGrid">
+        <!-- Products will be generated dynamically by app.js -->
+      </div>
+
+      <!-- Empty State Search -->
+      <div class="empty-state hidden" id="emptyState">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <h3>Akun Tidak Ditemukan</h3>
+        <p>Coba gunakan kata kunci lain seperti "Netflix", "Spotify", atau "Canva".</p>
+        <button class="btn btn-outline" id="resetSearchBtn">Tampilkan Semua Akun</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- How to Order -->
+  <section class="how-to-order-section" id="cara-order">
+    <div class="container">
+      <div class="section-title text-center">
+        <span class="subheading"><i class="fa-solid fa-route"></i> MUDAH & CEPAT</span>
+        <h2>4 Langkah Mudah Berbelanja</h2>
+        <p>Tidak butuh waktu lama untuk mulai menikmati fitur premium tanpa batas.</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
+          <h3>Pilih Akun & Paket</h3>
+          <p>Pilih akun premium yang kamu butuhkan (Sharing/Private serta durasi langganan).</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+          <h3>Isi Data & Pembayaran</h3>
+          <p>Isi formulir singkat dan pilih metode bayar instan seperti QRIS, DANA, GoPay, atau Bank.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-icon"><i class="fa-brands fa-whatsapp"></i></div>
+          <h3>Konfirmasi via WhatsApp</h3>
+          <p>Klik tombol order otomatis untuk mengirim format pesanan ke admin kami.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-icon"><i class="fa-solid fa-circle-check"></i></div>
+          <h3>Akun Siap Digunakan</h3>
+          <p>Data login/invite dikirimkan dalam 1-5 menit lengkap dengan panduan & garansi.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials-section" id="testimoni">
+    <div class="container">
+      <div class="section-title text-center">
+        <span class="subheading"><i class="fa-solid fa-star text-warning"></i> KATA MEREKA</span>
+        <h2>Testimoni Pelanggan Setia</h2>
+        <p>Kepuasan pelanggan adalah prioritas utama ChaizStore.</p>
+      </div>
+
+      <div class="testimonials-grid">
+        <div class="testi-card">
+          <div class="testi-stars">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <p class="testi-text">"Gokil cepet banget pelayanannya! Transfer QRIS, 2 menit kemudian akun Netflix udah dikirim dan langsung bisa nonton 4K bareng keluarga. Garansinya beneran aman."</p>
+          <div class="testi-author">
+            <div class="author-avatar"><i class="fa-solid fa-user"></i></div>
+            <div>
+              <h4>Dimas Pratama</h4>
+              <span>Pelanggan Netflix & Spotify</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi-card">
+          <div class="testi-stars">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <p class="testi-text">"Langganan Canva Pro di sini hemat banyak buat tugas kuliah dan desain freelance. Udah 6 bulan lancar jaya no kendala. Pasti bakal repurchase terus di sini."</p>
+          <div class="testi-author">
+            <div class="author-avatar"><i class="fa-solid fa-user"></i></div>
+            <div>
+              <h4>Siti Rahmawati</h4>
+              <span>Freelance Designer</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi-card">
+          <div class="testi-stars">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <p class="testi-text">"Gemini Advanced AI nya mantap banget, kencang buat bantu kerjaan koding dan riset. Adminnya juga ramah ditanya-tanya malam-malam tetep dibales gercep. Recommended seller JB akun!"</p>
+          <div class="testi-author">
+            <div class="author-avatar"><i class="fa-solid fa-user"></i></div>
+            <div>
+              <h4>Fajar Kurniawan</h4>
+              <span>Software Engineer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-title text-center">
+        <span class="subheading"><i class="fa-solid fa-circle-question"></i> PERTANYAAN UMUM</span>
+        <h2>Frequently Asked Questions</h2>
+        <p>Pertanyaan yang sering ditanyakan seputar pembelian akun premium di ChaizStore.</p>
+      </div>
+
+      <div class="faq-accordion">
+        <div class="faq-item active">
+          <button class="faq-question">
+            <span>Apa perbedaan akun Sharing dan Akun Private?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Akun Sharing:</strong> 1 akun dipakai bersama pembeli lain dengan profile terpisah sesuai slot yang kamu sewa. Harganya jauh lebih murah dan dilarang mengubah password/email akun.<br><br>
+            <strong>Akun Private:</strong> Akun khusus milik kamu sendiri (1 akun full atau invite via email pribadi). Kamu bebas mengelola dan tidak ada campur tangan pengguna lain.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Bagaimana dengan sistem garansinya?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Semua produk memiliki <strong>Full Garansi</strong> selama durasi pembelian! Jika akun tiba-tiba revert/hold sebelum masa aktif selesai dan mematuhi rules toko, kamu cukup chat admin dengan menyertakan screenshot kendala, dan admin akan mengganti akun baru secepatnya.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Berapa lama proses setelah saya transfer?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Rata-rata proses hanya memakan waktu <strong>1 hingga 5 menit</strong> setelah bukti pembayaran dikonfirmasi oleh admin (pada jam operasional normal).</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Metode pembayaran apa saja yang tersedia?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Kami menerima <strong>QRIS</strong> (Bisa scan dari semua bank seperti BCA, Mandiri, BRI, BNI, BSI serta e-wallet DANA, GoPay, OVO, ShopeePay, LinkAja) tanpa ribet dan bebas biaya admin tinggi.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Apakah akun ini legal dan aman?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Ya, semua akun dibeli melalui metode pembayaran resmi (Credit Card / Gift Card / Region Official) sehingga aman digunakan di device kamu tanpa risiko banned perangkat.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="cta-section">
+    <div class="container cta-container">
+      <div class="cta-card">
+        <div class="cta-content">
+          <h2>Mau Request Akun Premium Lainnya?</h2>
+          <p>Belum menemukan akun yang kamu cari? Hubungi admin untuk request aplikasi atau akun digital lainnya dengan harga terbaik.</p>
+          <a href="https://wa.me/6287795172347?text=Halo%20Admin%20ChaizStore,%20saya%20mau%20request%20akun%20premium" target="_blank" class="btn btn-primary">
+            <i class="fa-brands fa-whatsapp"></i> Chat Admin Sekarang
+          </a>
+        </div>
+        <div class="cta-icon-box">
+          <i class="fa-solid fa-headset"></i>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <a href="#" class="logo">
+          <span class="logo-badge"><img src="chaizz.png" alt="ChaizStore" class="logo-img"></span>
+          <div class="logo-text">
+            <span class="brand-name">Chaiz<span>Store</span></span>
+            <span class="brand-tag">Premium Digital Account</span>
+          </div>
+        </a>
+        <p class="footer-desc">
+          ChaizStore adalah platform terpercaya penyedia layanan akun premium aplikasi streaming, musik, desain grafis, dan AI dengan harga termurah dan bergaransi penuh.
+        </p>
+        <div class="social-links">
+          <a href="javascript:void(0)" onclick="notifySocialMedia('Instagram', event)" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="javascript:void(0)" onclick="notifySocialMedia('WhatsApp', event)" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+          <a href="javascript:void(0)" onclick="notifySocialMedia('Telegram', event)" aria-label="Telegram"><i class="fa-brands fa-telegram"></i></a>
+          <a href="javascript:void(0)" onclick="notifySocialMedia('TikTok', event)" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4>Navigasi</h4>
+        <ul>
+          <li><a href="#katalog">Katalog Produk</a></li>
+          <li><a href="#cara-order">Panduan Pemesanan</a></li>
+          <li><a href="#testimoni">Testimoni Pembeli</a></li>
+          <li><a href="#faq">Pusat Bantuan / FAQ</a></li>
+          <li><a href="javascript:void(0)" onclick="openLoginModal()" style="color: #fbbf24; font-weight: 600;"><i class="fa-solid fa-crown text-warning"></i> Login Akun / Member</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Akun Populer</h4>
+        <ul>
+          <li><a href="#katalog">Netflix Premium 4K</a></li>
+          <li><a href="#katalog">Spotify Premium Family</a></li>
+          <li><a href="#katalog">YouTube Premium No Ads</a></li>
+          <li><a href="#katalog">Canva Pro Lifetime</a></li>
+          <li><a href="#katalog">Gemini Advanced AI</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Metode Pembayaran</h4>
+        <p class="payment-note">Mendukung pembayaran instan melalui:</p>
+        <div class="payment-badges">
+          <span class="pay-badge"><i class="fa-solid fa-qrcode"></i> QRIS</span>
+          <span class="pay-badge"><i class="fa-solid fa-wallet"></i> DANA</span>
+          <span class="pay-badge"><i class="fa-solid fa-wallet"></i> GoPay</span>
+          <span class="pay-badge"><i class="fa-solid fa-wallet"></i> OVO</span>
+          <span class="pay-badge"><i class="fa-solid fa-building-columns"></i> BCA</span>
+          <span class="pay-badge"><i class="fa-solid fa-building-columns"></i> Mandiri</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="container footer-bottom-inner">
+        <p>&copy; 2026 ChaizStore. All rights reserved. Jual Beli Akun Premium Terpercaya.</p>
+        <div class="terms-link">
+          <span>Aman &bull; Cepat &bull; Bergaransi</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Floating CS AI Chat Button -->
+  <button type="button" class="floating-cs" id="floatingCsBtn" onclick="toggleCsChat()" title="Customer Service AI (Komplain & Tanya Jawab)" aria-label="Buka Chat Customer Service AI">
+    <div class="cs-btn-pulse"></div>
+    <div class="cs-btn-icon-wrap">
+      <i class="fa-solid fa-headset cs-icon-headset"></i>
+      <i class="fa-solid fa-xmark cs-icon-close"></i>
+    </div>
+    <span class="cs-badge-text">CS</span>
+    <span class="cs-tooltip">CS AI (Komplain & Tanya Jawab)</span>
+  </button>
+
+  <!-- CS AI CHAT WIDGET -->
+  <div class="cs-chat-widget hidden" id="csChatWidget" aria-hidden="true">
+    <div class="cs-chat-header">
+      <div class="cs-chat-header-info">
+        <div class="cs-chat-avatar">
+          <i class="fa-solid fa-headset"></i>
+          <span class="cs-online-dot"></span>
+        </div>
+        <div>
+          <div class="cs-chat-title-row">
+            <h4>CS ChaizStore AI</h4>
+            <span class="cs-gemini-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> AI CS</span>
+          </div>
+          <p class="cs-chat-status"><span class="cs-pulse-dot"></span> Online 24/7 &bull; Siap Bantu Garansi & Komplain</p>
+        </div>
+      </div>
+      <div class="cs-chat-header-actions">
+        <a href="https://wa.me/6287795172347?text=Halo%20Admin%20ChaizStore,%20saya%20mau%20minta%20bantuan%20CS%20langsung" target="_blank" class="cs-wa-shortcut-btn" title="Hubungi WhatsApp Admin">
+          <i class="fa-brands fa-whatsapp"></i> <span>Admin WA</span>
+        </a>
+        <button type="button" class="cs-close-btn" onclick="toggleCsChat()" aria-label="Tutup Chat">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="cs-chat-body" id="csChatBody">
+      <div class="cs-chat-messages" id="csChatMessages">
+        <!-- Initial Bot Greeting -->
+        <div class="cs-message cs-message-bot">
+          <div class="cs-msg-avatar">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="cs-msg-content">
+            <p>Halo kak! 👋 Selamat datang di <strong>Customer Service ChaizStore</strong>.</p>
+            <p>Saya asisten AI resmi yang siap membantu kamu 24/7 untuk:</p>
+            <ul class="cs-msg-list">
+              <li>🛡️ <strong>Klaim garansi</strong> & penanganan akun bermasalah (revert/hold/logout)</li>
+              <li>🛒 <strong>Panduan cara beli & bayar</strong> via QRIS All Payment</li>
+              <li>📋 <strong>Cek stok & daftar harga</strong> akun premium terlaris</li>
+              <li>❓ <strong>Pertanyaan & konsultasi</strong> aturan pemakaian akun</li>
+            </ul>
+            <p>Ada kendala atau pertanyaan yang bisa saya bantu sekarang?</p>
+          </div>
+        </div>
+
+        <!-- Quick suggestion chips -->
+        <div class="cs-quick-chips" id="csQuickChips">
+          <button type="button" class="cs-chip" onclick="sendCsQuickMessage('Bagaimana cara klaim garansi jika akun saya bermasalah?')">
+            🛡️ Klaim Garansi Akun
+          </button>
+          <button type="button" class="cs-chip" onclick="sendCsQuickMessage('Akun saya tiba-tiba revert atau kena hold, bagaimana solusinya?')">
+            ⚠️ Akun Revert / Hold
+          </button>
+          <button type="button" class="cs-chip" onclick="sendCsQuickMessage('Bagaimana cara order akun premium dan bayar lewat QRIS?')">
+            💳 Cara Order & Bayar
+          </button>
+          <button type="button" class="cs-chip" onclick="sendCsQuickMessage('Akun premium apa saja yang tersedia dan berapa daftar harganya?')">
+            📋 Daftar Produk & Harga
+          </button>
+          <button type="button" class="cs-chip" onclick="sendCsQuickMessage('Berapa lama proses pengiriman akun setelah pembayaran?')">
+            ⚡ Waktu Pengiriman Akun
+          </button>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="cs-typing-indicator hidden" id="csTypingIndicator">
+        <div class="cs-msg-avatar">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="cs-typing-bubble">
+          <span class="cs-typing-dot"></span>
+          <span class="cs-typing-dot"></span>
+          <span class="cs-typing-dot"></span>
+        </div>
+        <span class="cs-typing-label">ChaizStore sedang mengetik...</span>
+      </div>
+    </div>
+
+    <!-- Input Footer -->
+    <div class="cs-chat-footer">
+      <form class="cs-input-form" id="csChatForm" onsubmit="handleCsSubmit(event)">
+        <textarea 
+          id="csChatInput" 
+          class="cs-chat-textarea" 
+          placeholder="Ketik pertanyaan atau kendala kamu di sini..." 
+          rows="1"
+          onkeydown="handleCsInputKeydown(event)"
+        ></textarea>
+        <button type="submit" class="cs-btn-send" id="csBtnSend" aria-label="Kirim Pesan" title="Kirim Pesan">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </form>
+      <div class="cs-footer-hint">
+        <span>Tekan Enter untuk kirim &bull; Customer Service ChaizStore AI</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ORDER MODAL -->
+  <div class="modal-overlay" id="orderModal">
+    <div class="modal-box">
+      <button class="modal-close-btn" id="closeModalBtn" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+      
+      <div class="modal-header">
+        <div class="modal-product-icon" id="modalProductIcon">
+          <img src="chaizz.png" alt="ChaizStore" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+        <div>
+          <span class="modal-tag" id="modalProductCat">Kategori</span>
+          <h3 id="modalProductName">Nama Produk</h3>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <form id="orderForm">
+          <!-- 1. Pilihan Paket / Varian -->
+          <div class="form-group">
+            <label class="form-label"><i class="fa-solid fa-layer-group"></i> Pilih Paket / Varian:</label>
+            <div class="duration-selector-grid" id="modalDurationGrid">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Alert Out of Stock (jika produk kosong) -->
+          <div class="privat-alert-box hidden" id="stockAlertBox" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4);">
+            <div class="alert-icon" style="color: #f87171;"><i class="fa-solid fa-circle-xmark"></i></div>
+            <div class="alert-content">
+              <strong style="color: #f87171;">Stok Sedang Kosong</strong>
+              <p>Mohon maaf, stok akun ini sedang kosong. Silakan hubungi CS WhatsApp kami untuk info jadwal restock!</p>
+            </div>
+          </div>
+
+          <!-- 2. Ringkasan Pesanan -->
+          <div class="order-summary-box">
+            <div class="summary-row">
+              <span>Paket Terpilih:</span>
+              <strong id="summaryPackage">-</strong>
+            </div>
+            <div class="summary-row">
+              <span>Ketersediaan Stok:</span>
+              <strong id="summaryStock" class="text-success">5 Tersedia</strong>
+            </div>
+            <div class="summary-row">
+              <span>Masa Garansi:</span>
+              <strong id="summaryWarranty" class="text-success"><i class="fa-solid fa-shield-check"></i> Sesuai Durasi Penuh</strong>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-row total-row">
+              <span>Total Pembayaran:</span>
+              <strong class="total-price" id="summaryTotal">Rp 0</strong>
+            </div>
+          </div>
+
+          <!-- 5. DUA TOMBOL AKSI: Masukkan Keranjang & Checkout -->
+          <div class="modal-dual-actions">
+            <button type="button" class="btn btn-cart-action" id="modalAddToCartBtn">
+              <i class="fa-solid fa-cart-plus"></i> Masukkan Keranjang
+            </button>
+            <button type="button" class="btn btn-primary btn-buy-action" id="modalCheckoutBtn" onclick="openCheckoutModal('single')">
+              <i class="fa-solid fa-credit-card"></i> Lanjut Checkout
+            </button>
+          </div>
+          <p class="order-note"><i class="fa-solid fa-shield-halved"></i> Garansi 100% aman, legal, & proses kilat 1-5 menit via WhatsApp.</p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT MODAL (RINCIAN PESANAN, QRIS, & UPLOAD BUKTI) -->
+  <div class="modal-overlay" id="checkoutModal">
+    <div class="modal-box checkout-modal-box">
+      <button class="modal-close-btn" id="closeCheckoutModalBtn" onclick="closeCheckoutModal()" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+      
+      <div class="modal-header">
+        <div class="modal-product-icon checkout-header-icon">
+          <i class="fa-solid fa-cash-register"></i>
+        </div>
+        <div>
+          <span class="modal-tag">Checkout Pesanan</span>
+          <h3>Rincian & Pembayaran Akun</h3>
+        </div>
+      </div>
+
+      <div class="modal-body checkout-modal-body">
+        <!-- 1. Detail Item Pesanan (Tabel Jenis Item, Harga, Qty, Total) -->
+        <div class="checkout-section">
+          <h4 class="checkout-section-title"><i class="fa-solid fa-list-check text-primary"></i> Detail Item Pesanan</h4>
+          <div class="checkout-items-table-wrapper">
+            <table class="checkout-items-table">
+              <thead>
+                <tr>
+                  <th>Jenis Item</th>
+                  <th>Harga</th>
+                  <th style="text-align: center;">Qty</th>
+                  <th style="text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody id="checkoutItemsTbody">
+                <!-- Diisi secara dinamis oleh JavaScript -->
+              </tbody>
+            </table>
+          </div>
+          <div class="checkout-grand-total">
+            <span>Total Tagihan:</span>
+            <strong id="checkoutGrandTotal">Rp 0</strong>
+          </div>
+        </div>
+
+        <!-- 2. Data Pemesan -->
+        <div class="checkout-section">
+          <h4 class="checkout-section-title"><i class="fa-solid fa-user-check text-cyan"></i> Data Pemesan</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="checkoutBuyerName"><i class="fa-solid fa-user"></i> Nama Lengkap:</label>
+              <input type="text" id="checkoutBuyerName" class="form-input" placeholder="Nama Anda" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="checkoutBuyerWa"><i class="fa-brands fa-whatsapp"></i> No. WhatsApp:</label>
+              <input type="tel" id="checkoutBuyerWa" class="form-input" placeholder="08xxxxxxxxxx" required>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="checkoutBuyerEmail"><i class="fa-solid fa-envelope"></i> Email Akun (Wajib jika pilih invite):</label>
+            <input type="email" id="checkoutBuyerEmail" class="form-input" placeholder="emailkamu@gmail.com">
+          </div>
+          <!-- Data Baru Khusus CapCut Pakai Akun Sendiri -->
+          <div class="form-group hidden" id="capcutAccountGroup" style="margin-top: 14px; margin-bottom: 0;">
+            <label class="form-label" for="checkoutCapcutAccount" style="color: #14b8a6; font-weight: 700;">
+              <i class="fa-solid fa-scissors text-teal"></i> Nama Akun CapCut <span style="color: #f43f5e;">*Wajib Diisi</span>:
+            </label>
+            <input type="text" id="checkoutCapcutAccount" class="form-input" placeholder="Masukkan ID / Nama Akun CapCut kamu..." style="border-color: rgba(20, 184, 166, 0.45);">
+            <small style="display: block; color: #94a3b8; font-size: 0.76rem; margin-top: 5px;">
+              <i class="fa-solid fa-circle-info text-teal"></i> Diperlukan untuk proses upgrade VIP langsung ke akun CapCut pribadi Anda.
+            </small>
+          </div>
+        </div>
+
+        <!-- 3. Metode Pembayaran (QRIS, E-Wallet, Transfer Bank) -->
+        <div class="checkout-section">
+          <h4 class="checkout-section-title"><i class="fa-solid fa-wallet text-warning"></i> Metode Pembayaran</h4>
+          <p class="checkout-section-desc">Pilih salah satu metode pembayaran di bawah ini:</p>
+          <div class="checkout-methods-grid">
+            <!-- QRIS -->
+            <label class="checkout-method-card" id="methodCardQris" onclick="selectCheckoutMethod('qris')">
+              <input type="radio" name="checkoutPaymentRadio" value="QRIS">
+              <div class="method-icon-box"><i class="fa-solid fa-qrcode"></i></div>
+              <div class="method-details">
+                <strong>QRIS Instant</strong>
+                <small>Semua Bank & E-Wallet</small>
+              </div>
+              <i class="fa-solid fa-circle-check method-check"></i>
+            </label>
+            <!-- E-Wallet -->
+            <label class="checkout-method-card" id="methodCardEwallet" onclick="selectCheckoutMethod('ewallet')">
+              <input type="radio" name="checkoutPaymentRadio" value="E-Wallet (081809730331)">
+              <div class="method-icon-box"><i class="fa-solid fa-mobile-screen-button"></i></div>
+              <div class="method-details">
+                <strong>E-Wallet</strong>
+                <small>081809730331</small>
+              </div>
+              <i class="fa-solid fa-circle-check method-check"></i>
+            </label>
+            <!-- Transfer Bank -->
+            <label class="checkout-method-card" id="methodCardBank" onclick="selectCheckoutMethod('bank')">
+              <input type="radio" name="checkoutPaymentRadio" value="Bank Muamalat (1410043224)">
+              <div class="method-icon-box"><i class="fa-solid fa-building-columns"></i></div>
+              <div class="method-details">
+                <strong>Bank Transfer</strong>
+                <small>Bank Muamalat</small>
+              </div>
+              <i class="fa-solid fa-circle-check method-check"></i>
+            </label>
+          </div>
+
+          <!-- Prompt Panduan Memilih Metode (Tampil sebelum metode dipencet) -->
+          <div class="method-select-prompt" id="methodSelectPrompt">
+            <i class="fa-solid fa-hand-pointer text-warning"></i>
+            <span>Pilih salah satu metode di atas (<strong>QRIS</strong>, <strong>E-Wallet</strong>, atau <strong>Bank</strong>) untuk memunculkan kode QRIS & detail pembayaran.</span>
+          </div>
+
+          <!-- Tampilan Foto QRIS (Qris.png) & Info Rekening (Muncul saat salah satu tombol dipencet) -->
+          <div class="qris-payment-container hidden" id="qrisPaymentContainer">
+            <div class="qris-image-wrapper">
+              <div class="qris-badge-top"><i class="fa-solid fa-bolt text-warning"></i> SCAN QRIS UNTUK BAYAR</div>
+              <img src="Qris.png" alt="QRIS ChaizStore" class="qris-display-img" id="checkoutQrisImg">
+              <span class="qris-footer-text">NMID: ID1020038472910 &bull; CHAIZSTORE</span>
+            </div>
+
+            <!-- Tombol Download QRIS Otomatis -->
+            <button type="button" class="btn-download-qris" id="downloadQrisBtn" onclick="downloadQris(event)" title="Download Foto QRIS">
+              <i class="fa-solid fa-cloud-arrow-down"></i>
+              <span>Download QRIS</span>
+            </button>
+
+            <!-- Detail Nomor Rekening / Keterangan Khusus di Bawah QRIS -->
+            <div class="method-info-box" id="methodInfoBox">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Upload Bukti Pembayaran -->
+        <div class="checkout-section">
+          <h4 class="checkout-section-title"><i class="fa-solid fa-file-invoice text-success"></i> Upload Bukti Pembayaran</h4>
+          <p class="checkout-section-desc">Setelah melakukan pembayaran, upload bukti transfer / tangkapan layar (screenshot):</p>
+          
+          <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('proofFileInput').click()">
+            <input type="file" id="proofFileInput" accept="image/*" class="hidden" onchange="handleProofUpload(event)">
+            
+            <div class="dropzone-content" id="dropzonePrompt">
+              <div class="dropzone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+              <strong>Klik untuk Upload Bukti Pembayaran</strong>
+              <span>Pilih foto screenshot transfer (JPG, PNG, JPEG, WEBP)</span>
+            </div>
+
+            <div class="upload-preview-wrapper hidden" id="uploadPreviewWrapper">
+              <div class="preview-img-container">
+                <img id="proofPreviewImg" src="" alt="Bukti Transfer">
+              </div>
+              <div class="preview-meta">
+                <div class="preview-status"><i class="fa-solid fa-circle-check"></i> Bukti Transfer Terpasang</div>
+                <span id="proofFileName" class="preview-filename">bukti-transfer.jpg</span>
+                <span id="proofFileSize" class="preview-filesize">0 KB</span>
+                <button type="button" class="btn-remove-proof" onclick="removeProofUpload(event)">
+                  <i class="fa-solid fa-trash-can"></i> Hapus / Ganti Foto
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Indikator Kunci Tombol Order jika belum upload -->
+          <div class="proof-warning-notice" id="proofNoticeBox">
+            <i class="fa-solid fa-lock"></i>
+            <span>Tombol order akan otomatis muncul setelah Anda mengupload foto bukti transfer di atas.</span>
+          </div>
+        </div>
+
+        <!-- 5. Tombol Order (Hanya muncul saat bukti di-upload) -->
+        <div class="checkout-order-actions">
+          <button type="button" id="btnSubmitOrder" class="btn btn-wa-order hidden" onclick="processOrderToWhatsApp()">
+            <span>Order</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+        <p class="order-guarantee-text"><i class="fa-solid fa-shield-check text-success"></i> Transaksi Anda 100% aman & bergaransi penuh. Akun dikirim kilat 1-5 menit.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Drawer -->
+  <div class="cart-drawer-overlay" id="cartDrawerOverlay">
+    <div class="cart-drawer">
+      <div class="cart-drawer-header">
+        <h3><i class="fa-solid fa-bag-shopping"></i> Keranjang Belanja</h3>
+        <button id="closeCartBtn" class="close-cart-btn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="cart-drawer-body" id="cartItemsList">
+        <div class="empty-cart-msg">
+          <i class="fa-solid fa-basket-shopping"></i>
+          <p>Keranjang kamu masih kosong</p>
+          <a href="#katalog" class="btn btn-sm btn-outline" id="shopNowBtn">Belanja Sekarang</a>
+        </div>
+      </div>
+      <div class="cart-drawer-footer" id="cartFooter" style="display:none;">
+        <div class="cart-total-row">
+          <span>Subtotal:</span>
+          <span class="cart-total-price" id="cartTotal">Rp 0</span>
+        </div>
+        <button class="btn btn-primary btn-block" id="cartCheckoutBtn" onclick="openCheckoutModal('cart')">
+          <i class="fa-solid fa-credit-card"></i> Lanjut Checkout Pesanan
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===================================================
+       LOGIN MODAL OVERLAY (SELAMAT DATANG, LOGIN CHAIZ & MEMBER KHUSUS)
+       =================================================== -->
+  <div class="login-gate-overlay" id="loginGateOverlay">
+    <div class="login-gate-backdrop" onclick="closeLoginGateModal()"></div>
+    <div class="login-gate-card">
+      <button type="button" class="modal-close-btn" onclick="closeLoginGateModal()" title="Tutup Login"><i class="fa-solid fa-xmark"></i></button>
+      <div class="login-badge-tag"><i class="fa-solid fa-sparkles text-warning"></i> ChaizStore Portal</div>
+
+      <!-- HEADER DENGAN TULISAN SELAMAT DATANG -->
+      <div class="login-header">
+        <div class="login-brand">
+          <span class="logo-badge"><img src="chaizz.png" alt="ChaizStore" class="logo-img"></span>
+          <div class="login-brand-meta">
+            <span class="brand-name">Chaiz<span>Store</span></span>
+            <span class="brand-subtitle">Official Premium Store</span>
+          </div>
+        </div>
+        <h2>Selamat Datang</h2>
+        <p>Silakan pilih akses login untuk masuk ke toko ChaizStore:</p>
+      </div>
+
+      <!-- VIEW 1: PILIHAN UTAMA (LOGIN SEBAGAI CHAIZ & LOGIN MEMBER KHUSUS DI BAWAHNYA) -->
+      <div class="login-selection-view" id="loginSelectionView">
+        <div class="login-buttons-stack">
+          <!-- Tombol 1: Login sebagai Chaiz -->
+          <button type="button" class="btn-login-main btn-login-chaiz" id="loginAsChaizBtn" onclick="loginAsChaiz()">
+            <div class="login-btn-icon-wrapper chaiz-icon">
+              <i class="fa-solid fa-circle-user"></i>
+            </div>
+            <div class="login-btn-text">
+              <span class="login-btn-title">Login sebagai Chaiz</span>
+              <span class="login-btn-desc">Akses cepat langsung belanja akun premium</span>
+            </div>
+            <i class="fa-solid fa-arrow-right login-btn-arrow"></i>
+          </button>
+
+          <!-- Tombol 2: Di Bawahnya -> Login Member Khusus -->
+          <button type="button" class="btn-login-main btn-login-vip" id="showMemberFormBtn" onclick="openMemberLoginForm()">
+            <div class="login-btn-icon-wrapper vip-icon">
+              <i class="fa-solid fa-crown"></i>
+            </div>
+            <div class="login-btn-text">
+              <span class="login-btn-title">Login Member Khusus</span>
+              <span class="login-btn-desc">Akses akun VIP & harga khusus member</span>
+            </div>
+            <i class="fa-solid fa-chevron-right login-btn-arrow"></i>
+          </button>
+        </div>
+
+        <div class="login-modal-footer-note">
+          <i class="fa-solid fa-shield-check text-success"></i>
+          <span>100% Legal & Bergaransi &bull; Kilat 1-5 Menit Langsung Aktif</span>
+        </div>
+      </div>
+
+      <!-- VIEW 2: FORM LOGIN KHUSUS MEMBER (USERNAME & PASSWORD) -->
+      <div class="member-login-view hidden" id="memberLoginView">
+        <div class="member-view-header">
+          <span class="badge-vip-tag"><i class="fa-solid fa-crown text-warning"></i> VIP Member Portal</span>
+          <h3>Masuk Akun Member Khusus</h3>
+          <p>Silakan masukkan username dan password akun member Anda:</p>
+        </div>
+
+        <form id="memberLoginForm" onsubmit="handleMemberLogin(event)">
+          <div class="form-group text-left">
+            <label class="form-label" for="memberUsername"><i class="fa-solid fa-user"></i> Username Member:</label>
+            <input type="text" id="memberUsername" class="form-input" placeholder="Masukkan username member..." required autocomplete="username">
+          </div>
+
+          <div class="form-group text-left">
+            <label class="form-label" for="memberPassword"><i class="fa-solid fa-key"></i> Password:</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="memberPassword" class="form-input" placeholder="Masukkan password..." required autocomplete="current-password">
+              <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('memberPassword')" title="Tampilkan / Sembunyikan Password">
+                <i class="fa-solid fa-eye" id="eyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+
+          <!-- Alert Error jika Username / Password salah -->
+          <div class="member-login-error hidden" id="memberLoginError">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span id="memberLoginErrorText">Username atau password salah! Silakan coba lagi.</span>
+          </div>
+
+          <div class="member-form-actions">
+            <button type="submit" class="btn btn-primary btn-block btn-lg">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk Sebagai Member Khusus
+            </button>
+            <button type="button" class="btn btn-outline btn-block" onclick="backToLoginSelection()">
+              <i class="fa-solid fa-arrow-left"></i> Kembali ke Pilihan Login
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Custom Scripts -->
+  <script src="app.js?v=16"></script>
+</body>
+</html>
