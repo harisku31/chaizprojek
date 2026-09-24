@@ -6,6 +6,7 @@ import ProductCatalog from './components/ProductCatalog';
 import HowToOrder from './components/HowToOrder';
 import Testimonials from './components/Testimonials';
 import FAQ from './components/FAQ';
+import QuickSettingMenu from './components/QuickSettingMenu';
 import CtaBanner from './components/CtaBanner';
 import Footer from './components/Footer';
 import ProductModal from './components/ProductModal';
@@ -244,6 +245,7 @@ export default function App() {
         isOpen={checkoutData.isOpen}
         source={checkoutData.source}
         items={checkoutData.items}
+        authUser={authUser}
         onClose={() => setCheckoutData({ isOpen: false, source: 'single', items: [] })}
         onOrderSuccess={handleOrderSuccess}
         onShowToast={showToast}
@@ -266,8 +268,11 @@ export default function App() {
         onShowToast={showToast}
       />
 
+      {/* Menu Tombol Mengambang Setting di Atas CS: Cara Order, FAQ & Testimoni Pelanggan */}
+      <QuickSettingMenu />
+
       {/* Gemini AI Customer Service Chat Widget */}
-      <CsChatWidget products={PRODUCTS} />
+      <CsChatWidget products={PRODUCTS} authUser={authUser} />
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} />

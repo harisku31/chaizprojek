@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CS_GEMINI_CONFIG } from '../data/config';
 import { formatCsMarkdown, formatRupiah } from '../utils/format';
 
-export default function CsChatWidget({ products }) {
+export default function CsChatWidget({ products, authUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -62,6 +62,13 @@ Tugas utamamu adalah melayani pembeli dan calon pembeli dengan ramah, santun, re
 1. KOMPLAIN & KENDALA AKUN (Garansi)
 2. PERTANYAAN CARA BELI & PEMBAYARAN
 3. CEK HARGA & DAFTAR PRODUK AKUN PREMIUM
+
+${authUser ? `[DATA PELANGGAN SAAT INI]
+Pelanggan saat ini sedang login dengan:
+- Nama: ${authUser.name}
+- Email: ${authUser.email}
+- Tipe Akun: ${authUser.isGoogle ? 'Google Account Resmi' : authUser.isMember ? 'VIP Member' : 'Akun Tamu'}
+Sapa pelanggan dengan akrab dan sopan menggunakan nama "Kak ${authUser.name}".` : ''}
 
 [INFORMASI PENTING TOKO CHAIZSTORE]
 - Nama Toko: ChaizStore

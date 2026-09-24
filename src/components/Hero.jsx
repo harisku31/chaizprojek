@@ -19,9 +19,16 @@ export default function Hero() {
             <a href="#katalog" className="btn btn-primary">
               <i className="fa-solid fa-store"></i> Beli Sekarang
             </a>
-            <a href="#cara-order" className="btn btn-outline">
-              <i className="fa-solid fa-circle-play"></i> Cara Pemesanan
-            </a>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                const btn = document.getElementById('floatingSettingBtn');
+                if (btn) btn.click();
+              }}
+            >
+              <i className="fa-solid fa-list-check"></i> Cara Pemesanan
+            </button>
           </div>
 
           {/* Quick Perks Highlights */}

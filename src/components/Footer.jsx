@@ -16,7 +16,6 @@ export default function Footer({ onOpenLogin, onShowToast }) {
             </span>
             <div className="logo-text">
               <span className="brand-name">Chaiz<span>Store</span></span>
-              <span className="brand-tag">Premium Digital Account</span>
             </div>
           </a>
           <p className="footer-desc">
@@ -42,9 +41,17 @@ export default function Footer({ onOpenLogin, onShowToast }) {
           <h4>Navigasi</h4>
           <ul>
             <li><a href="#katalog">Katalog Produk</a></li>
-            <li><a href="#cara-order">Panduan Pemesanan</a></li>
-            <li><a href="#testimoni">Testimoni Pembeli</a></li>
-            <li><a href="#faq">Pusat Bantuan / FAQ</a></li>
+            <li>
+              <a
+                href="#setting"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('floatingSettingBtn')?.click();
+                }}
+              >
+                Panduan Order, FAQ & Testi
+              </a>
+            </li>
             <li>
               <a
                 href="javascript:void(0)"

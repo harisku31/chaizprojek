@@ -12,6 +12,7 @@ export default function CheckoutModal({
   onClose,
   items,
   source,
+  authUser,
   onOrderSuccess,
   onShowToast
 }) {
@@ -19,6 +20,18 @@ export default function CheckoutModal({
   const [buyerWa, setBuyerWa] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [capcutAccount, setCapcutAccount] = useState('');
+
+  // Auto-fill dari akun login (Google / Member / Chaiz)
+  React.useEffect(() => {
+    if (isOpen && authUser) {
+      if (authUser.name && (!buyerName || buyerName === 'Chaiz')) {
+        setBuyerName(authUser.name);
+      }
+      if (authUser.email && !buyerEmail) {
+        setBuyerEmail(authUser.email);
+      }
+    }
+  }, [isOpen, authUser]);
 
   const [selectedMethod, setSelectedMethod] = useState(null); // 'qris' | 'ewallet' | 'bank'
   const [uploadedProof, setUploadedProof] = useState(null); // { file, name, size, dataUrl, uploadedUrl, uploadPromise }
@@ -320,6 +333,33 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
             <h4 className="checkout-section-title">
               <i className="fa-solid fa-user-check text-cyan"></i> Data Pemesan
             </h4>
+
+            {authUser && (
+              <div className="checkout-google-sync-notice">
+                <div className="sync-notice-left">
+                  {authUser.picture ? (
+                    <img
+                      src={authUser.picture}
+                      alt={authUser.name}
+                      className="checkout-sync-avatar"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="checkout-sync-avatar-fallback">
+                      <i className={authUser.isGoogle ? 'fa-brands fa-google text-danger' : 'fa-solid fa-user text-cyan'}></i>
+                    </div>
+                  )}
+                  <span className="sync-notice-text">
+                    Terhubung sebagai <strong>{authUser.name}</strong> ({authUser.email})
+                  </span>
+                </div>
+                <span className="sync-notice-pill">
+                  <i className="fa-solid fa-circle-check text-success"></i> Data Terisi Otomatis
+                </span>
+              </div>
+            )}
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label" htmlFor="checkoutBuyerName">
