@@ -133,29 +133,49 @@ ${catalog}
 
     let replyText = null;
 
-    for (const modelName of CS_GEMINI_CONFIG.models) {
-      try {
-        const url = `${CS_GEMINI_CONFIG.apiEndpoint}/${modelName}:generateContent?key=${CS_GEMINI_CONFIG.apiKey}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (
-            data.candidates &&
-            data.candidates[0] &&
-            data.candidates[0].content &&
-            data.candidates[0].content.parts
-          ) {
-            replyText = data.candidates[0].content.parts.map((p) => p.text).join('');
-            break;
-          }
+    // 1. Try Vercel Serverless Function first (/api/chat)
+    try {
+      const serverlessRes = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (serverlessRes.ok) {
+        const data = await serverlessRes.json();
+        if (data.reply) {
+          replyText = data.reply;
         }
-      } catch (err) {
-        console.warn(`Failed model ${modelName}:`, err);
+      }
+    } catch (err) {
+      console.warn('Vercel serverless /api/chat not reachable, trying direct API:', err);
+    }
+
+    // 2. Direct Google Gemini API fallback (local dev or direct client)
+    if (!replyText) {
+      for (const modelName of CS_GEMINI_CONFIG.models) {
+        try {
+          const url = `${CS_GEMINI_CONFIG.apiEndpoint}/${modelName}:generateContent?key=${CS_GEMINI_CONFIG.apiKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (
+              data.candidates &&
+              data.candidates[0] &&
+              data.candidates[0].content &&
+              data.candidates[0].content.parts
+            ) {
+              replyText = data.candidates[0].content.parts.map((p) => p.text).join('');
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed model ${modelName}:`, err);
+        }
       }
     }
 

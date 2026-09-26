@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import {
   getActiveGoogleClientId,
   triggerGooglePopupLogin,
-  isGoogleAvailable
+  isGoogleAvailable,
+  isIpAddressHostname
 } from '../utils/googleAuth';
+import { MEMBER_CREDENTIALS } from '../data/config';
 
 export default function LoginGateModal({
   isOpen,
@@ -12,11 +14,25 @@ export default function LoginGateModal({
   onShowToast
 }) {
   const [isProcessingGoogle, setIsProcessingGoogle] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [showMemberLogin, setShowMemberLogin] = useState(false);
+  const [memberUser, setMemberUser] = useState('');
+  const [memberPass, setMemberPass] = useState('');
+  const [memberError, setMemberError] = useState('');
 
   if (!isOpen) return null;
 
   // 1. Handle Login Google Asli
   const handleGoogleLogin = () => {
+    setAuthError('');
+
+    if (isIpAddressHostname()) {
+      setAuthError('Google tidak mengizinkan login melalui IP Address lokal (192.168...). Silakan klik "Masuk sebagai Pengguna Biasa" di bawah ini, atau buka domain Vercel resmi.');
+      onShowToast('Google melarang login via IP lokal.', 'fa-triangle-exclamation');
+      return;
+    }
+
     const clientId = getActiveGoogleClientId();
 
     if (!isGoogleAvailable()) {
@@ -36,25 +52,62 @@ export default function LoginGateModal({
       onError: (err) => {
         setIsProcessingGoogle(false);
         console.error('Google login error:', err);
-        onShowToast('Jendela popup Google ditutup atau dibatalkan.', 'fa-triangle-exclamation');
+        const errStr = String(err?.message || err || '');
+        const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+        if (errStr.includes('origin_mismatch') || errStr.includes('unregistered') || errStr.includes('policy')) {
+          setAuthError(`Otorisasi Google belum aktif untuk origin: ${currentOrigin}. Pastikan "${currentOrigin}" sudah didaftarkan di Authorized JavaScript Origins di Google Cloud Console. Atau kamu bisa langsung klik "Masuk sebagai Pengguna Biasa" di bawah!`);
+        } else {
+          setAuthError('Jendela popup Google ditutup atau dibatalkan. Kamu bisa coba lagi atau masuk langsung sebagai Pengguna Biasa.');
+        }
+        onShowToast('Login Google dibatalkan atau terkendala izin.', 'fa-triangle-exclamation');
       }
     });
   };
 
-  // 2. Handle Masuk sebagai Pengguna Biasa (Tamu)
+  // 2. Handle Masuk sebagai Pengguna Biasa (Tamu / Nama Sendiri)
   const handleGuestLogin = () => {
+    const displayName = customName.trim() || 'Pengguna Chaiz';
     const user = {
       role: 'guest',
-      name: 'Pengguna Chaiz',
-      email: 'user@chaizstore.id',
-      avatarLetter: 'U',
+      name: displayName,
+      email: `${displayName.toLowerCase().replace(/\s+/g, '')}@chaizstore.id`,
+      avatarLetter: displayName.charAt(0).toUpperCase(),
       isMember: false,
       isGoogle: false,
       loginTime: new Date().toISOString()
     };
     onLoginSuccess(user);
     onClose();
-    onShowToast('Selamat datang di ChaizStore! Selamat berbelanja.', 'fa-circle-check');
+    onShowToast(`Selamat datang, ${displayName}! Selamat berbelanja.`, 'fa-circle-check');
+  };
+
+  // 3. Handle Login Member VIP
+  const handleMemberSubmit = (e) => {
+    e.preventDefault();
+    setMemberError('');
+    const found = MEMBER_CREDENTIALS.find(
+      (m) =>
+        m.username.toLowerCase() === memberUser.trim().toLowerCase() &&
+        m.password === memberPass.trim()
+    );
+
+    if (found) {
+      const user = {
+        role: 'member',
+        name: found.name,
+        email: `${found.username}@chaizvip.id`,
+        avatarLetter: found.name.charAt(0).toUpperCase(),
+        isMember: true,
+        isGoogle: false,
+        badge: found.badge,
+        loginTime: new Date().toISOString()
+      };
+      onLoginSuccess(user);
+      onClose();
+      onShowToast(`Selamat datang kembali, ${found.name}!`, 'fa-crown text-warning');
+    } else {
+      setMemberError('Username atau password member salah (Coba: member / 123)');
+    }
   };
 
   return (
@@ -81,10 +134,35 @@ export default function LoginGateModal({
             </div>
           </div>
           <h2>Masuk ke ChaizStore</h2>
-          <p>Silakan masuk menggunakan akun Google Anda atau masuk sebagai pengguna biasa:</p>
+          <p>Pilih metode masuk untuk menikmati layanan akun premium bergaransi:</p>
         </div>
 
-        {/* Hanya 2 Opsi Tombol Bersih */}
+        {/* Pesan Edukasi jika Google Error / Belum terdaftar */}
+        {authError && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              marginBottom: '14px',
+              fontSize: '0.82rem',
+              color: '#fca5a5',
+              lineHeight: '1.4',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+              <i className="fa-solid fa-circle-exclamation" style={{ color: '#ef4444' }}></i>
+              <span>Info Otorisasi Google</span>
+            </div>
+            <p style={{ margin: 0 }}>{authError}</p>
+          </div>
+        )}
+
+        {/* Tombol Login */}
         <div className="login-buttons-stack">
           {/* Tombol 1: Login dengan Google Asli */}
           <button
@@ -117,24 +195,102 @@ export default function LoginGateModal({
           </button>
 
           <div className="login-options-divider">
-            <span>atau</span>
+            <span>atau masuk instan</span>
           </div>
 
-          {/* Tombol 2: Masuk Sebagai Pengguna Biasa */}
+          {/* Input Opsional Nama untuk Pengguna Biasa */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+            <input
+              type="text"
+              className="form-input"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                padding: '9px 12px',
+                fontSize: '0.85rem'
+              }}
+              placeholder="Ketik nama kamu (opsional, contoh: Haris)"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleGuestLogin();
+                }
+              }}
+            />
+          </div>
+
+          {/* Tombol 2: Masuk Sebagai Pengguna Biasa (100% Berhasil) */}
           <button
             type="button"
             className="btn-login-main btn-login-guest"
             onClick={handleGuestLogin}
           >
             <div className="login-btn-icon-wrapper guest-icon">
-              <i className="fa-solid fa-user"></i>
+              <i className="fa-solid fa-bolt text-warning"></i>
             </div>
             <div className="login-btn-text">
-              <span className="login-btn-title">Masuk sebagai Pengguna Biasa</span>
-              <span className="login-btn-desc">Langsung akses katalog dan belanja tanpa Google</span>
+              <span className="login-btn-title">
+                {customName.trim() ? `Masuk sebagai "${customName.trim()}"` : 'Masuk sebagai Pengguna Biasa'}
+              </span>
+              <span className="login-btn-desc">1-Klik langsung belanja tanpa login akun luar</span>
             </div>
             <i className="fa-solid fa-arrow-right login-btn-arrow"></i>
           </button>
+        </div>
+
+        {/* Accordion / Opsi Member VIP */}
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setShowMemberLogin(!showMemberLogin)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              textDecoration: 'underline'
+            }}
+          >
+            <i className="fa-solid fa-crown text-warning"></i> {showMemberLogin ? 'Sembunyikan Login Member VIP' : 'Punya akun Member VIP? Masuk di sini'}
+          </button>
+
+          {showMemberLogin && (
+            <form onSubmit={handleMemberSubmit} style={{ marginTop: '12px', textAlign: 'left' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Username (contoh: member / admin)"
+                  value={memberUser}
+                  onChange={(e) => setMemberUser(e.target.value)}
+                  style={{ fontSize: '0.85rem', padding: '8px 10px' }}
+                  required
+                />
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="Password (contoh: 123)"
+                  value={memberPass}
+                  onChange={(e) => setMemberPass(e.target.value)}
+                  style={{ fontSize: '0.85rem', padding: '8px 10px' }}
+                  required
+                />
+                {memberError && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem' }}>{memberError}</span>
+                )}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }}
+                >
+                  Masuk Akun Member VIP
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         <div className="login-modal-footer-note">
@@ -145,3 +301,4 @@ export default function LoginGateModal({
     </div>
   );
 }
+

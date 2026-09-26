@@ -5,13 +5,20 @@
 
 export const STORAGE_KEY_CLIENT_ID = 'chaiz_google_client_id';
 
-// Client ID Khusus Production / Vercel (chaizstore-web-taupe.vercel.app)
-export const VERCEL_PRODUCTION_CLIENT_ID = '1996629502-7v3pu0ncflcjitrtn5m88bjanb05rtik.apps.googleusercontent.com';
+export const NEW_CLIENT_ID = '1996629502-0ces371120klqn6rgfhnvo1bhki54lsr.apps.googleusercontent.com';
+export const VERCEL_PRODUCTION_CLIENT_ID = NEW_CLIENT_ID;
+export const LOCALHOST_DEV_CLIENT_ID = NEW_CLIENT_ID;
+export const DEFAULT_OFFICIAL_CLIENT_ID = NEW_CLIENT_ID;
 
-// Client ID Khusus Localhost Dev (localhost)
-export const LOCALHOST_DEV_CLIENT_ID = '1996629502-u9c5l3ci3ufeqp36ttmucuqhtue1pqir.apps.googleusercontent.com';
-
-export const DEFAULT_OFFICIAL_CLIENT_ID = VERCEL_PRODUCTION_CLIENT_ID;
+/**
+ * Cek apakah user sedang membuka web via IP Address lokal (misal di HP via 192.168.x.x)
+ * Google OAuth secara tegas melarang IP Address sebagai Authorized Origin
+ */
+export function isIpAddressHostname() {
+  if (typeof window === 'undefined' || !window.location) return false;
+  const host = window.location.hostname;
+  return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) && host !== '127.0.0.1';
+}
 
 /**
  * Decode base64 Google JWT Token
@@ -35,24 +42,13 @@ export function parseJwt(token) {
 }
 
 /**
- * Mengambil Google Client ID dari env, localStorage, atau deteksi otomatis domain
+ * Mengambil Google Client ID resmi terbaru
  */
 export function getActiveGoogleClientId() {
   const envId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   if (envId && envId.trim()) return envId.trim();
 
-  const localId = localStorage.getItem(STORAGE_KEY_CLIENT_ID);
-  if (localId && localId.trim()) return localId.trim();
-
-  // Otomatis tentukan berdasarkan domain (Localhost vs Vercel)
-  if (typeof window !== 'undefined' && window.location) {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
-      return LOCALHOST_DEV_CLIENT_ID;
-    }
-  }
-
-  return VERCEL_PRODUCTION_CLIENT_ID;
+  return NEW_CLIENT_ID;
 }
 
 /**

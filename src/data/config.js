@@ -37,7 +37,15 @@ export const PAYMENT_INFO = {
 };
 
 export const CS_GEMINI_CONFIG = {
-  apiKey: (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) || "",
-  models: ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-pro"],
+  apiKey:
+    (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
+    "",
+  models: [
+    "gemini-flash-lite-latest",
+    "gemini-3.6-flash",
+    "gemini-3.8-flash",
+    "gemini-flash-latest"
+  ],
   apiEndpoint: "https://generativelanguage.googleapis.com/v1beta/models"
 };
+
