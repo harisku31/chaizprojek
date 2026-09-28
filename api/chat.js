@@ -36,10 +36,11 @@ export default async function handler(req, res) {
 
     // Stable & high-speed Gemini models with fallback
     const models = [
-      "gemini-flash-lite-latest",
       "gemini-3.6-flash",
+      "gemini-3.7-flash",
+      "gemini-flash-latest",
       "gemini-3.8-flash",
-      "gemini-flash-latest"
+      "gemini-flash-lite-latest"
     ];
 
     const payload = {

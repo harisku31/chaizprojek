@@ -41,10 +41,11 @@ export const CS_GEMINI_CONFIG = {
     (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
     "",
   models: [
-    "gemini-flash-lite-latest",
     "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-flash-latest",
     "gemini-3.8-flash",
-    "gemini-flash-latest"
+    "gemini-flash-lite-latest"
   ],
   apiEndpoint: "https://generativelanguage.googleapis.com/v1beta/models"
 };
