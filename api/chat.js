@@ -36,14 +36,14 @@ export default async function handler(req, res) {
 
     // Stable & high-speed Gemini and Gemma models with robust fallback
     const models = [
-      "gemma-4-31b-it",
-      "gemma-4-26b-a4b-it",
       "gemini-3.6-flash",
-      "gemini-3.5-flash-lite",
       "gemini-3.7-flash",
+      "gemini-3.5-flash-lite",
       "gemini-flash-latest",
       "gemini-3.8-flash",
-      "gemini-flash-lite-latest"
+      "gemini-flash-lite-latest",
+      "gemma-4-31b-it",
+      "gemma-4-26b-a4b-it"
     ];
 
     const payload = {
@@ -96,7 +96,8 @@ export default async function handler(req, res) {
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(modelPayload)
+          body: JSON.stringify(modelPayload),
+          signal: AbortSignal.timeout(5000)
         });
 
         if (response.ok) {

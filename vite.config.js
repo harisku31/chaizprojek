@@ -11,8 +11,11 @@ export default defineConfig(({ mode }) => {
       {
         name: 'local-api-chat-middleware',
         configureServer(server) {
-          server.middlewares.use('/api/chat', async (req, res) => {
-            if (req.method === 'POST') {
+          server.middlewares.use((req, res, next) => {
+            console.log('[DEBUG CHAT REQ]:', req.method, req.url);
+            const parsedUrl = new URL(req.url, 'http://localhost:3000');
+            const isChatRoute = parsedUrl.pathname === '/api/chat';
+            if (isChatRoute && req.method === 'POST') {
               let body = '';
               req.on('data', (chunk) => {
                 body += chunk;
@@ -21,14 +24,14 @@ export default defineConfig(({ mode }) => {
                 try {
                   const { contents, systemInstruction, generationConfig } = JSON.parse(body || '{}');
                   const models = [
-                    'gemma-4-31b-it',
-                    'gemma-4-26b-a4b-it',
                     'gemini-3.6-flash',
-                    'gemini-3.5-flash-lite',
                     'gemini-3.7-flash',
+                    'gemini-3.5-flash-lite',
                     'gemini-flash-latest',
                     'gemini-3.8-flash',
-                    'gemini-flash-lite-latest'
+                    'gemini-flash-lite-latest',
+                    'gemma-4-31b-it',
+                    'gemma-4-26b-a4b-it'
                   ];
 
                   const payload = {
@@ -73,7 +76,8 @@ export default defineConfig(({ mode }) => {
                       const response = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(modelPayload)
+                        body: JSON.stringify(modelPayload),
+                        signal: AbortSignal.timeout(5000)
                       });
 
                       if (response.ok) {
@@ -113,9 +117,11 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ error: err.message }));
                 }
               });
-            } else {
+            } else if (isChatRoute) {
               res.writeHead(405, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+            } else {
+              next();
             }
           });
         }
