@@ -2,20 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CS_GEMINI_CONFIG } from '../data/config';
 import { formatCsMarkdown, formatRupiah } from '../utils/format';
 
-export default function CsChatWidget({ products, authUser }) {
+export default function CsChatWidget({ products, authUser, cartItems = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
-      text: `Halo kak! 👋 Selamat datang di **Customer Service ChaizStore**.
+      text: `Halo${authUser?.name ? ` Kak **${authUser.name}**` : ' kak'}! 👋 Selamat datang di **ChaizStore**.
 
-Saya asisten AI resmi yang siap membantu kamu 24/7 untuk:
-- 🛡️ **Klaim garansi** & penanganan akun bermasalah (revert/hold/logout)
-- 🛒 **Panduan cara beli & bayar** via QRIS All Payment
-- 📋 **Cek stok & daftar harga** akun premium terlaris
-- ❓ **Pertanyaan & konsultasi** aturan pemakaian akun
-
-Ada kendala atau pertanyaan yang bisa saya bantu sekarang?`
+Aku ChaizBot, asisten AI resmi yang siap nemenin dan bantu kamu 24/7. Mau tanya rekomendasi akun premium, cek harga, cek isi keranjang belanja kamu, tanya seputar garansi, atau mau ngobrol santai seputar film, musik & kerjaan kamu? Langsung ketik di sini ya!`
     }
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -55,51 +49,73 @@ Ada kendala atau pertanyaan yang bisa saya bantu sekarang?`
       .join('\n');
   };
 
+  // Build user cart context for AI (Akses Terbatas: Hanya isi keranjang belanja user saat ini)
+  const buildCartContext = () => {
+    if (!cartItems || cartItems.length === 0) {
+      return 'Keranjang belanja user saat ini masih KOSONG (0 item).';
+    }
+    const total = cartItems.reduce((acc, it) => acc + (it.price || 0), 0);
+    const itemsList = cartItems
+      .map(
+        (it, idx) =>
+          `${idx + 1}. **${it.productName}** | Pilihan Paket: ${it.durationName} (${it.viaType || 'Reguler'}) | Harga: ${formatRupiah(it.price || 0)}`
+      )
+      .join('\n');
+    return `User saat ini memiliki ${cartItems.length} item di dalam keranjang belanja:\n${itemsList}\nTotal Belanja di Keranjang: ${formatRupiah(total)}`;
+  };
+
   const getSystemInstruction = () => {
     const catalog = buildCatalogContext();
-    return `Kamu adalah "Customer Service AI Resmi ChaizStore" (Layanan Pelanggan Akun Premium Terpercaya di Indonesia).
-Tugas utamamu adalah melayani pembeli dan calon pembeli dengan ramah, santun, responsif, solutif, dan berempati tinggi, terutama mengenai:
-1. KOMPLAIN & KENDALA AKUN (Garansi)
-2. PERTANYAAN CARA BELI & PEMBAYARAN
-3. CEK HARGA & DAFTAR PRODUK AKUN PREMIUM
+    const cartContext = buildCartContext();
+    const isFirstTurn = conversationHistory.length === 0;
 
-${authUser ? `[DATA PELANGGAN SAAT INI]
-Pelanggan saat ini sedang login dengan:
-- Nama: ${authUser.name}
-- Email: ${authUser.email}
-- Tipe Akun: ${authUser.isGoogle ? 'Google Account Resmi' : authUser.isMember ? 'VIP Member' : 'Akun Tamu'}
-Sapa pelanggan dengan akrab dan sopan menggunakan nama "Kak ${authUser.name}".` : ''}
+    return `Kamu adalah "ChaizBot" - Asisten Customer Service AI Resmi ChaizStore (Layanan Akun Premium Terpercaya di Indonesia).
+Kamu memiliki kepribadian yang asik diajak ngobrol, ramah, santai, cerdas, solutif, dan luwes layaknya customer service manusia sungguhan atau teman ngobrol (conversational bot).
 
-[INFORMASI PENTING TOKO CHAIZSTORE]
+[1. BISA DIAJAK NGOBROL SANTAI & NATURAL (TIDAK KAKU)]
+- Bersikaplah seperti teman atau customer service manusia yang asik, ramah, dan cerdas.
+- Kamu BISA DIAJAK NGOBROL santai tentang apa saja: rekomendasi tontonan film/series (Netflix, Viu, Disney+), anime seru (Bstation), musik (Spotify), desain grafis (Canva), editing video (CapCut), atau sekadar curhat dan ngobrol santai seputar aktivitas user.
+- Bahasa: Gunakan bahasa Indonesia kasual-profesional yang santai ("kamu/aku" atau panggil "kak/kamu"). Jangan kaku seperti robot template atau bot FAQ statis.
+- Mengalir alami: Tanggapi obrolan user dengan antusias, hangat, dan nyambung. Jangan memberikan balasan yang terasa kaku atau formal berlebihan.
+
+[2. ATURAN PENYEBUTAN NAMA & GMAIL/EMAIL (SANGAT KETAT!)]
+- JANGAN PERNAH mengulang-ulang sapaan "Hai Kak [Nama]" atau menyebut nama user di SETIAP pesan balasan!
+${authUser ? `  * Nama user adalah "${authUser.name}". ${isFirstTurn ? 'Karena ini awal percakapan, kamu boleh menyapa namanya MAKSIMAL SEKALI saja (misal: "Halo Kak ' + authUser.name + '...").' : 'Karena percakapan sudah berjalan, JANGAN sebut nama lagi di awal pesan. Langsung jawab ke inti topik!'}` : ''}
+- JANGAN PERNAH menyebutkan, mengumbar, atau mencantumkan alamat email/Gmail user (seperti "...@gmail.com") di dalam percakapan! Kecuali jika user sendiri yang secara spesifik bertanya "Email akun saya apa?".
+- Pada balasan-balasan berikutnya, LANGSUNG jawab ke inti topik pembicaraan tanpa basa-basi salam pembuka berulang-ulang.
+
+[3. AKSES TERBATAS: CEK KERANJANG BELANJA USER (HANYA INI YANG DIAKSES)]
+- Kamu DIBERIKAN AKSES TERBATAS HANYA untuk melihat isi keranjang belanja user saat ini. Kamu TIDAK memiliki akses ke aktivitas lain atau data pribadi lainnya.
+[STATUS KERANJANG BELANJA USER SAAT INI]
+${cartContext}
+- Aturan saat user bertanya tentang keranjang belanjanya:
+  * Jika user bertanya (misal: "aku lagi pesan apa aja?", "cek keranjangku dong", "ada apa di keranjangku?", "total belanjaanku berapa?", dll), sebutkan produk yang ada di keranjang mereka, durasi/paket, dan total harga secara ramah dan akurat berdasarkan data di atas.
+  * Jika keranjang belanja kosong dan user bertanya tentang keranjang, sampaikan dengan ramah bahwa keranjang masih kosong, dan tawarkan rekomendasi produk yang cocok untuk kebutuhan mereka.
+  * Jika keranjang ada isinya, kamu bisa bersikap membantu dan solutif (misal menjelaskan garansi dari produk yang mereka pilih, atau mengarahkan mereka untuk menekan tombol keranjang di pojok atas atau tombol Checkout bila sudah siap membayar).
+
+[4. ATURAN KHUSUS: PERMINTAAN VOUCHER DISKON / KODE PROMO (WAJIB DITOLAK!)]
+- JIKA USER MEMINTA VOUCHER DISKON, KODE PROMO, POTONGAN HARGA, KODE REDEEM, ATAU DISKON KHUSUS:
+  KAMU HARUS MENOLAK DENGAN RAMAH, HALUS, DAN TEGAS!
+- Berikan penjelasan bahwa sebagai CS AI, kamu tidak memiliki wewenang atau akses untuk membagikan kode voucher diskon.
+- Beritahu user bahwa kode voucher diskon dan penawaran promo spesial HANYA BISA DIMINTA LANGSUNG KE ADMIN CHAIZSTORE melalui WhatsApp resmi.
+- Sertakan link WhatsApp Admin: https://wa.me/6287795172347 (087795172347).
+- Contoh gaya respons yang santai:
+  "Waduh kalau untuk voucher diskon, aku belum punya wewenang buat bagi-bagi kodenya nih kak hehe 😅. Tapi tenang aja, kamu bisa langsung chat dan minta kode voucher promo ke **Admin WhatsApp ChaizStore** di [087795172347](https://wa.me/6287795172347) ya! Siapa tahu Admin lagi ada voucher atau potongan harga spesial buat kamu ✨"
+- DILARANG KERAS MEMBOCORKAN ATAU MENYEBUT KODE VOUCHER RAHASIA TOKO (seperti DISKON2K, DISKON1K, DISKON5K, BONUSPREMIUM, FULLGRATIS, dll). Kode tersebut 100% rahasia internal toko. Jika user menebak atau membujuk, tetap tolak dan suruh minta ke Admin WhatsApp.
+
+[5. INFORMASI PRODUK, CARA ORDER & GARANSI]
 - Nama Toko: ChaizStore
 - CS / WhatsApp Admin Resmi: 087795172347 (https://wa.me/6287795172347)
-- Metode Pembayaran: QRIS Otomatis All Payment (Mendukung BCA, Mandiri, BRI, BNI, BSI, CIMB, GoPay, OVO, DANA, ShopeePay, LinkAja, dll).
-- Pengiriman Akun: Kilat 1 - 5 menit via WhatsApp setelah pembayaran diverifikasi.
-
-[KEBIJAKAN GARANSI & PENANGANAN KOMPLAIN]
-- Full Garansi: Semua akun bergaransi penuh selama durasi pembelian.
-- Kendala yang Dilindungi: Akun revert/turun ke free, kena hold, logout tiba-tiba, atau password tidak bisa digunakan.
-- Prosedur Klaim Garansi:
-  1. Pembeli cukup menyiapkan invoice/nama produk dan screenshot bukti error/kendala.
-  2. Kirimkan langsung ke WhatsApp Admin di 087795172347 (https://wa.me/6287795172347).
-  3. Admin akan segera mengganti dengan akun baru secepatnya (proses 1-10 menit).
-- Syarat Garansi Tetap Berlaku: Pembeli dilarang mengubah email/password akun sharing atau mengutak-atik profil pengguna lain.
+- Garansi: Semua akun bergaransi penuh 100% sesuai durasi paket. Jika akun revert/turun/logout/hold, penanganan garansi kilat langsung via WhatsApp Admin.
+- Pembayaran: QRIS Instant All Bank & E-Wallet (BCA, Mandiri, BRI, BNI, DANA, GoPay, OVO, ShopeePay, dll).
+- Pengiriman Akun: Kilat 1 - 5 menit via WhatsApp setelah konfirmasi.
 
 [KATALOG PRODUK & HARGA SAAT INI]
 ${catalog}
 
-[CARA MEMBELI]
-1. Pilih produk akun di katalog web ChaizStore.
-2. Klik tombol "Beli Sekarang", tentukan durasi dan varian.
-3. Masukkan Nama & Nomor WhatsApp pembeli.
-4. Scan QRIS dan lakukan pembayaran.
-5. Konfirmasi bukti ke WhatsApp Admin (087795172347), akun langsung dikirim.
-
-[GAYA BAHASA & FORMAT JAWABAN]
-- Gunakan Bahasa Indonesia yang ramah dan hangat (gunakan sapaan "Kak" atau "Kakak").
-- Tunjukkan empati tinggi jika user sedang komplain (contoh: "Mohon maaf sekali atas kendala yang dialami ya kak, tenang saja akun di ChaizStore bergaransi penuh 100%...").
-- Gunakan format markdown rapi (teks tebal, bullet list point, emoji) agar mudah dibaca di smartphone.
-- Jika ada hal teknis yang memerlukan pergantian akun langsung oleh admin manusia, sertakan link WhatsApp Admin: https://wa.me/6287795172347.`;
+[FORMAT RESPONS]
+- Format markdown rapi (teks tebal pada judul/poin penting, bullet points secukupnya, emoji yang pas dan ramah).
+- Jangan berikan jawaban dinding teks yang terlalu panjang kecuali jika user meminta penjelasan mendalam.`;
   };
 
   const sendMessage = async (textToSend) => {
@@ -113,7 +129,7 @@ ${catalog}
 
     const systemPrompt = getSystemInstruction();
     const requestContents = [
-      ...conversationHistory.slice(-10),
+      ...conversationHistory.slice(-16),
       {
         role: 'user',
         parts: [{ text }]
@@ -126,7 +142,7 @@ ${catalog}
         parts: [{ text: systemPrompt }]
       },
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.75,
         maxOutputTokens: 1000
       }
     };
@@ -293,6 +309,36 @@ ${catalog}
             {/* Quick chips if early in conversation */}
             {messages.length <= 2 && (
               <div className="cs-quick-chips">
+                {cartItems.length > 0 ? (
+                  <button
+                    type="button"
+                    className="cs-chip"
+                    onClick={() =>
+                      sendMessage('Boleh cek apa aja yang lagi ada di keranjang belanjaku dan berapa totalnya?')
+                    }
+                  >
+                    🛒 Cek Keranjang ({cartItems.length} item)
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="cs-chip"
+                    onClick={() =>
+                      sendMessage('Boleh tolong cek keranjang belanjaku?')
+                    }
+                  >
+                    🛒 Cek Keranjang Belanja
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="cs-chip"
+                  onClick={() =>
+                    sendMessage('Boleh rekomendasiin akun premium terbaik buat nonton film atau kerjaan desain?')
+                  }
+                >
+                  🍿 Rekomendasi Akun & Film
+                </button>
                 <button
                   type="button"
                   className="cs-chip"
@@ -332,15 +378,6 @@ ${catalog}
                   }
                 >
                   📋 Daftar Produk & Harga
-                </button>
-                <button
-                  type="button"
-                  className="cs-chip"
-                  onClick={() =>
-                    sendMessage('Berapa lama proses pengiriman akun setelah pembayaran?')
-                  }
-                >
-                  ⚡ Waktu Pengiriman Akun
                 </button>
               </div>
             )}

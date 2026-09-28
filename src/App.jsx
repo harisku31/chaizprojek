@@ -272,7 +272,7 @@ export default function App() {
       <QuickSettingMenu />
 
       {/* Gemini AI Customer Service Chat Widget */}
-      <CsChatWidget products={PRODUCTS} authUser={authUser} />
+      <CsChatWidget products={PRODUCTS} authUser={authUser} cartItems={cartItems} />
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} />

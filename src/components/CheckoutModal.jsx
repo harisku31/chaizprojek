@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { CONFIG, PAYMENT_INFO } from '../data/config';
+import { VOUCHERS, findVoucher } from '../data/vouchers';
 import {
   formatRupiah,
   copyToClipboard,
@@ -20,6 +21,22 @@ export default function CheckoutModal({
   const [buyerWa, setBuyerWa] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [capcutAccount, setCapcutAccount] = useState('');
+
+  // Voucher states
+  const [voucherCodeInput, setVoucherCodeInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [selectedBonusItem, setSelectedBonusItem] = useState('Canva Pro (1 Bulan)');
+
+  // Reset voucher on modal open/close
+  useEffect(() => {
+    if (!isOpen) {
+      setVoucherCodeInput('');
+      setAppliedVoucher(null);
+      setSelectedBonusItem('Canva Pro (1 Bulan)');
+      setSelectedMethod(null);
+      setUploadedProof(null);
+    }
+  }, [isOpen]);
 
   // Auto-fill dari akun login (Google / Member / Chaiz)
   React.useEffect(() => {
@@ -42,6 +59,17 @@ export default function CheckoutModal({
   if (!isOpen) return null;
 
   const totalAmount = items.reduce((acc, curr) => acc + (curr.total || curr.price || 0), 0);
+
+  // Discount calculation
+  let discountAmount = 0;
+  if (appliedVoucher) {
+    if (appliedVoucher.type === 'discount') {
+      discountAmount = Math.min(appliedVoucher.discountAmount, totalAmount);
+    } else if (appliedVoucher.type === 'full_free') {
+      discountAmount = totalAmount;
+    }
+  }
+  const finalTotal = Math.max(0, totalAmount - discountAmount);
 
   const hasCapcutOwnAccount = items.some((item) => {
     const nameMatch = (item.name || '').toLowerCase().includes('capcut');
@@ -134,13 +162,46 @@ export default function CheckoutModal({
     onShowToast('Foto bukti pembayaran dihapus', 'fa-trash-can');
   };
 
+  const handleApplyVoucher = (codeOverride) => {
+    const raw = codeOverride || voucherCodeInput;
+    if (!raw || !raw.trim()) {
+      onShowToast('Silakan masukkan kode voucher / redeem code terlebih dahulu!', 'fa-triangle-exclamation');
+      return;
+    }
+    const found = findVoucher(raw);
+    if (!found) {
+      onShowToast('Kode redeem tidak valid atau sudah kedaluwarsa', 'fa-circle-xmark');
+      return;
+    }
+    setAppliedVoucher(found);
+    setVoucherCodeInput(found.code);
+
+    if (found.type === 'free_item' && (!selectedBonusItem || !found.bonusOptions.some((b) => b.name === selectedBonusItem))) {
+      setSelectedBonusItem(found.bonusOptions[0].name);
+    }
+
+    if (found.type === 'full_free') {
+      onShowToast('🎉 Kode Redeem VIP Valid! Tagihan Anda 100% Full Gratis (Rp 0)!', 'fa-crown');
+    } else if (found.type === 'free_item') {
+      onShowToast(`🎉 Kode Redeem Valid! Anda mendapatkan hadiah 1 akun premium gratis!`, 'fa-gift');
+    } else {
+      onShowToast(`✅ Kode Redeem Valid! Potongan ${formatRupiah(found.discountAmount)} berhasil diterapkan!`, 'fa-circle-check');
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCodeInput('');
+    onShowToast('Kode voucher telah dihapus', 'fa-trash-can');
+  };
+
   const handleSubmitOrder = async () => {
-    if (!selectedMethod) {
+    if (finalTotal > 0 && !selectedMethod) {
       onShowToast('Silakan klik salah satu metode pembayaran terlebih dahulu!', 'fa-triangle-exclamation');
       return;
     }
 
-    if (!uploadedProof) {
+    if (finalTotal > 0 && !uploadedProof) {
       onShowToast('Harap upload foto bukti transfer terlebih dahulu!', 'fa-triangle-exclamation');
       return;
     }
@@ -167,18 +228,20 @@ export default function CheckoutModal({
     setIsSubmitting(true);
 
     // 1. Get uploaded photo URL
-    let photoUrl = uploadedProof.uploadedUrl || null;
-    if (!photoUrl && uploadedProof.uploadPromise) {
-      try {
-        photoUrl = await uploadedProof.uploadPromise;
-      } catch {
-        photoUrl = null;
-      }
-    } else if (!photoUrl && uploadedProof.file) {
-      try {
-        photoUrl = await uploadProofImage(uploadedProof.file);
-      } catch {
-        photoUrl = null;
+    let photoUrl = uploadedProof ? uploadedProof.uploadedUrl || null : null;
+    if (uploadedProof) {
+      if (!photoUrl && uploadedProof.uploadPromise) {
+        try {
+          photoUrl = await uploadedProof.uploadPromise;
+        } catch {
+          photoUrl = null;
+        }
+      } else if (!photoUrl && uploadedProof.file) {
+        try {
+          photoUrl = await uploadProofImage(uploadedProof.file);
+        } catch {
+          photoUrl = null;
+        }
       }
     }
 
@@ -193,7 +256,9 @@ export default function CheckoutModal({
     }
 
     let methodTitle = 'QRIS Instant';
-    if (selectedMethod === 'ewallet') {
+    if (finalTotal === 0) {
+      methodTitle = `Voucher Promo Bebas Biaya (100% Full Gratis - ${appliedVoucher ? appliedVoucher.code : 'GRATIS'})`;
+    } else if (selectedMethod === 'ewallet') {
       methodTitle = 'E-Wallet (081809730331)';
     } else if (selectedMethod === 'bank') {
       methodTitle = 'Bank Muamalat (1410043224)';
@@ -205,6 +270,24 @@ export default function CheckoutModal({
       })
       .join('\n\n');
 
+    let voucherSection = '';
+    if (appliedVoucher) {
+      if (appliedVoucher.type === 'discount') {
+        voucherSection = `\n🎟️ *VOUCHER DIGUNAKAN:* ${appliedVoucher.code} (${appliedVoucher.name})\n🏷️ *POTONGAN DISKON:* -${formatRupiah(discountAmount)}`;
+      } else if (appliedVoucher.type === 'full_free') {
+        voucherSection = `\n🎟️ *VOUCHER DIGUNAKAN:* ${appliedVoucher.code} (Potongan 100% Full Gratis)\n🏷️ *POTONGAN DISKON:* -${formatRupiah(totalAmount)} (Rp 0 Bebas Biaya)`;
+      } else if (appliedVoucher.type === 'free_item') {
+        voucherSection = `\n🎟️ *VOUCHER DIGUNAKAN:* ${appliedVoucher.code} (${appliedVoucher.name})\n🎁 *BONUS ITEM GRATIS:* 1x ${selectedBonusItem} (Rp 0 - FREE)`;
+      }
+    }
+
+    let totalHargaText = '';
+    if (appliedVoucher) {
+      totalHargaText = `💰 *SUBTOTAL:* ${formatRupiah(totalAmount)}${voucherSection}\n💵 *TOTAL HARGA TAGIHAN:* ${finalTotal === 0 ? 'Rp 0 (FULL GRATIS)' : formatRupiah(finalTotal)}`;
+    } else {
+      totalHargaText = `💰 *TOTAL HARGA:* ${formatRupiah(totalAmount)}`;
+    }
+
     let buktiPembayaranText = '';
     if (photoUrl) {
       buktiPembayaranText = `📸 *FOTO BUKTI PEMBAYARAN:*
@@ -213,10 +296,14 @@ export default function CheckoutModal({
 • Link Foto Bukti Transfer:
 ${photoUrl}
 _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sah)_`;
-    } else {
+    } else if (uploadedProof) {
       buktiPembayaranText = `📸 *BUKTI PEMBAYARAN:*
 • Status: Foto bukti telah di-upload (${uploadedProof.name} - ${uploadedProof.size})
 • Gambar bukti transfer terlampir pada chat WhatsApp ini.`;
+    } else if (finalTotal === 0) {
+      buktiPembayaranText = `🎉 *STATUS PEMBAYARAN:*
+• Status: LUNAS & KLAIM GRATIS 100% (Voucher ${appliedVoucher ? appliedVoucher.code : 'FULLGRATIS'})
+• Total Transfer: Rp 0 (Bebas Biaya Transfer)`;
     }
 
     let capcutAccountLine = '';
@@ -230,7 +317,7 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
 📦 *RINCIAN ITEM:*
 ${itemsText}
 ━━━━━━━━━━━━━━━━━━━━━
-💰 *TOTAL HARGA:* ${formatRupiah(totalAmount)}
+${totalHargaText}
 💳 *METODE PEMBAYARAN:* ${methodTitle}
 ━━━━━━━━━━━━━━━━━━━━━
 👤 *DATA PEMBELI:*
@@ -259,6 +346,8 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
       onShowToast('Link foto bukti transfer & rincian pesanan berhasil masuk ke WhatsApp!', 'fa-circle-check');
     } else if (isCopiedToClipboard) {
       onShowToast('Foto bukti transfer tersalin di clipboard! Tekan Ctrl+V di chat WhatsApp.', 'fa-circle-check');
+    } else if (finalTotal === 0) {
+      onShowToast('Pesanan gratis berhasil diteruskan ke WhatsApp Admin!', 'fa-circle-check');
     } else {
       onShowToast('Pesanan dialihkan ke WhatsApp! Silakan kirimkan foto bukti transfer Anda di chat.', 'fa-circle-check');
     }
@@ -322,9 +411,150 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
                 </tbody>
               </table>
             </div>
-            <div className="checkout-grand-total">
-              <span>Total Tagihan:</span>
-              <strong>{formatRupiah(totalAmount)}</strong>
+            {/* Voucher Diskon Section */}
+            {/* Voucher / Redeem Code Section (Sistem Redeem Code Rahasia) */}
+            <div className="checkout-voucher-container">
+              <div className="checkout-voucher-header">
+                <span className="checkout-voucher-title">
+                  <i className="fa-solid fa-gift text-warning"></i> Kode Redeem / Voucher
+                </span>
+                <span className="checkout-voucher-hint">
+                  Punya kode voucher promo khusus? Masukkan kode di bawah untuk klaim:
+                </span>
+              </div>
+
+              <div className="checkout-voucher-input-group">
+                <div className="voucher-input-relative">
+                  <i className="fa-solid fa-key voucher-input-icon"></i>
+                  <input
+                    type="text"
+                    className="form-input voucher-field-input"
+                    placeholder="Masukkan kode voucher..."
+                    value={voucherCodeInput}
+                    onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyVoucher();
+                      }
+                    }}
+                    disabled={!!appliedVoucher}
+                  />
+                </div>
+                {appliedVoucher ? (
+                  <button
+                    type="button"
+                    className="btn-voucher-action btn-voucher-remove"
+                    onClick={handleRemoveVoucher}
+                    title="Batalkan voucher"
+                  >
+                    <i className="fa-solid fa-xmark"></i> Hapus
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-voucher-action btn-voucher-apply"
+                    onClick={() => handleApplyVoucher()}
+                  >
+                    <i className="fa-solid fa-check"></i> Klaim
+                  </button>
+                )}
+              </div>
+
+              {/* Status Voucher Terpasang (Hanya muncul jika kode valid & berhasil di-klaim) */}
+              {appliedVoucher && (
+                <div className="checkout-voucher-active-notice">
+                  <div className="active-voucher-left">
+                    <span className="active-voucher-icon" style={{ backgroundColor: `${appliedVoucher.color}22`, color: appliedVoucher.color }}>
+                      <i className={appliedVoucher.icon}></i>
+                    </span>
+                    <div>
+                      <div className="active-voucher-name">
+                        <strong>{appliedVoucher.code}</strong> &bull; {appliedVoucher.name}
+                      </div>
+                      <div className="active-voucher-desc">{appliedVoucher.description}</div>
+                    </div>
+                  </div>
+                  <span className="active-voucher-tag">
+                    <i className="fa-solid fa-circle-check"></i> Berhasil Diklaim
+                  </span>
+                </div>
+              )}
+
+              {/* Opsi Pilihan Akun Hadiah Gratis (Untuk Voucher ke-4: Canva / YouTube) */}
+              {appliedVoucher && appliedVoucher.type === 'free_item' && (
+                <div className="checkout-bonus-picker">
+                  <div className="bonus-picker-title">
+                    <i className="fa-solid fa-gift text-cyan"></i> Pilih 1 Akun Premium Hadiah Anda:
+                  </div>
+                  <div className="bonus-picker-grid">
+                    {appliedVoucher.bonusOptions.map((opt) => (
+                      <label
+                        key={opt.id}
+                        className={`bonus-card ${selectedBonusItem === opt.name ? 'active' : ''}`}
+                        onClick={() => setSelectedBonusItem(opt.name)}
+                      >
+                        <input
+                          type="radio"
+                          name="bonusOptionRadio"
+                          checked={selectedBonusItem === opt.name}
+                          onChange={() => setSelectedBonusItem(opt.name)}
+                        />
+                        <div className="bonus-card-icon">
+                          <i className={opt.id === 'canva' ? 'fa-solid fa-palette text-cyan' : 'fa-brands fa-youtube text-danger'}></i>
+                        </div>
+                        <div className="bonus-card-info">
+                          <strong>{opt.name}</strong>
+                          <small>Garansi Penuh 1 Bulan</small>
+                        </div>
+                        <span className="bonus-card-price">GRATIS</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rincian Subtotal, Diskon, dan Total Tagihan */}
+            <div className="checkout-totals-block">
+              <div className="checkout-total-row subtotal-row">
+                <span>Subtotal Pesanan:</span>
+                <span>{formatRupiah(totalAmount)}</span>
+              </div>
+
+              {appliedVoucher && appliedVoucher.type === 'discount' && (
+                <div className="checkout-total-row discount-row">
+                  <span>
+                    <i className="fa-solid fa-ticket text-teal"></i> Potongan Voucher ({appliedVoucher.code}):
+                  </span>
+                  <span className="discount-value">- {formatRupiah(discountAmount)}</span>
+                </div>
+              )}
+
+              {appliedVoucher && appliedVoucher.type === 'full_free' && (
+                <div className="checkout-total-row discount-row full-free-row">
+                  <span>
+                    <i className="fa-solid fa-crown text-warning"></i> Diskon Full Gratis ({appliedVoucher.code}):
+                  </span>
+                  <span className="discount-value">- {formatRupiah(totalAmount)} (Full 100% Gratis)</span>
+                </div>
+              )}
+
+              {appliedVoucher && appliedVoucher.type === 'free_item' && (
+                <div className="checkout-total-row bonus-row">
+                  <span>
+                    <i className="fa-solid fa-gift text-cyan"></i> Bonus Item Gratis:
+                  </span>
+                  <span className="bonus-value">1x {selectedBonusItem} (Rp 0 - FREE)</span>
+                </div>
+              )}
+
+              <div className="checkout-grand-total">
+                <span>Total Tagihan:</span>
+                <strong className={finalTotal === 0 ? 'text-free-glow' : ''}>
+                  {finalTotal === 0 ? 'Rp 0 (FULL GRATIS)' : formatRupiah(finalTotal)}
+                </strong>
+              </div>
             </div>
           </div>
 
@@ -501,11 +731,19 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
             </div>
 
             {/* Prompt before selection */}
-            {!selectedMethod && (
+            {!selectedMethod && finalTotal > 0 && (
               <div className="method-select-prompt">
                 <i className="fa-solid fa-hand-pointer text-warning"></i>
                 <span>
                   Pilih salah satu metode di atas (<strong>QRIS</strong>, <strong>E-Wallet</strong>, atau <strong>Bank</strong>) untuk memunculkan kode QRIS & detail pembayaran.
+                </span>
+              </div>
+            )}
+            {finalTotal === 0 && (
+              <div className="method-free-banner">
+                <i className="fa-solid fa-crown text-warning"></i>
+                <span>
+                  Voucher Full Gratis Aktif! Total Tagihan <strong>Rp 0</strong>. Tidak perlu transfer pembayaran.
                 </span>
               </div>
             )}
@@ -649,7 +887,7 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
               )}
             </div>
 
-            {!uploadedProof && (
+            {!uploadedProof && finalTotal > 0 && (
               <div className="proof-warning-notice">
                 <i className="fa-solid fa-lock"></i>
                 <span>
@@ -657,21 +895,36 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
                 </span>
               </div>
             )}
+
+            {finalTotal === 0 && (
+              <div className="proof-free-notice">
+                <i className="fa-solid fa-crown text-warning"></i>
+                <span>
+                  <strong>Voucher Full Gratis Aktif (Tagihan Rp 0)!</strong> Anda tidak perlu transfer atau upload bukti transfer. Silakan langsung klik tombol klaim order di bawah.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 5. Submit Order Button */}
-          {uploadedProof && (
+          {(uploadedProof || finalTotal === 0) && (
             <div className="checkout-order-actions">
               <button
                 type="button"
-                className="btn btn-wa-order"
+                className={`btn btn-wa-order ${finalTotal === 0 ? 'btn-order-free' : ''}`}
                 disabled={isSubmitting}
                 onClick={handleSubmitOrder}
               >
                 {isSubmitting ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>{' '}
-                    <span>Menyiapkan Foto & WhatsApp...</span>
+                    <span>Menyiapkan Pesanan & WhatsApp...</span>
+                  </>
+                ) : finalTotal === 0 ? (
+                  <>
+                    <i className="fa-solid fa-crown"></i>{' '}
+                    <span>Klaim Order Gratis via WhatsApp</span>{' '}
+                    <i className="fa-solid fa-arrow-right"></i>
                   </>
                 ) : (
                   <>

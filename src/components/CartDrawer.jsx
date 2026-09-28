@@ -64,6 +64,10 @@ export default function CartDrawer({
 
         {items.length > 0 && (
           <div className="cart-drawer-footer">
+            <div className="cart-voucher-hint-banner">
+              <i className="fa-solid fa-gift text-warning"></i>
+              <span>Punya kode voucher khusus? Masukkan saat checkout!</span>
+            </div>
             <div className="cart-total-row">
               <span>Subtotal:</span>
               <span className="cart-total-price">{formatRupiah(total)}</span>
