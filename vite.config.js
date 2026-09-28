@@ -21,7 +21,10 @@ export default defineConfig(({ mode }) => {
                 try {
                   const { contents, systemInstruction, generationConfig } = JSON.parse(body || '{}');
                   const models = [
+                    'gemma-4-31b-it',
+                    'gemma-4-26b-a4b-it',
                     'gemini-3.6-flash',
+                    'gemini-3.5-flash-lite',
                     'gemini-3.7-flash',
                     'gemini-flash-latest',
                     'gemini-3.8-flash',
@@ -37,18 +40,60 @@ export default defineConfig(({ mode }) => {
                   let reply = null;
                   for (const model of models) {
                     try {
+                      const isGemma = model.startsWith('gemma');
+                      let requestContents = contents;
+                      let requestSys = systemInstruction;
+
+                      if (isGemma && systemInstruction) {
+                        requestSys = undefined;
+                        const sysText =
+                          typeof systemInstruction === 'string'
+                            ? systemInstruction
+                            : systemInstruction.parts?.[0]?.text || '';
+                        if (sysText) {
+                          const firstParts = contents[0]?.parts || [];
+                          const firstText = firstParts.map((p) => p.text || '').join('\n');
+                          requestContents = [
+                            {
+                              role: 'user',
+                              parts: [{ text: `[Instruksi Sistem & Konteks:\n${sysText}]\n\n${firstText}` }]
+                            },
+                            ...contents.slice(1)
+                          ];
+                        }
+                      }
+
+                      const modelPayload = {
+                        contents: requestContents,
+                        systemInstruction: requestSys || undefined,
+                        generationConfig: generationConfig || { temperature: 0.75, maxOutputTokens: 1000 }
+                      };
+
                       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                       const response = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify(modelPayload)
                       });
 
                       if (response.ok) {
                         const data = await response.json();
-                        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                          reply = data.candidates[0].content.parts.map((p) => p.text).join('');
-                          break;
+                        const candidate = data.candidates?.[0];
+                        if (candidate && candidate.content && candidate.content.parts) {
+                          const parts = candidate.content.parts;
+                          let cleanText = '';
+                          for (const part of parts) {
+                            if (!part.thought && part.text) {
+                              cleanText += (cleanText ? '\n' : '') + part.text;
+                            }
+                          }
+                          if (!cleanText && parts[0]?.text) {
+                            cleanText = parts[0].text;
+                          }
+                          if (cleanText) {
+                            reply = cleanText.trim();
+                            break;
+                          }
                         }
                       }
                     } catch (e) {

@@ -41,7 +41,10 @@ export const CS_GEMINI_CONFIG = {
     (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
     "",
   models: [
+    "gemma-4-31b-it",
+    "gemma-4-26b-a4b-it",
     "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.7-flash",
     "gemini-flash-latest",
     "gemini-3.8-flash",

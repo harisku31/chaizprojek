@@ -160,6 +160,87 @@ ${catalog}
 - Jangan berikan jawaban dinding teks yang terlalu panjang kecuali jika user meminta penjelasan mendalam.`;
   };
 
+  // Smart local catalog responder: provides 100% reliable instant response if Google API is under rate limit or busy
+  const generateSmartLocalResponse = (query) => {
+    const q = query.toLowerCase();
+
+    // 1. Kritik / Saran / Masukan
+    const isFeedbackQ = /(kritik|saran|masukan|komplain|keluhan|ulasan|review|komentar|feedback)/i.test(q);
+    if (isFeedbackQ) {
+      sendFeedbackToFormspree({
+        category: 'Kritik & Saran Pelanggan',
+        userMessage: query,
+        aiResponse: 'Terima kasih banyak atas kritik dan sarannya kak! Masukan kamu sudah langsung kami teruskan ke Gmail Admin ChaizStore 🙏'
+      });
+      return {
+        text: 'Terima kasih banyak atas kritik dan sarannya ya Kak! 🙏✨ Masukan kamu sangat berharga bagi peningkatan layanan ChaizStore dan saat ini sudah langsung otomatis diteruskan ke Gmail Admin resmi kami untuk ditindaklanjuti.',
+        isFeedbackSent: true
+      };
+    }
+
+    // 2. Keranjang Belanja
+    if (q.includes('keranjang') || q.includes('cart') || q.includes('pesen apa') || q.includes('pesanan saya')) {
+      if (!cartItems || cartItems.length === 0) {
+        return {
+          text: 'Keranjang belanja kamu saat ini masih kosong nih kak 😊. Mau aku bantu cari rekomendasi akun premium seru seperti Netflix, Spotify, Canva, atau YouTube Premium?'
+        };
+      }
+      const total = cartItems.reduce((acc, it) => acc + (it.price || 0), 0);
+      const itemsList = cartItems
+        .map((it, idx) => `${idx + 1}. **${it.productName}** (${it.durationName}) - ${formatRupiah(it.price || 0)}`)
+        .join('\n');
+      return {
+        text: `Di keranjang belanja kamu saat ini ada **${cartItems.length} item**:\n\n${itemsList}\n\n**Total Pembayaran: ${formatRupiah(total)}**\n\nKakak bisa langsung klik ikon tas belanja di atas atau tombol Checkout untuk lanjut ke pembayaran QRIS instan ya! ✨`
+      };
+    }
+
+    // 3. Garansi / Akun Revert / Hold / Bermasalah
+    if (q.includes('garansi') || q.includes('revert') || q.includes('hold') || q.includes('klaim') || q.includes('rusak') || q.includes('error')) {
+      return {
+        text: 'Tenang kak, **seluruh akun di ChaizStore bergaransi penuh 100%** sesuai durasi paket yang kamu beli! 🛡️\n\nJika akun kamu revert, logout, atau terkena hold, kamu bisa langsung hubungi WhatsApp Admin resmi kami di [087795172347](https://wa.me/6287795172347). Tim kami siap memproses penggantian atau perbaikan kilat dalam 1 - 5 menit!'
+      };
+    }
+
+    // 4. Cara Order & Pembayaran
+    if (q.includes('cara order') || q.includes('cara beli') || q.includes('bayar') || q.includes('qris') || q.includes('metode')) {
+      return {
+        text: 'Cara order akun premium di ChaizStore sangat mudah dan cepat kak: 🛒⚡\n\n1. **Pilih Akun:** Pilih produk yang kamu inginkan di katalog (misal Netflix, Spotify, Canva, dll).\n2. **Tentukan Paket:** Klik varian/durasi yang diinginkan, lalu klik **Beli Sekarang**.\n3. **Bayar QRIS Instan:** Scan kode QRIS yang muncul menggunakan aplikasi Bank (BCA, Mandiri, BRI, BNI) atau E-Wallet (DANA, GoPay, OVO, ShopeePay).\n4. **Pengiriman Kilat:** Akun akan langsung dikirimkan ke WhatsApp kamu dalam waktu 1 - 5 menit setelah konfirmasi!'
+      };
+    }
+
+    // 5. Cek Spesifik Produk di Katalog
+    const matchedProduct = products.find((p) => {
+      const pName = p.name.toLowerCase();
+      const pCat = p.category ? p.category.toLowerCase() : '';
+      return q.includes(pName) || pName.split(' ').some(w => w.length > 3 && q.includes(w)) || (pCat && q.includes(pCat));
+    });
+
+    if (matchedProduct) {
+      const durList = (matchedProduct.durations || [])
+        .map((d) => `• **${d.name}:** ${formatRupiah(d.price)} *(Garansi: ${d.warranty || matchedProduct.warranty})*`)
+        .join('\n');
+      return {
+        text: `Berikut info lengkap untuk **${matchedProduct.name}** di ChaizStore: ✨\n\n${durList}\n\n• **Status Stok:** ${matchedProduct.stock > 0 ? `Tersedia (${matchedProduct.stock} akun siap kirim)` : 'Silakan konfirmasi ke Admin'}\n• **Garansi:** 100% Full Garansi\n• **Pengiriman:** Kilat 1 - 5 menit via WhatsApp\n\nMau pesan paket yang mana nih kak? Silakan klik produknya di katalog untuk langsung checkout!`
+      };
+    }
+
+    // 6. Pertanyaan Katalog / Daftar Harga Umum
+    if (q.includes('harga') || q.includes('katalog') || q.includes('daftar') || q.includes('produk') || q.includes('menu')) {
+      const topProducts = products
+        .slice(0, 6)
+        .map((p) => `• **${p.name}:** Mulai ${formatRupiah(p.currentPrice || 0)}`)
+        .join('\n');
+      return {
+        text: `Berikut beberapa daftar akun premium terlaris di ChaizStore saat ini:\n\n${topProducts}\n\nSemua akun 100% legal, aman, dan bergaransi penuh. Mau info detail produk yang mana kak?`
+      };
+    }
+
+    // 7. General Friendly Fallback (Never show an error!)
+    return {
+      text: `Halo${authUser?.name ? ` Kak **${authUser.name}**` : ' kak'}! 👋 Senang bisa nemenin kamu.\n\nAda yang bisa aku bantu seputar akun premium di ChaizStore? Kamu bisa tanyakan **daftar harga akun**, **info klaim garansi**, **cek keranjang belanja**, atau kirim **kritik & saran** toko ya!`
+    };
+  };
+
   const sendMessage = async (textToSend) => {
     const text = textToSend.trim();
     if (!text || isGenerating) return;
@@ -212,23 +293,51 @@ ${catalog}
     if (!replyText) {
       for (const modelName of CS_GEMINI_CONFIG.models) {
         try {
+          const isGemma = modelName.startsWith('gemma');
+          let requestPayload = payload;
+
+          if (isGemma && payload.systemInstruction) {
+            const sysText = payload.systemInstruction.parts?.[0]?.text || '';
+            const firstParts = payload.contents[0]?.parts || [];
+            const firstText = firstParts.map((p) => p.text || '').join('\n');
+            requestPayload = {
+              ...payload,
+              systemInstruction: undefined,
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ text: `[Instruksi Sistem & Konteks:\n${sysText}]\n\n${firstText}` }]
+                },
+                ...payload.contents.slice(1)
+              ]
+            };
+          }
+
           const url = `${CS_GEMINI_CONFIG.apiEndpoint}/${modelName}:generateContent?key=${CS_GEMINI_CONFIG.apiKey}`;
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(requestPayload)
           });
 
           if (res.ok) {
             const data = await res.json();
-            if (
-              data.candidates &&
-              data.candidates[0] &&
-              data.candidates[0].content &&
-              data.candidates[0].content.parts
-            ) {
-              replyText = data.candidates[0].content.parts.map((p) => p.text).join('');
-              break;
+            const candidate = data.candidates?.[0];
+            if (candidate && candidate.content && candidate.content.parts) {
+              const parts = candidate.content.parts;
+              let cleanText = '';
+              for (const p of parts) {
+                if (!p.thought && p.text) {
+                  cleanText += (cleanText ? '\n' : '') + p.text;
+                }
+              }
+              if (!cleanText && parts[0]?.text) {
+                cleanText = parts[0].text;
+              }
+              if (cleanText) {
+                replyText = cleanText.trim();
+                break;
+              }
             }
           }
         } catch (err) {
@@ -273,11 +382,14 @@ ${catalog}
         { sender: 'bot', text: cleanReply, isFeedbackSent: isFeedback }
       ]);
     } else {
+      // Smart Fallback: Always respond smoothly and accurately, never show an error!
+      const smartFallback = generateSmartLocalResponse(text);
       setMessages((prev) => [
         ...prev,
         {
           sender: 'bot',
-          text: 'Mohon maaf kak, sistem CS AI sedang mengalami sedikit kendala jaringan. Jangan khawatir! Kamu bisa langsung konsultasi garansi atau keluhan ke WhatsApp Admin resmi kami di [087795172347](https://wa.me/6287795172347) ya! 🙏'
+          text: smartFallback.text,
+          isFeedbackSent: smartFallback.isFeedbackSent
         }
       ]);
     }
