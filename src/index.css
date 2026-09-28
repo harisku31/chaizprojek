@@ -7383,6 +7383,22 @@ body.auth-locked {
   }
 }
 
+/* CS AI Feedback Sent Badge */
+.cs-feedback-sent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  font-size: 0.76rem;
+  color: #10b981;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 
 
 

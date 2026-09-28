@@ -49,3 +49,7 @@ export const CS_GEMINI_CONFIG = {
   apiEndpoint: "https://generativelanguage.googleapis.com/v1beta/models"
 };
 
+export const FORMSPREE_CONFIG = {
+  feedbackEndpoint: "https://formspree.io/f/xqpawakz"
+};
+

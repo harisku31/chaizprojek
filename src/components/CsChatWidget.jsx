@@ -1,20 +1,53 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CS_GEMINI_CONFIG } from '../data/config';
+import { CS_GEMINI_CONFIG, FORMSPREE_CONFIG } from '../data/config';
 import { formatCsMarkdown, formatRupiah } from '../utils/format';
 
-export default function CsChatWidget({ products, authUser, cartItems = [] }) {
+export default function CsChatWidget({ products, authUser, cartItems = [], onShowToast }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
       text: `Halo${authUser?.name ? ` Kak **${authUser.name}**` : ' kak'}! 👋 Selamat datang di **ChaizStore**.
 
-Aku ChaizBot, asisten AI resmi yang siap nemenin dan bantu kamu 24/7. Mau tanya rekomendasi akun premium, cek harga, cek isi keranjang belanja kamu, tanya seputar garansi, atau mau ngobrol santai seputar film, musik & kerjaan kamu? Langsung ketik di sini ya!`
+Aku ChaizBot, asisten AI resmi yang siap nemenin dan bantu kamu 24/7. Mau tanya rekomendasi akun premium, cek harga, cek keranjang belanja, kirim kritik & saran, atau tanya seputar garansi? Langsung ketik di sini ya!`
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
+
+  // Send feedback/critique/suggestion automatically to Formspree (Admin Gmail)
+  const sendFeedbackToFormspree = async ({ category, userMessage, aiResponse }) => {
+    try {
+      const payload = {
+        _subject: `[ChaizStore] Masukan Pelanggan: ${category} dari ${authUser?.name || 'Pengguna'}`,
+        nama: authUser?.name || 'Pengguna ChaizStore',
+        email: authUser?.email || 'tidak_ada_email@chaizstore.id',
+        kategori: category || 'Kritik & Saran',
+        pesan_pelanggan: userMessage,
+        respon_ai: aiResponse || '',
+        tanggal: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        halaman_web: typeof window !== 'undefined' ? window.location.href : 'ChaizStore'
+      };
+
+      const res = await fetch(FORMSPREE_CONFIG.feedbackEndpoint, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        if (onShowToast) {
+          onShowToast('Kritik & saran kamu berhasil terkirim ke Gmail Admin!', 'fa-paper-plane text-success');
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal mengirim ke Formspree:', err);
+    }
+  };
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -110,6 +143,15 @@ ${cartContext}
 - Pembayaran: QRIS Instant All Bank & E-Wallet (BCA, Mandiri, BRI, BNI, DANA, GoPay, OVO, ShopeePay, dll).
 - Pengiriman Akun: Kilat 1 - 5 menit via WhatsApp setelah konfirmasi.
 
+[6. MENAMPUNG KRITIK, SARAN, MASUKAN & KOMENTAR PELANGGAN (KIRIM OTOMATIS KE GMAIL ADMIN)]
+- Kamu memiliki fitur cerdas untuk menampung kritik, saran perbaikan toko, permintaan akun/varian baru, komentar pelayanan, testimoni, atau keluhan pelanggan.
+- JIKA USER MENYAMPAIKAN KRITIK, SARAN, MASUKAN, KOMENTAR, ATAU REQUEST BARU:
+  1. Bersikaplah SANGAT RAMAH, antusias, rendah hati, dan berterima kasih dengan hangat.
+  2. Jelaskan bahwa kritik/saran mereka sangat berarti dan sudah otomatis dicatat ke sistem untuk langsung diteruskan ke Gmail Admin resmi ChaizStore agar ditinjau.
+  3. DI AKHIR JAWABANMU, WAJIB TULISKAN TAG INI DI BARIS PALING BAWAH (di baris baru sendiri):
+     [SUBMIT_FEEDBACK: <Kategori>]
+     (Contoh: [SUBMIT_FEEDBACK: Saran Produk], [SUBMIT_FEEDBACK: Kritik Pelayanan], [SUBMIT_FEEDBACK: Masukan Website], atau [SUBMIT_FEEDBACK: Komentar Pelanggan]).
+
 [KATALOG PRODUK & HARGA SAAT INI]
 ${catalog}
 
@@ -198,12 +240,38 @@ ${catalog}
     setIsGenerating(false);
 
     if (replyText) {
+      // Check if this response triggered a feedback submission to Formspree
+      const feedbackMatch = replyText.match(/\[SUBMIT_FEEDBACK:\s*([^\]]+)\]/i);
+      let isFeedback = !!feedbackMatch;
+      let feedbackCategory = feedbackMatch ? feedbackMatch[1].trim() : '';
+
+      // Fallback check if user message clearly indicates critique/suggestion/feedback
+      const feedbackKeywords = /(kritik|saran|masukan|komplain|keluhan|ulasan|review|komentar|feedback|tolong perbaiki|tolong tambahin|evaluasi)/i;
+      if (!isFeedback && feedbackKeywords.test(text)) {
+        isFeedback = true;
+        feedbackCategory = 'Kritik / Saran Pelanggan';
+      }
+
+      // Clean machine tag from displayed reply so user doesn't see raw tag
+      const cleanReply = replyText.replace(/\[SUBMIT_FEEDBACK:\s*[^\]]+\]/gi, '').trim();
+
+      if (isFeedback) {
+        sendFeedbackToFormspree({
+          category: feedbackCategory || 'Kritik & Saran',
+          userMessage: text,
+          aiResponse: cleanReply
+        });
+      }
+
       setConversationHistory((prev) => [
         ...prev,
         { role: 'user', parts: [{ text }] },
-        { role: 'model', parts: [{ text: replyText }] }
+        { role: 'model', parts: [{ text: cleanReply }] }
       ]);
-      setMessages((prev) => [...prev, { sender: 'bot', text: replyText }]);
+      setMessages((prev) => [
+        ...prev,
+        { sender: 'bot', text: cleanReply, isFeedbackSent: isFeedback }
+      ]);
     } else {
       setMessages((prev) => [
         ...prev,
@@ -294,11 +362,19 @@ ${catalog}
                 )}
                 <div className="cs-msg-content">
                   {msg.sender === 'bot' ? (
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: formatCsMarkdown(msg.text)
-                      }}
-                    />
+                    <>
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: formatCsMarkdown(msg.text)
+                        }}
+                      />
+                      {msg.isFeedbackSent && (
+                        <div className="cs-feedback-sent-badge">
+                          <i className="fa-solid fa-envelope-circle-check"></i>
+                          <span>Masukan ini telah otomatis dikirimkan ke Gmail Admin ChaizStore.</span>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p style={{ margin: 0 }}>{msg.text}</p>
                   )}
@@ -309,6 +385,15 @@ ${catalog}
             {/* Quick chips if early in conversation */}
             {messages.length <= 2 && (
               <div className="cs-quick-chips">
+                <button
+                  type="button"
+                  className="cs-chip"
+                  onClick={() =>
+                    sendMessage('Halo ChaizBot, aku mau kasih kritik dan saran untuk toko ChaizStore...')
+                  }
+                >
+                  💌 Kirim Kritik & Saran
+                </button>
                 {cartItems.length > 0 ? (
                   <button
                     type="button"
