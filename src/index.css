@@ -6954,6 +6954,54 @@ body.auth-locked {
 }
 
 /* ===================================================
+   TOMBOL BULAT LANGGANAN (KATALOG AKUN PREMIUM)
+   =================================================== */
+
+.floating-langganan-btn {
+  position: fixed;
+  bottom: 148px;
+  right: 22px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 50%, #e11d48 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.45), 0 0 16px rgba(234, 88, 12, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.floating-langganan-btn:hover {
+  transform: scale(1.1) translateY(-3px);
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.65), 0 0 24px rgba(234, 88, 12, 0.5);
+  border-color: #fff;
+}
+
+.langganan-pulse {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  animation: settingPulseAnim 2.5s infinite ease-out !important;
+}
+
+.langganan-live-badge {
+  background: linear-gradient(135deg, #f59e0b, #ea580c) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.floating-langganan-btn:hover .setting-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+/* ===================================================
    MODAL POPUP FAQ & TESTIMONI PELANGGAN
    =================================================== */
 
@@ -7537,18 +7585,38 @@ body.auth-locked {
   color: #cbd5e1;
 }
 
-/* Responsif Mobile untuk Floating Setting & Quick Menu */
+/* Responsif Mobile untuk 3 Tombol Floating (CS, Menu, Langganan) */
 @media (max-width: 768px) {
-  .floating-setting-btn {
-    bottom: 68px;
+  .desktop-only-nav {
+    display: none !important;
+  }
+
+  .floating-cs {
+    bottom: 16px;
     right: 16px;
-    width: 45px;
-    height: 45px;
-    font-size: 1.15rem;
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+
+  .floating-setting-btn {
+    bottom: 74px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+
+  .floating-langganan-btn {
+    bottom: 132px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
   }
   
   .quick-setting-menu-card {
-    bottom: 122px;
+    bottom: 188px;
     right: 14px;
     width: calc(100vw - 28px);
     max-width: 380px;

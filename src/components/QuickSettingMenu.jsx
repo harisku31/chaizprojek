@@ -37,6 +37,15 @@ export default function QuickSettingMenu() {
 
   const menuItems = [
     {
+      id: 'katalog',
+      title: 'Pilihan Langganan',
+      badge: 'Semua Akun',
+      desc: 'Canva, Netflix, YouTube, Spotify, CapCut, dll.',
+      icon: 'fa-solid fa-crown',
+      theme: 'menu-theme-gold',
+      isLink: false
+    },
+    {
       id: 'cara-order',
       title: 'Cara Order',
       badge: '4 Langkah',
@@ -77,7 +86,24 @@ export default function QuickSettingMenu() {
 
   return (
     <>
-      {/* Tombol Bulat Setting Berwarna & Glow */}
+      {/* 1. Tombol Bulat Langganan (Scroll ke Katalog) */}
+      <button
+        type="button"
+        className="floating-langganan-btn"
+        id="floatingLanggananBtn"
+        onClick={() => scrollToSection('katalog')}
+        title="Lihat Pilihan Langganan Akun Premium"
+        aria-label="Pilihan Langganan"
+      >
+        <div className="setting-btn-pulse langganan-pulse"></div>
+        <div className="setting-icon-wrap">
+          <i className="fa-solid fa-crown"></i>
+        </div>
+        <span className="setting-live-badge langganan-live-badge">Langganan</span>
+        <span className="setting-tooltip">Pilihan Langganan</span>
+      </button>
+
+      {/* 2. Tombol Bulat Menu (Garis 3 Pilihan) */}
       <button
         ref={btnRef}
         type="button"
@@ -89,11 +115,11 @@ export default function QuickSettingMenu() {
       >
         <div className="setting-btn-pulse"></div>
         <div className="setting-icon-wrap">
-          <i className="fa-solid fa-sliders setting-icon-gear"></i>
+          <i className="fa-solid fa-bars setting-icon-gear"></i>
           <i className="fa-solid fa-xmark setting-icon-close"></i>
         </div>
         <span className="setting-live-badge">Menu</span>
-        <span className="setting-tooltip">Menu Bantuan & Navigasi</span>
+        <span className="setting-tooltip">Menu Bantuan & Pilihan</span>
       </button>
 
       {/* Popover Deretan Menu Berwarna-Warni */}

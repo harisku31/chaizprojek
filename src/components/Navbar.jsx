@@ -98,6 +98,13 @@ export default function Navbar({
           </a>
         </div>
 
+        {/* Navigation Link Desktop: Akun Premium */}
+        <nav className="nav-links desktop-only-nav" id="navLinks">
+          <a href="#katalog" className="nav-item active">
+            <i className="fa-solid fa-layer-group"></i> Akun Premium
+          </a>
+        </nav>
+
         {/* Navigation Actions (Kanan): Urutan: [Pencarian] -> [Keranjang] -> [WhatsApp] -> [Profil di Pojok Kanan Atas] */}
         <div className="nav-actions">
           {/* 1. Pencarian Desktop (digeser ke kanan deket keranjang) */}
