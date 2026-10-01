@@ -62,45 +62,84 @@ export default function ProductModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-box">
+      <div className="modal-box modal-box-redesign">
         <button className="modal-close-btn" onClick={onClose} aria-label="Tutup">
           <i className="fa-solid fa-xmark"></i>
         </button>
 
-        <div className="modal-header">
-          <div
-            className="modal-product-icon"
-            style={
-              product.image
-                ? { background: '#0f172a', padding: '2px' }
-                : { color: product.iconColor }
-            }
-          >
+        {/* Modal Header Centered with Large Logo */}
+        <div className="modal-header-centered">
+          <div className="modal-logo-center-wrap">
             {product.image ? (
               <img
                 src={`/${product.image}`}
                 alt={product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                className="modal-logo-large-img"
               />
             ) : (
-              <i className={product.icon}></i>
+              <div
+                className="modal-logo-large-icon"
+                style={{ color: product.iconColor || 'var(--primary)' }}
+              >
+                <i className={product.icon || 'fa-solid fa-cube'}></i>
+              </div>
             )}
           </div>
-          <div>
+
+          <div className="modal-header-badges">
             <span className="modal-tag">{product.category.toUpperCase()}</span>
-            <h3>{product.name}</h3>
+            {product.badge && (
+              <span className={`badge-status ${product.badgeClass}`}>
+                {product.badge}
+              </span>
+            )}
+          </div>
+
+          <h3 className="modal-title-centered">{product.name}</h3>
+
+          <div className="modal-quick-perks">
+            <span>
+              <i className="fa-solid fa-bolt text-amber"></i> Proses 1-5 Menit
+            </span>
+            <span>
+              <i className="fa-solid fa-shield-halved text-emerald"></i> Garansi Resmi
+            </span>
+            <span>
+              <i className="fa-solid fa-circle-check text-primary"></i> 100% Legal & Aman
+            </span>
           </div>
         </div>
 
         <div className="modal-body">
           <form onSubmit={(e) => e.preventDefault()}>
-            {/* 1. Duration / Package Selector */}
-            <div className="form-group">
-              <label className="form-label">
-                <i className="fa-solid fa-layer-group"></i> Pilih Paket / Varian:
-              </label>
+            {/* 1. Deskripsi & Keunggulan Layanan (Pindahan dari kartu menu produk) */}
+            {product.features && product.features.length > 0 && (
+              <div className="modal-section modal-features-section">
+                <div className="modal-section-title">
+                  <i className="fa-solid fa-circle-info text-primary"></i>
+                  <span>Deskripsi & Keunggulan Produk</span>
+                </div>
+                <div className="modal-features-card">
+                  <ul className="modal-features-list">
+                    {product.features.map((f, i) => (
+                      <li key={i} className="modal-feature-item">
+                        <i className="fa-solid fa-circle-check text-emerald"></i>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Menu Baru: Pilih Paket / Durasi */}
+            <div className="modal-section modal-packages-section">
+              <div className="modal-section-title">
+                <i className="fa-solid fa-layer-group text-primary"></i>
+                <span>Pilih Paket / Varian</span>
+              </div>
               <div className="duration-selector-grid">
-                {product.durations.map((dur) => (
+                {product.durations && product.durations.map((dur) => (
                   <label key={dur.id} className="duration-option">
                     <input
                       type="radio"
@@ -148,23 +187,24 @@ export default function ProductModal({
               </div>
             )}
 
-            {/* Order Summary */}
+            {/* 3. Order Summary & Total di Bawah */}
             <div className="order-summary-box">
               <div className="summary-row">
                 <span>Paket Terpilih:</span>
-                <strong>{product.name} - {currentDur.name || '-'}</strong>
-              </div>
-              <div className="summary-row">
-                <span>Ketersediaan Stok:</span>
-                <strong className={isOutOfStock ? 'text-danger' : 'text-success'}>
-                  {isOutOfStock ? 'Stok Kosong' : `${product.stock || 'Ready'} Tersedia`}
-                </strong>
+                <strong>{product.name} ({currentDur.name || '-'})</strong>
               </div>
               <div className="summary-row">
                 <span>Masa Garansi:</span>
                 <strong className="text-success">
                   <i className="fa-solid fa-shield-check"></i>{' '}
                   {currentDur.warranty || product.warranty || 'Sesuai Durasi'}
+                </strong>
+              </div>
+              <div className="summary-row">
+                <span>Ketersediaan Stok:</span>
+                <strong className={isOutOfStock ? 'text-danger' : 'text-success'}>
+                  <i className={isOutOfStock ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-check'}></i>{' '}
+                  {isOutOfStock ? 'Stok Kosong' : `${product.stock || 'Ready'} Tersedia`}
                 </strong>
               </div>
               <div className="summary-divider"></div>
@@ -200,7 +240,7 @@ export default function ProductModal({
                   cursor: isOutOfStock ? 'not-allowed' : 'pointer'
                 }}
               >
-                <i className="fa-solid fa-credit-card"></i> Lanjut Checkout
+                <i className="fa-solid fa-bolt"></i> Beli Sekarang
               </button>
             </div>
             <p className="order-note">

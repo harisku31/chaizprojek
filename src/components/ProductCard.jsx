@@ -131,14 +131,8 @@ export default function ProductCard({
         <div className="product-banner-wrap">
           <img src={`/${product.image}`} alt={product.name} className="product-banner-img" loading="lazy" />
           <div className="product-banner-overlay">
+            <span className="product-category-pill">{product.category.toUpperCase()}</span>
             <h3 className="product-banner-title">{product.name}</h3>
-            <ul className="product-banner-features">
-              {product.features.map((f, i) => (
-                <li key={i}>
-                  <i className="fa-solid fa-circle-check"></i> <span>{f}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       ) : (
@@ -150,17 +144,6 @@ export default function ProductCard({
           )}
           <span className="product-category">{product.category}</span>
           <h3 className="product-title">{product.name}</h3>
-          <ul className="product-features-list">
-            {product.features.map((f, i) => (
-              <li key={i}>
-                <i
-                  className={isUnreleased ? 'fa-solid fa-lock' : 'fa-solid fa-check'}
-                  style={isUnreleased ? { color: '#f59e0b' } : undefined}
-                ></i>{' '}
-                {f}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
 
@@ -192,12 +175,12 @@ export default function ProductCard({
         ) : (
           <>
             <button className="btn btn-primary" onClick={() => onOpenModal(product)}>
-              <i className="fa-solid fa-tag"></i> {isOutOfStock ? 'Stok Kosong' : 'Pilih Paket'}
+              <i className="fa-solid fa-bag-shopping"></i> {isOutOfStock ? 'Stok Kosong' : 'Beli'}
             </button>
             <button
               className="btn-add-cart"
               onClick={() => onOpenModal(product)}
-              title="Pilih Paket & Varian"
+              title="Beli / Masukkan Keranjang"
             >
               <i className="fa-solid fa-cart-plus"></i>
             </button>

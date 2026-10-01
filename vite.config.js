@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
         name: 'local-api-chat-middleware',
         configureServer(server) {
           server.middlewares.use((req, res, next) => {
-            console.log('[DEBUG CHAT REQ]:', req.method, req.url);
             const parsedUrl = new URL(req.url, 'http://localhost:3000');
             const isChatRoute = parsedUrl.pathname === '/api/chat';
             if (isChatRoute && req.method === 'POST') {
