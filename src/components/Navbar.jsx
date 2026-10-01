@@ -13,7 +13,6 @@ export default function Navbar({
 }) {
   const [isDesktopSearchOpen, setIsDesktopSearchOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
 
@@ -98,19 +97,6 @@ export default function Navbar({
             <i className="fa-brands fa-whatsapp"></i>
           </a>
         </div>
-
-        {/* Navigation Links: Hanya Akun Premium & Cara Order (FAQ & Testimoni dipindah ke 1 tombol dekat CS) */}
-        <nav className={`nav-links ${isMobileMenuOpen ? 'show' : ''}`} id="navLinks">
-
-          <a
-            href="#katalog"
-            className="nav-item active"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <i className="fa-solid fa-layer-group"></i> Akun Premium
-          </a>
-
-        </nav>
 
         {/* Navigation Actions (Kanan): Urutan: [Pencarian] -> [Keranjang] -> [WhatsApp] -> [Profil di Pojok Kanan Atas] */}
         <div className="nav-actions">
@@ -265,15 +251,6 @@ export default function Navbar({
               <i className="fa-solid fa-chevron-down nav-profile-chevron"></i>
             </div>
           )}
-
-          {/* Mobile Menu Button */}
-          <button
-            className="mobile-menu-btn"
-            aria-label="Buka Menu"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
-          </button>
         </div>
       </div>
 
