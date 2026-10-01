@@ -14,6 +14,7 @@ export default function CheckoutModal({
   items,
   source,
   authUser,
+  initialVoucher,
   onOrderSuccess,
   onShowToast
 }) {
@@ -27,7 +28,7 @@ export default function CheckoutModal({
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [selectedBonusItem, setSelectedBonusItem] = useState('Canva Pro (1 Bulan)');
 
-  // Reset voucher on modal open/close
+  // Reset voucher on modal open/close or pre-fill from initialVoucher
   useEffect(() => {
     if (!isOpen) {
       setVoucherCodeInput('');
@@ -35,8 +36,11 @@ export default function CheckoutModal({
       setSelectedBonusItem('Canva Pro (1 Bulan)');
       setSelectedMethod(null);
       setUploadedProof(null);
+    } else if (initialVoucher) {
+      setAppliedVoucher(initialVoucher);
+      setVoucherCodeInput(initialVoucher.code);
     }
-  }, [isOpen]);
+  }, [isOpen, initialVoucher]);
 
   // Auto-fill dari akun login (Google / Member / Chaiz)
   React.useEffect(() => {

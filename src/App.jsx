@@ -54,7 +54,8 @@ export default function App() {
   const [checkoutData, setCheckoutData] = useState({
     isOpen: false,
     source: 'single', // 'single' | 'cart'
-    items: []
+    items: [],
+    initialVoucher: null
   });
 
   // Check initial auth - show login gate if not logged in
@@ -152,11 +153,12 @@ export default function App() {
   };
 
   // Checkout handlers
-  const handleProceedCheckoutFromModal = (singleItem) => {
+  const handleProceedCheckoutFromModal = (singleItem, initialVoucher = null) => {
     setCheckoutData({
       isOpen: true,
       source: 'single',
-      items: [singleItem]
+      items: [singleItem],
+      initialVoucher: initialVoucher || singleItem.appliedVoucher || null
     });
   };
 
@@ -238,6 +240,7 @@ export default function App() {
         onClose={() => setModalProduct(null)}
         onAddToCart={handleAddToCart}
         onProceedCheckout={handleProceedCheckoutFromModal}
+        onShowToast={showToast}
       />
 
       {/* Checkout & Payment Modal */}
@@ -245,8 +248,9 @@ export default function App() {
         isOpen={checkoutData.isOpen}
         source={checkoutData.source}
         items={checkoutData.items}
+        initialVoucher={checkoutData.initialVoucher}
         authUser={authUser}
-        onClose={() => setCheckoutData({ isOpen: false, source: 'single', items: [] })}
+        onClose={() => setCheckoutData({ isOpen: false, source: 'single', items: [], initialVoucher: null })}
         onOrderSuccess={handleOrderSuccess}
         onShowToast={showToast}
       />
