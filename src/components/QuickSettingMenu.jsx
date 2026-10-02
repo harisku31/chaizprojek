@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function QuickSettingMenu() {
+export default function QuickSettingMenu({ onOpenTopUp }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLanggananOpen, setIsLanggananOpen] = useState(false);
   const menuRef = useRef(null);
   const btnRef = useRef(null);
+  const langgananRef = useRef(null);
+  const langgananBtnRef = useRef(null);
 
   // Close when clicking outside
   useEffect(() => {
@@ -17,14 +20,24 @@ export default function QuickSettingMenu() {
       ) {
         setIsOpen(false);
       }
+      if (
+        isLanggananOpen &&
+        langgananRef.current &&
+        !langgananRef.current.contains(event.target) &&
+        langgananBtnRef.current &&
+        !langgananBtnRef.current.contains(event.target)
+      ) {
+        setIsLanggananOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, isLanggananOpen]);
 
   // Smooth scroll directly to corresponding section
   const scrollToSection = (targetId) => {
     setIsOpen(false);
+    setIsLanggananOpen(false);
     setTimeout(() => {
       const element = document.getElementById(targetId);
       if (element) {
@@ -86,22 +99,82 @@ export default function QuickSettingMenu() {
 
   return (
     <>
-      {/* 1. Tombol Bulat Langganan (Scroll ke Katalog) */}
+      {/* 1. Tombol Bulat Langganan (Pilihan: Akun Premium & Top Up) */}
       <button
+        ref={langgananBtnRef}
         type="button"
-        className="floating-langganan-btn"
+        className={`floating-langganan-btn ${isLanggananOpen ? 'active' : ''}`}
         id="floatingLanggananBtn"
-        onClick={() => scrollToSection('katalog')}
-        title="Lihat Pilihan Langganan Akun Premium"
-        aria-label="Pilihan Langganan"
+        onClick={() => {
+          setIsLanggananOpen(!isLanggananOpen);
+          if (isOpen) setIsOpen(false);
+        }}
+        title="Pilihan Layanan: Akun Premium & Top Up"
+        aria-label="Pilihan Layanan"
       >
         <div className="setting-btn-pulse langganan-pulse"></div>
         <div className="setting-icon-wrap">
           <i className="fa-solid fa-crown"></i>
         </div>
         <span className="setting-live-badge langganan-live-badge">Langganan</span>
-        <span className="setting-tooltip">Pilihan Langganan</span>
+        <span className="setting-tooltip">Pilihan Layanan</span>
       </button>
+
+      {/* Popover Pilihan Langganan & Top Up */}
+      {isLanggananOpen && (
+        <div ref={langgananRef} className="langganan-popup-menu">
+          <div className="langganan-popup-header">
+            <span className="langganan-popup-title">
+              <i className="fa-solid fa-layer-group text-warning"></i> Pilih Layanan
+            </span>
+            <span className="langganan-popup-sub">Mau beli akun atau top up game?</span>
+          </div>
+
+          <div className="langganan-popup-options">
+            <button
+              type="button"
+              className="langganan-option-card option-card-premium"
+              onClick={() => {
+                setIsLanggananOpen(false);
+                scrollToSection('katalog');
+              }}
+            >
+              <div className="option-icon-wrap icon-amber">
+                <i className="fa-solid fa-crown"></i>
+              </div>
+              <div className="option-text-wrap">
+                <div className="option-title-row">
+                  <strong>Akun Premium</strong>
+                  <span className="option-mini-badge badge-popular">Terlaris</span>
+                </div>
+                <small>Canva, Netflix, YouTube, Spotify, CapCut, dll.</small>
+              </div>
+              <i className="fa-solid fa-chevron-right option-chevron"></i>
+            </button>
+
+            <button
+              type="button"
+              className="langganan-option-card option-card-topup"
+              onClick={() => {
+                setIsLanggananOpen(false);
+                if (onOpenTopUp) onOpenTopUp();
+              }}
+            >
+              <div className="option-icon-wrap icon-cyan">
+                <i className="fa-solid fa-gamepad"></i>
+              </div>
+              <div className="option-text-wrap">
+                <div className="option-title-row">
+                  <strong>Top Up Game & E-Wallet</strong>
+                  <span className="option-mini-badge badge-hot">BARU</span>
+                </div>
+                <small>Mobile Legends, Free Fire, Valorant, DANA, GoPay</small>
+              </div>
+              <i className="fa-solid fa-chevron-right option-chevron"></i>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. Tombol Bulat Menu (Garis 3 Pilihan) */}
       <button
@@ -109,7 +182,10 @@ export default function QuickSettingMenu() {
         type="button"
         className={`floating-setting-btn ${isOpen ? 'active' : ''}`}
         id="floatingSettingBtn"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (isLanggananOpen) setIsLanggananOpen(false);
+        }}
         title="Menu Bantuan & Navigasi Cepat"
         aria-label="Buka Menu Bantuan"
       >

@@ -450,6 +450,30 @@ button, input {
   width: 100%;
 }
 
+.nav-item-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-item-btn:hover {
+  color: #fbbf24;
+}
+
+.nav-item-btn:hover::after {
+  background: #f59e0b;
+}
+
+.desktop-only-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 /* Nav Actions */
 .nav-actions {
   display: flex;
@@ -7638,6 +7662,337 @@ body.auth-locked {
   color: #10b981;
   font-weight: 500;
   line-height: 1.4;
+}
+
+/* ===================================================
+   POPOVER PILIHAN LANGGANAN & TOP UP (DI HP)
+   =================================================== */
+
+.langganan-popup-menu {
+  position: fixed;
+  bottom: 190px;
+  right: 16px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 25px rgba(245, 158, 11, 0.25);
+  z-index: 10002;
+  animation: popoverFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.langganan-popup-header {
+  margin-bottom: 12px;
+}
+
+.langganan-popup-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.langganan-popup-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+.langganan-popup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.langganan-option-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: left;
+  width: 100%;
+}
+
+.langganan-option-card:hover {
+  background: rgba(30, 41, 59, 0.95);
+  transform: translateX(3px);
+}
+
+.option-card-premium:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+}
+
+.option-card-topup:hover {
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
+}
+
+.option-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.icon-amber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.icon-cyan {
+  background: rgba(6, 182, 212, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.option-text-wrap {
+  flex: 1;
+}
+
+.option-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-title-row strong {
+  font-size: 0.88rem;
+  color: #fff;
+}
+
+.option-mini-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.badge-popular {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.badge-hot {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.option-text-wrap small {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.option-chevron {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform 0.2s ease;
+}
+
+.langganan-option-card:hover .option-chevron {
+  transform: translateX(2px);
+  color: #fff;
+}
+
+/* ===================================================
+   TOP UP MODAL STYLING
+   =================================================== */
+
+.topup-modal-box {
+  max-width: 620px;
+}
+
+.topup-header {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.18) 0%, rgba(15, 23, 42, 0.3) 100%);
+}
+
+.topup-icon-badge {
+  width: 76px;
+  height: 76px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 88, 12, 0.2));
+  border: 2px solid rgba(245, 158, 11, 0.45);
+  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  color: #fbbf24;
+  margin: 0 auto 12px auto;
+}
+
+.topup-header-desc {
+  font-size: 0.84rem;
+  color: #cbd5e1;
+  max-width: 440px;
+  margin: 0 auto 12px auto;
+  line-height: 1.45;
+}
+
+.topup-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.topup-category-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.topup-cat-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.topup-cat-btn:hover, .topup-cat-btn.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.topup-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 170px;
+  display: flex;
+  align-items: center;
+}
+
+.topup-search-wrap i {
+  position: absolute;
+  left: 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.topup-search-input {
+  width: 100%;
+  padding: 6px 12px 6px 28px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.topup-section {
+  margin-bottom: 18px;
+}
+
+.topup-game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 9px;
+}
+
+.topup-game-card {
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.topup-game-card:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-2px);
+}
+
+.topup-game-card.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+}
+
+.topup-game-icon {
+  font-size: 1.5rem;
+  margin-bottom: 2px;
+}
+
+.topup-game-info strong {
+  display: block;
+  font-size: 0.82rem;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.topup-game-info small {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.15;
+}
+
+.topup-game-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.topup-game-card.active .topup-game-badge {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.topup-id-inputs-row.two-cols {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+
+.topup-package-card {
+  padding: 10px 8px;
+}
+
+.topup-summary {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 

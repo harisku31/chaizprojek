@@ -10,6 +10,7 @@ import QuickSettingMenu from './components/QuickSettingMenu';
 import CtaBanner from './components/CtaBanner';
 import Footer from './components/Footer';
 import ProductModal from './components/ProductModal';
+import TopUpModal from './components/TopUpModal';
 import CheckoutModal from './components/CheckoutModal';
 import CartDrawer from './components/CartDrawer';
 import LoginGateModal from './components/LoginGateModal';
@@ -51,6 +52,7 @@ export default function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState({
     isOpen: false,
     source: 'single', // 'single' | 'cart'
@@ -203,6 +205,7 @@ export default function App() {
         onSearchChange={setSearchQuery}
         onSelectSearchTag={(tag) => executeSearchAndPoint(tag)}
         onExecuteSearch={executeSearchAndPoint}
+        onOpenTopUp={() => setIsTopUpOpen(true)}
       />
 
       <main>
@@ -273,7 +276,14 @@ export default function App() {
       />
 
       {/* Menu Tombol Mengambang Setting di Atas CS: Cara Order, FAQ & Testimoni Pelanggan */}
-      <QuickSettingMenu />
+      <QuickSettingMenu onOpenTopUp={() => setIsTopUpOpen(true)} />
+
+      {/* Top Up Game & E-Wallet Modal */}
+      <TopUpModal
+        isOpen={isTopUpOpen}
+        onClose={() => setIsTopUpOpen(false)}
+        onShowToast={showToast}
+      />
 
       {/* Gemini AI Customer Service Chat Widget */}
       <CsChatWidget

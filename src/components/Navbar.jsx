@@ -9,7 +9,8 @@ export default function Navbar({
   searchQuery,
   onSearchChange,
   onSelectSearchTag,
-  onExecuteSearch
+  onExecuteSearch,
+  onOpenTopUp
 }) {
   const [isDesktopSearchOpen, setIsDesktopSearchOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -98,11 +99,19 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* Navigation Link Desktop: Akun Premium */}
+        {/* Navigation Link Desktop: Akun Premium di kiri, di kanannya Top Up */}
         <nav className="nav-links desktop-only-nav" id="navLinks">
           <a href="#katalog" className="nav-item active">
             <i className="fa-solid fa-layer-group"></i> Akun Premium
           </a>
+          <button
+            type="button"
+            className="nav-item nav-item-btn"
+            onClick={onOpenTopUp}
+            title="Layanan Top Up Game & E-Wallet"
+          >
+            <i className="fa-solid fa-gamepad text-warning"></i> Top Up
+          </button>
         </nav>
 
         {/* Navigation Actions (Kanan): Urutan: [Pencarian] -> [Keranjang] -> [WhatsApp] -> [Profil di Pojok Kanan Atas] */}
