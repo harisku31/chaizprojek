@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function QuickSettingMenu({ onOpenTopUp }) {
+export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab = 'store' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLanggananOpen, setIsLanggananOpen] = useState(false);
   const menuRef = useRef(null);
@@ -133,9 +133,10 @@ export default function QuickSettingMenu({ onOpenTopUp }) {
           <div className="langganan-popup-options">
             <button
               type="button"
-              className="langganan-option-card option-card-premium"
+              className={`langganan-option-card option-card-premium ${activeTab === 'store' ? 'active-option' : ''}`}
               onClick={() => {
                 setIsLanggananOpen(false);
+                if (onSwitchTab) onSwitchTab('store');
                 scrollToSection('katalog');
               }}
             >
@@ -154,10 +155,11 @@ export default function QuickSettingMenu({ onOpenTopUp }) {
 
             <button
               type="button"
-              className="langganan-option-card option-card-topup"
+              className={`langganan-option-card option-card-topup ${activeTab === 'topup' ? 'active-option' : ''}`}
               onClick={() => {
                 setIsLanggananOpen(false);
-                if (onOpenTopUp) onOpenTopUp();
+                if (onSwitchTab) onSwitchTab('topup');
+                else if (onOpenTopUp) onOpenTopUp();
               }}
             >
               <div className="option-icon-wrap icon-cyan">
@@ -166,7 +168,7 @@ export default function QuickSettingMenu({ onOpenTopUp }) {
               <div className="option-text-wrap">
                 <div className="option-title-row">
                   <strong>Top Up Game & E-Wallet</strong>
-                  <span className="option-mini-badge badge-hot">BARU</span>
+                  <span className="option-mini-badge badge-hot">HALAMAN BARU</span>
                 </div>
                 <small>Mobile Legends, Free Fire, Valorant, DANA, GoPay</small>
               </div>

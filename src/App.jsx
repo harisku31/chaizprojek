@@ -11,6 +11,7 @@ import CtaBanner from './components/CtaBanner';
 import Footer from './components/Footer';
 import ProductModal from './components/ProductModal';
 import TopUpModal from './components/TopUpModal';
+import TopUpPage from './components/TopUpPage';
 import CheckoutModal from './components/CheckoutModal';
 import CartDrawer from './components/CartDrawer';
 import LoginGateModal from './components/LoginGateModal';
@@ -47,6 +48,39 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentCategory, setCurrentCategory] = useState('all');
   const [highlightedProductId, setHighlightedProductId] = useState(null);
+
+  // Active View Tab: 'store' (Akun Premium) | 'topup' (Halaman Baru Khusus Top Up)
+  const [activeTab, setActiveTab] = useState(() => {
+    return window.location.hash === '#topup' ? 'topup' : 'store';
+  });
+
+  // Listen to hash change (back/forward button, links)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#topup') {
+        setActiveTab('topup');
+      } else {
+        setActiveTab('store');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleSwitchTab = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'topup') {
+      if (window.location.hash !== '#topup') {
+        window.location.hash = 'topup';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      if (window.location.hash === '#topup') {
+        history.pushState('', document.title, window.location.pathname + window.location.search);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Modals
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -128,6 +162,13 @@ export default function App() {
     setSearchQuery(q);
     setCurrentCategory('all');
 
+    if (activeTab !== 'store') {
+      setActiveTab('store');
+      if (window.location.hash === '#topup') {
+        history.pushState('', document.title, window.location.pathname + window.location.search);
+      }
+    }
+
     setTimeout(() => {
       const match = PRODUCTS.find((p) => {
         return (
@@ -205,30 +246,41 @@ export default function App() {
         onSearchChange={setSearchQuery}
         onSelectSearchTag={(tag) => executeSearchAndPoint(tag)}
         onExecuteSearch={executeSearchAndPoint}
-        onOpenTopUp={() => setIsTopUpOpen(true)}
+        onOpenTopUp={() => handleSwitchTab('topup')}
+        activeTab={activeTab}
+        onSwitchTab={handleSwitchTab}
       />
 
       <main>
-        <Hero />
+        {activeTab === 'topup' ? (
+          <TopUpPage
+            onBackToStore={() => handleSwitchTab('store')}
+            onShowToast={showToast}
+          />
+        ) : (
+          <>
+            <Hero />
 
-        <ProductCatalog
-          products={PRODUCTS}
-          currentCategory={currentCategory}
-          onCategoryChange={setCurrentCategory}
-          searchQuery={searchQuery}
-          onResetSearch={() => {
-            setSearchQuery('');
-            setCurrentCategory('all');
-          }}
-          onOpenProductModal={(prod) => setModalProduct(prod)}
-          onShowToast={showToast}
-          highlightedProductId={highlightedProductId}
-        />
+            <ProductCatalog
+              products={PRODUCTS}
+              currentCategory={currentCategory}
+              onCategoryChange={setCurrentCategory}
+              searchQuery={searchQuery}
+              onResetSearch={() => {
+                setSearchQuery('');
+                setCurrentCategory('all');
+              }}
+              onOpenProductModal={(prod) => setModalProduct(prod)}
+              onShowToast={showToast}
+              highlightedProductId={highlightedProductId}
+            />
 
-        <HowToOrder />
-        <Testimonials />
-        <FAQ />
-        <CtaBanner />
+            <HowToOrder />
+            <Testimonials />
+            <FAQ />
+            <CtaBanner />
+          </>
+        )}
       </main>
 
       <Footer
@@ -276,7 +328,11 @@ export default function App() {
       />
 
       {/* Menu Tombol Mengambang Setting di Atas CS: Cara Order, FAQ & Testimoni Pelanggan */}
-      <QuickSettingMenu onOpenTopUp={() => setIsTopUpOpen(true)} />
+      <QuickSettingMenu
+        activeTab={activeTab}
+        onSwitchTab={handleSwitchTab}
+        onOpenTopUp={() => handleSwitchTab('topup')}
+      />
 
       {/* Top Up Game & E-Wallet Modal */}
       <TopUpModal

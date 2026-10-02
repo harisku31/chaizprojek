@@ -10,7 +10,9 @@ export default function Navbar({
   onSearchChange,
   onSelectSearchTag,
   onExecuteSearch,
-  onOpenTopUp
+  onOpenTopUp,
+  activeTab = 'store',
+  onSwitchTab
 }) {
   const [isDesktopSearchOpen, setIsDesktopSearchOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -99,19 +101,32 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* Navigation Link Desktop: Akun Premium di kiri, di kanannya Top Up */}
+        {/* Navigation Link Desktop: Tab Akun Premium & Tab Top Up (Pindah Tab / Halaman Khusus) */}
         <nav className="nav-links desktop-only-nav" id="navLinks">
-          <a href="#katalog" className="nav-item active">
+          <a
+            href="#katalog"
+            className={`nav-item ${activeTab === 'store' ? 'active' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              if (onSwitchTab) onSwitchTab('store');
+            }}
+            title="Katalog Akun Streaming & Aplikasi Premium"
+          >
             <i className="fa-solid fa-layer-group"></i> Akun Premium
           </a>
-          <button
-            type="button"
-            className="nav-item nav-item-btn"
-            onClick={onOpenTopUp}
-            title="Layanan Top Up Game & E-Wallet"
+          <a
+            href="#topup"
+            className={`nav-item nav-item-btn nav-item-topup-tab ${activeTab === 'topup' ? 'active' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              if (onSwitchTab) onSwitchTab('topup');
+              else if (onOpenTopUp) onOpenTopUp();
+            }}
+            title="Pindah ke Halaman Khusus Top Up Game & E-Wallet"
           >
             <i className="fa-solid fa-gamepad text-warning"></i> Top Up
-          </button>
+            <span className="nav-tab-badge">KILAT</span>
+          </a>
         </nav>
 
         {/* Navigation Actions (Kanan): Urutan: [Pencarian] -> [Keranjang] -> [WhatsApp] -> [Profil di Pojok Kanan Atas] */}
