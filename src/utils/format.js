@@ -105,6 +105,46 @@ export async function copyToClipboard(text) {
   }
 }
 
+// Kompresi foto bukti transfer via Canvas agar ringan (~50-80KB) dan aman di localStorage
+export function compressImageFile(file, maxWidth = 900, maxHeight = 1200, quality = 0.72) {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const image = new Image();
+        image.onload = () => {
+          let width = image.width;
+          let height = image.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(image, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        };
+        image.onerror = () => resolve(readerEvent.target.result);
+        image.src = readerEvent.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 // Upload proof image to temporary cloud host
 export async function uploadProofImage(file) {
   try {

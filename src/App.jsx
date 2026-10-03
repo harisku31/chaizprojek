@@ -12,15 +12,40 @@ import Footer from './components/Footer';
 import ProductModal from './components/ProductModal';
 import TopUpModal from './components/TopUpModal';
 import TopUpPage from './components/TopUpPage';
+import TransactionsPage from './components/TransactionsPage';
 import CheckoutModal from './components/CheckoutModal';
 import CartDrawer from './components/CartDrawer';
 import LoginGateModal from './components/LoginGateModal';
 import CsChatWidget from './components/CsChatWidget';
 import ToastContainer from './components/ToastContainer';
+import BannedNoticeModal from './components/BannedNoticeModal';
+import UnbannedNoticeModal from './components/UnbannedNoticeModal';
+import {
+  recordUserLogin,
+  recordUserLogout,
+  recordUserHeartbeat,
+  setUserOffline,
+  recordUserActivity,
+  isUserBanned
+} from './utils/userTracker';
 
-import { PRODUCTS } from './data/products';
+import {
+  getDatabaseProducts,
+  subscribeToProductChanges
+} from './utils/productDatabase';
 
 export default function App() {
+  // Product Database & Realtime Stock State
+  const [products, setProducts] = useState(() => getDatabaseProducts());
+
+  // Listen for realtime product & stock changes from Admin Gudang
+  useEffect(() => {
+    const unsubscribe = subscribeToProductChanges((updatedProducts) => {
+      setProducts(updatedProducts);
+    });
+    return unsubscribe;
+  }, []);
+
   // Auth state
   const [authUser, setAuthUser] = useState(() => {
     try {
@@ -74,19 +99,28 @@ export default function App() {
         window.location.hash = 'topup';
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_TOPUP', 'Membuka menu Top Up Steam Wallet');
+      }
     } else {
       if (window.location.hash === '#topup') {
         history.pushState('', document.title, window.location.pathname + window.location.search);
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_PRODUCTS', 'Menjelajahi katalog Akun Premium');
+      }
     }
   };
 
-  // Modals
+  // Modals & Banned Status
+  const [bannedInfo, setBannedInfo] = useState(null);
+  const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [unbannedNoticeData, setUnbannedNoticeData] = useState(null);
   const [checkoutData, setCheckoutData] = useState({
     isOpen: false,
     source: 'single', // 'single' | 'cart'
@@ -94,25 +128,233 @@ export default function App() {
     initialVoucher: null
   });
 
-  // Check initial auth - show login gate if not logged in
+  // Check banned strictly via real-time validator (never trapped by stale state)
+  const isCurrentBanned = Boolean(authUser && isUserBanned(authUser).isBanned);
+
+  // Check initial auth - show login gate if not logged in & verify banned / unbanned status
   useEffect(() => {
+    // 1. Cek jika ada catatan pemulihan akun (unbanned notice) dari admin
+    try {
+      const rawNotice = localStorage.getItem('chaiz_last_unbanned_notice');
+      if (rawNotice) {
+        const noticeObj = JSON.parse(rawNotice);
+        const myEmail = (authUser?.email || '').toLowerCase().trim();
+        const myId = authUser?.id || '';
+        if (
+          !authUser ||
+          (noticeObj.email && myEmail === noticeObj.email.toLowerCase().trim()) ||
+          (noticeObj.userId && myId === noticeObj.userId)
+        ) {
+          setUnbannedNoticeData(noticeObj);
+          localStorage.removeItem('chaiz_last_unbanned_notice');
+        }
+      }
+    } catch (e) {}
+
     if (!authUser) {
       setIsLoginOpen(true);
+    } else {
+      const banCheck = isUserBanned(authUser);
+      if (banCheck.isBanned) {
+        const bannedUser = { ...authUser, isBanned: true, banStatus: banCheck };
+        setBannedInfo(banCheck);
+        setAuthUser(bannedUser);
+        setIsBannedModalOpen(true);
+      } else {
+        // Akun TIDAK di-banned! Bersihkan status sanksi lama
+        setBannedInfo(null);
+        setIsBannedModalOpen(false);
+        if (authUser.isBanned) {
+          const cleanUser = { ...authUser, isBanned: false, banStatus: null };
+          setAuthUser(cleanUser);
+          try {
+            localStorage.setItem('chaiz_auth_user', JSON.stringify(cleanUser));
+          } catch (e) {}
+          setUnbannedNoticeData({ name: authUser.name || 'Pengguna' });
+        }
+        recordUserLogin(authUser);
+      }
+    }
+
+    // Redirect to admin portal if hash is #admin
+    if (window.location.hash === '#admin') {
+      window.location.href = '/admin.html';
     }
   }, []);
 
-  // Save auth user
-  const handleLoginSuccess = (user) => {
-    setAuthUser(user);
+  // Heartbeat & Presence tracking (Sedang Online vs Offline & Auto-detect ban / unban)
+  useEffect(() => {
+    if (!authUser) return;
+
+    recordUserHeartbeat(authUser);
+
+    // Instant cross-tab sync listener if admin bans or unbans user from admin portal
+    let bc = null;
     try {
-      localStorage.setItem('chaiz_auth_user', JSON.stringify(user));
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('chaiz_admin_sync');
+        bc.onmessage = (ev) => {
+          if (ev.data?.type === 'USER_BANNED') {
+            const banCheck = isUserBanned(authUser);
+            if (banCheck.isBanned) {
+              const bannedUser = { ...authUser, isBanned: true, banStatus: banCheck };
+              setBannedInfo(banCheck);
+              setAuthUser(bannedUser);
+              setIsBannedModalOpen(true);
+              setIsLoginOpen(false);
+              try {
+                localStorage.setItem('chaiz_auth_user', JSON.stringify(bannedUser));
+              } catch (e) {}
+            }
+          } else if (ev.data?.type === 'USER_UNBANNED') {
+            const banCheck = isUserBanned(authUser);
+            if (!banCheck.isBanned) {
+              setBannedInfo(null);
+              setIsBannedModalOpen(false);
+              setAuthUser((prev) => {
+                if (!prev) return null;
+                const clean = { ...prev, isBanned: false, banStatus: null };
+                try {
+                  localStorage.setItem('chaiz_auth_user', JSON.stringify(clean));
+                } catch (e) {}
+                return clean;
+              });
+              setUnbannedNoticeData({ name: authUser?.name || 'Pengguna' });
+              showToast('Akun Anda telah di-unban oleh Admin! Akses kembali aktif.', 'fa-circle-check text-success');
+            }
+          }
+        };
+      }
+    } catch (e) {}
+
+    const handleStorage = (e) => {
+      if (
+        e.key === 'chaiz_banned_users' ||
+        e.key === 'chaiz_registered_users' ||
+        e.key === 'chaiz_last_unbanned_notice'
+      ) {
+        const banCheck = isUserBanned(authUser);
+        if (banCheck.isBanned) {
+          const bannedUser = { ...authUser, isBanned: true, banStatus: banCheck };
+          setBannedInfo(banCheck);
+          setAuthUser(bannedUser);
+          setIsBannedModalOpen(true);
+          setIsLoginOpen(false);
+          try {
+            localStorage.setItem('chaiz_auth_user', JSON.stringify(bannedUser));
+          } catch (err) {}
+        } else {
+          // Akun sudah di-unban
+          if (bannedInfo?.isBanned || authUser?.isBanned || isBannedModalOpen) {
+            setBannedInfo(null);
+            setIsBannedModalOpen(false);
+            setAuthUser((prev) => {
+              if (!prev) return null;
+              const clean = { ...prev, isBanned: false, banStatus: null };
+              try {
+                localStorage.setItem('chaiz_auth_user', JSON.stringify(clean));
+              } catch (err) {}
+              return clean;
+            });
+            setUnbannedNoticeData({ name: authUser?.name || 'Pengguna' });
+            showToast('Akun Anda telah dipulihkan! Akses belanja aktif kembali.', 'fa-circle-check text-success');
+          }
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    const hbInterval = setInterval(() => {
+      const banCheck = isUserBanned(authUser);
+      if (banCheck.isBanned) {
+        const bannedUser = { ...authUser, isBanned: true, banStatus: banCheck };
+        setBannedInfo(banCheck);
+        setAuthUser(bannedUser);
+        setIsBannedModalOpen(true);
+        setIsLoginOpen(false);
+        try {
+          localStorage.setItem('chaiz_auth_user', JSON.stringify(bannedUser));
+        } catch (e) {}
+      } else {
+        if (bannedInfo?.isBanned || authUser?.isBanned || isBannedModalOpen) {
+          setBannedInfo(null);
+          setIsBannedModalOpen(false);
+          setAuthUser((prev) => {
+            if (!prev) return null;
+            const clean = { ...prev, isBanned: false, banStatus: null };
+            try {
+              localStorage.setItem('chaiz_auth_user', JSON.stringify(clean));
+            } catch (e) {}
+            return clean;
+          });
+          setUnbannedNoticeData({ name: authUser?.name || 'Pengguna' });
+        }
+        recordUserHeartbeat(authUser);
+      }
+    }, 4000);
+
+    const handleBeforeUnload = () => {
+      setUserOffline(authUser);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(hbInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [authUser, bannedInfo, isBannedModalOpen]);
+
+  // Save auth user & record login for admin dashboard monitoring
+  const handleLoginSuccess = (user) => {
+    // Check if user is banned
+    const banCheck = isUserBanned(user);
+    if (banCheck.isBanned) {
+      const bannedUser = { ...user, isBanned: true, banStatus: banCheck };
+      setBannedInfo(banCheck);
+      setAuthUser(bannedUser);
+      setIsBannedModalOpen(true);
+      setIsLoginOpen(false);
+      try {
+        localStorage.setItem('chaiz_auth_user', JSON.stringify(bannedUser));
+      } catch (e) {}
+      return;
+    }
+
+    // Login normal & TIDAK di-banned
+    setBannedInfo(null);
+    setIsBannedModalOpen(false);
+    const cleanUser = { ...user, isBanned: false, banStatus: null };
+    setAuthUser(cleanUser);
+    try {
+      localStorage.setItem('chaiz_auth_user', JSON.stringify(cleanUser));
     } catch (e) {
       console.error(e);
     }
+    recordUserLogin(cleanUser);
+
+    // Cek jika akun ini baru saja di-unban, tampilkan jendela pemberitahuan!
+    try {
+      const rawNotice = localStorage.getItem('chaiz_last_unbanned_notice');
+      if (rawNotice) {
+        const noticeObj = JSON.parse(rawNotice);
+        const myEmail = (user.email || '').toLowerCase().trim();
+        if (noticeObj.email && noticeObj.email === myEmail) {
+          setUnbannedNoticeData(noticeObj);
+          localStorage.removeItem('chaiz_last_unbanned_notice');
+        }
+      }
+    } catch (e) {}
   };
 
   const handleLogout = () => {
+    if (authUser) {
+      recordUserLogout(authUser);
+    }
     setAuthUser(null);
+    setBannedInfo(null);
+    setIsBannedModalOpen(false);
     try {
       localStorage.removeItem('chaiz_auth_user');
     } catch (e) {
@@ -132,14 +374,33 @@ export default function App() {
   };
 
   const handleAddToCart = (item) => {
+    // 1. Cek jika akun terkena Banned: Tidak bisa akses apa-apa
+    if (isCurrentBanned) {
+      setIsBannedModalOpen(true);
+      showToast('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
+      return;
+    }
+
+    // 2. Cek jika belum login: Munculkan modal login!
+    if (!authUser) {
+      setIsLoginOpen(true);
+      showToast('Silakan login terlebih dahulu untuk memasukkan produk ke keranjang!', 'fa-right-to-bracket');
+      return;
+    }
+
     const updated = [...cartItems, item];
     saveCart(updated);
+    recordUserActivity(authUser, 'ADD_TO_CART', `Menambahkan ${item.productName} (${item.durationName}) ke keranjang`);
     showToast(`${item.productName} (${item.durationName}) dimasukkan ke keranjang!`, 'fa-cart-plus');
   };
 
   const handleRemoveCartItem = (itemId) => {
+    const target = cartItems.find((it) => it.id === itemId);
     const updated = cartItems.filter((it) => it.id !== itemId);
     saveCart(updated);
+    if (authUser) {
+      recordUserActivity(authUser, 'REMOVE_CART', `Menghapus ${target?.productName || 'produk'} dari keranjang`);
+    }
     showToast('Item dihapus dari keranjang', 'fa-trash-can');
   };
 
@@ -170,7 +431,7 @@ export default function App() {
     }
 
     setTimeout(() => {
-      const match = PRODUCTS.find((p) => {
+      const match = products.find((p) => {
         return (
           p.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
@@ -197,6 +458,21 @@ export default function App() {
 
   // Checkout handlers
   const handleProceedCheckoutFromModal = (singleItem, initialVoucher = null) => {
+    // 1. Cek jika akun terkena Banned
+    if (isCurrentBanned) {
+      setIsBannedModalOpen(true);
+      showToast('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
+      return;
+    }
+
+    // 2. Cek jika belum login: Harus login dahulu!
+    if (!authUser) {
+      setIsLoginOpen(true);
+      showToast('Silakan login terlebih dahulu untuk melakukan pembelian!', 'fa-right-to-bracket');
+      return;
+    }
+
+    recordUserActivity(authUser, 'OPEN_CHECKOUT', `Membuka pembayaran beli ${singleItem.productName || singleItem.name || 'produk'}`);
     setCheckoutData({
       isOpen: true,
       source: 'single',
@@ -206,10 +482,25 @@ export default function App() {
   };
 
   const handleProceedCheckoutFromCart = () => {
+    // 1. Cek jika akun terkena Banned
+    if (isCurrentBanned) {
+      setIsBannedModalOpen(true);
+      showToast('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
+      return;
+    }
+
+    // 2. Cek jika belum login: Harus login dahulu!
+    if (!authUser) {
+      setIsLoginOpen(true);
+      showToast('Silakan login terlebih dahulu untuk melakukan checkout pesanan!', 'fa-right-to-bracket');
+      return;
+    }
+
     if (cartItems.length === 0) {
       showToast('Keranjang belanja Anda masih kosong!', 'fa-basket-shopping');
       return;
     }
+    recordUserActivity(authUser, 'OPEN_CHECKOUT', `Membuka checkout keranjang (${cartItems.length} produk)`);
     const formatted = cartItems.map((it) => ({
       name: it.productName,
       duration: it.durationName,
@@ -226,7 +517,19 @@ export default function App() {
     });
   };
 
+  const handleOpenCart = () => {
+    if (isCurrentBanned) {
+      setIsBannedModalOpen(true);
+      showToast('Akses Ditolak: Akun Anda sedang di-banned, tidak bisa mengakses keranjang!', 'fa-ban text-danger');
+      return;
+    }
+    setIsCartOpen(true);
+  };
+
   const handleOrderSuccess = (source) => {
+    if (authUser) {
+      recordUserActivity(authUser, 'SUBMIT_ORDER', 'Berhasil memproses pesanan belanja');
+    }
     if (source === 'cart') {
       saveCart([]);
     }
@@ -241,7 +544,7 @@ export default function App() {
         onLogout={handleLogout}
         onOpenLogin={() => setIsLoginOpen(true)}
         cartCount={cartItems.length}
-        onOpenCart={() => setIsCartOpen(true)}
+        onOpenCart={handleOpenCart}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSelectSearchTag={(tag) => executeSearchAndPoint(tag)}
@@ -249,6 +552,7 @@ export default function App() {
         onOpenTopUp={() => handleSwitchTab('topup')}
         activeTab={activeTab}
         onSwitchTab={handleSwitchTab}
+        isBanned={isCurrentBanned}
       />
 
       <main>
@@ -256,13 +560,24 @@ export default function App() {
           <TopUpPage
             onBackToStore={() => handleSwitchTab('store')}
             onShowToast={showToast}
+            authUser={authUser}
+            isBanned={isCurrentBanned}
+            onOpenLogin={() => setIsLoginOpen(true)}
+            onOpenBannedModal={() => setIsBannedModalOpen(true)}
+          />
+        ) : activeTab === 'transaksi' ? (
+          <TransactionsPage
+            onBackToStore={() => handleSwitchTab('store')}
+            onShowToast={showToast}
+            authUser={authUser}
+            onOpenLogin={() => setIsLoginOpen(true)}
           />
         ) : (
           <>
             <Hero />
 
             <ProductCatalog
-              products={PRODUCTS}
+              products={products}
               currentCategory={currentCategory}
               onCategoryChange={setCurrentCategory}
               searchQuery={searchQuery}
@@ -290,7 +605,7 @@ export default function App() {
 
       {/* Product Selection Modal */}
       <ProductModal
-        product={modalProduct}
+        product={modalProduct ? (products.find((p) => p.id === modalProduct.id) || modalProduct) : null}
         isOpen={!!modalProduct}
         onClose={() => setModalProduct(null)}
         onAddToCart={handleAddToCart}
@@ -339,18 +654,39 @@ export default function App() {
         isOpen={isTopUpOpen}
         onClose={() => setIsTopUpOpen(false)}
         onShowToast={showToast}
+        authUser={authUser}
+        isBanned={isCurrentBanned}
+        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenBannedModal={() => setIsBannedModalOpen(true)}
       />
 
       {/* Gemini AI Customer Service Chat Widget */}
       <CsChatWidget
-        products={PRODUCTS}
+        products={products}
         authUser={authUser}
         cartItems={cartItems}
         onShowToast={showToast}
+        isBanned={isCurrentBanned}
+        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenBannedModal={() => setIsBannedModalOpen(true)}
       />
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} />
+
+      {/* Banned Sanksi Notice Modal */}
+      <BannedNoticeModal
+        banInfo={isBannedModalOpen ? bannedInfo : null}
+        onClose={() => setIsBannedModalOpen(false)}
+        onLogout={handleLogout}
+      />
+
+      {/* Unbanned Notice Modal: Akun Anda Tidak Di-banned Lagi */}
+      <UnbannedNoticeModal
+        isOpen={Boolean(unbannedNoticeData)}
+        userName={unbannedNoticeData?.name || authUser?.name}
+        onClose={() => setUnbannedNoticeData(null)}
+      />
     </>
   );
 }

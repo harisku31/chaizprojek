@@ -94,6 +94,10 @@ export default function Footer({ onOpenLogin, onShowToast }) {
           <p>&copy; 2026 ChaizStore. All rights reserved. Jual Beli Akun Premium Terpercaya.</p>
           <div className="terms-link">
             <span>Aman &bull; Cepat &bull; Bergaransi</span>
+            <span className="terms-separator">&bull;</span>
+            <a href="/admin.html" target="_blank" rel="noopener noreferrer" className="admin-footer-link" title="Portal Khusus Pemilik & Pengelola Toko">
+              <i className="fa-solid fa-shield-halved"></i> Portal Admin
+            </a>
           </div>
         </div>
       </div>

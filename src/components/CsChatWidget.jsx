@@ -2,8 +2,27 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CS_GEMINI_CONFIG, FORMSPREE_CONFIG } from '../data/config';
 import { formatCsMarkdown, formatRupiah } from '../utils/format';
 
-export default function CsChatWidget({ products, authUser, cartItems = [], onShowToast }) {
+export default function CsChatWidget({
+  products,
+  authUser,
+  cartItems = [],
+  onShowToast,
+  isBanned = false,
+  onOpenLogin,
+  onOpenBannedModal
+}) {
   const [isOpen, setIsOpen] = useState(false);
+  const [guestReplyCount, setGuestReplyCount] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('chaiz_cs_guest_replies');
+      return saved ? parseInt(saved, 10) : 0;
+    } catch (e) {
+      return 0;
+    }
+  });
+
+  const isGuestLimitReached = !authUser && guestReplyCount >= 2;
+
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
@@ -245,6 +264,20 @@ ${catalog}
     const text = textToSend.trim();
     if (!text || isGenerating) return;
 
+    // 1. Cek jika pengguna sedang di-banned: Akses AI Ditolak total!
+    if (isBanned) {
+      if (onOpenBannedModal) onOpenBannedModal();
+      if (onShowToast) onShowToast('Akses AI Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
+      return;
+    }
+
+    // 2. Cek jika belum login dan batas 2 balasan tamu sudah tercapai: Disuruh login!
+    if (!authUser && guestReplyCount >= 2) {
+      if (onOpenLogin) onOpenLogin();
+      if (onShowToast) onShowToast('Batas 2 chat tamu tercapai. Silakan masuk akun untuk lanjut!', 'fa-lock text-warning');
+      return;
+    }
+
     setIsOpen(true);
     setMessages((prev) => [...prev, { sender: 'user', text }]);
     setInputValue('');
@@ -348,6 +381,15 @@ ${catalog}
 
     setIsGenerating(false);
 
+    // Update guest reply count if not logged in
+    const currentGuestCount = !authUser ? guestReplyCount + 1 : 0;
+    if (!authUser) {
+      setGuestReplyCount(currentGuestCount);
+      try {
+        sessionStorage.setItem('chaiz_cs_guest_replies', String(currentGuestCount));
+      } catch (e) {}
+    }
+
     if (replyText) {
       // Check if this response triggered a feedback submission to Formspree
       const feedbackMatch = replyText.match(/\[SUBMIT_FEEDBACK:\s*([^\]]+)\]/i);
@@ -377,21 +419,41 @@ ${catalog}
         { role: 'user', parts: [{ text }] },
         { role: 'model', parts: [{ text: cleanReply }] }
       ]);
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'bot', text: cleanReply, isFeedbackSent: isFeedback }
-      ]);
+      setMessages((prev) => {
+        const nextMsgs = [
+          ...prev,
+          { sender: 'bot', text: cleanReply, isFeedbackSent: isFeedback }
+        ];
+        if (!authUser && currentGuestCount >= 2) {
+          nextMsgs.push({
+            sender: 'bot',
+            text: '🔒 **Pemberitahuan Batas Chat Tamu:**\nKamu telah menerima **2 balasan AI** (batas maksimal untuk pengguna yang belum login). Silakan **Masuk ke Akun Anda** untuk melanjutkan konsultasi sepuasnya tanpa batas bersama kami!',
+            isLimitNotice: true
+          });
+        }
+        return nextMsgs;
+      });
     } else {
       // Smart Fallback: Always respond smoothly and accurately, never show an error!
       const smartFallback = generateSmartLocalResponse(text);
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: 'bot',
-          text: smartFallback.text,
-          isFeedbackSent: smartFallback.isFeedbackSent
+      setMessages((prev) => {
+        const nextMsgs = [
+          ...prev,
+          {
+            sender: 'bot',
+            text: smartFallback.text,
+            isFeedbackSent: smartFallback.isFeedbackSent
+          }
+        ];
+        if (!authUser && currentGuestCount >= 2) {
+          nextMsgs.push({
+            sender: 'bot',
+            text: '🔒 **Pemberitahuan Batas Chat Tamu:**\nKamu telah menerima **2 balasan AI** (batas maksimal untuk pengguna yang belum login). Silakan **Masuk ke Akun Anda** untuk melanjutkan konsultasi sepuasnya tanpa batas bersama kami!',
+            isLimitNotice: true
+          });
         }
-      ]);
+        return nextMsgs;
+      });
     }
   };
 
@@ -480,6 +542,30 @@ ${catalog}
                           __html: formatCsMarkdown(msg.text)
                         }}
                       />
+                      {msg.isLimitNotice && onOpenLogin && (
+                        <div style={{ marginTop: '10px' }}>
+                          <button
+                            type="button"
+                            onClick={onOpenLogin}
+                            style={{
+                              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                              color: '#000',
+                              fontWeight: '800',
+                              fontSize: '12px',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '7px 14px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 3px 10px rgba(245, 158, 11, 0.35)'
+                            }}
+                          >
+                            <i className="fa-solid fa-right-to-bracket"></i> Masuk Akun Sekarang
+                          </button>
+                        </div>
+                      )}
                       {msg.isFeedbackSent && (
                         <div className="cs-feedback-sent-badge">
                           <i className="fa-solid fa-envelope-circle-check"></i>
@@ -599,6 +685,80 @@ ${catalog}
         </div>
 
         <div className="cs-chat-footer">
+          {/* Banner jika Akun Banned */}
+          {isBanned && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.16)',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              marginBottom: '8px',
+              fontSize: '11.5px',
+              color: '#fca5a5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px'
+            }}>
+              <span><i className="fa-solid fa-ban text-danger"></i> Akses AI diblokir (Akun Banned)</span>
+              {onOpenBannedModal && (
+                <button
+                  type="button"
+                  onClick={onOpenBannedModal}
+                  style={{
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Lihat Status
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Banner jika Batas Chat Tamu Tercapai (2 Balasan) */}
+          {!isBanned && isGuestLimitReached && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.16)',
+              border: '1px solid rgba(245, 158, 11, 0.45)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              marginBottom: '8px',
+              fontSize: '11.5px',
+              color: '#fef08a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px'
+            }}>
+              <span><i className="fa-solid fa-lock text-warning"></i> Batas 2 chat tamu tercapai</span>
+              {onOpenLogin && (
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  style={{
+                    background: '#f59e0b',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Masuk Akun
+                </button>
+              )}
+            </div>
+          )}
+
           <form
             className="cs-input-form"
             onSubmit={(e) => {
@@ -609,16 +769,23 @@ ${catalog}
             <textarea
               ref={inputRef}
               className="cs-chat-textarea"
-              placeholder="Ketik pertanyaan atau kendala kamu di sini..."
+              placeholder={
+                isBanned
+                  ? 'Akses AI diblokir (Akun sedang di-banned)...'
+                  : isGuestLimitReached
+                  ? 'Batas 2 chat tamu tercapai. Masuk akun untuk lanjut...'
+                  : 'Ketik pertanyaan atau kendala kamu di sini...'
+              }
               rows={1}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              disabled={isGenerating || isBanned || isGuestLimitReached}
             />
             <button
               type="submit"
               className="cs-btn-send"
-              disabled={isGenerating || !inputValue.trim()}
+              disabled={isGenerating || !inputValue.trim() || isBanned || isGuestLimitReached}
               aria-label="Kirim Pesan"
               title="Kirim Pesan"
             >

@@ -58,30 +58,44 @@ export default function ProductCard({
       ? `/ ${product.durations[0].name}`
       : '/ durasi';
 
-  let stockBadge = null;
+  // Desain Indikator Sisa Stok (Sesuai Gaya Marketing E-Commerce - Tanpa Bar Garis)
+  let stockIndicator = null;
   if (isUnreleased) {
-    stockBadge = (
-      <span className="badge-stock badge-stock-sealed" title="Status: Segel Belum Dirilis">
-        <i className="fa-solid fa-lock"></i> Segel
-      </span>
+    stockIndicator = (
+      <div className="card-stock-marketing stock-status-sealed">
+        <div className="stock-mkt-left">
+          <i className="fa-solid fa-shield-halved text-warning"></i>
+          <span className="stock-mkt-label">Status Stok:</span>
+        </div>
+        <span className="stock-mkt-badge badge-sealed">
+          Segel Resmi
+        </span>
+      </div>
     );
   } else if (isOutOfStock) {
-    stockBadge = (
-      <span className="badge-stock badge-stock-empty" title="Stok Saat Ini Kosong">
-        <i className="fa-solid fa-circle-xmark"></i> Stok Habis
-      </span>
-    );
-  } else if (product.stock <= 5) {
-    stockBadge = (
-      <span className="badge-stock badge-stock-low" title={`Sisa Stok: ${product.stock} Akun`}>
-        <i className="fa-solid fa-box-archive"></i> Stok: {product.stock}
-      </span>
+    stockIndicator = (
+      <div className="card-stock-marketing stock-status-empty">
+        <div className="stock-mkt-left">
+          <i className="fa-solid fa-circle-xmark text-danger"></i>
+          <span className="stock-mkt-label">Sisa Stok:</span>
+        </div>
+        <span className="stock-mkt-badge badge-empty">
+          Habis Terjual
+        </span>
+      </div>
     );
   } else {
-    stockBadge = (
-      <span className="badge-stock badge-stock-available" title={`Sisa Stok: ${product.stock} Akun`}>
-        <i className="fa-solid fa-boxes-stacked"></i> Stok: {product.stock}
-      </span>
+    const isUrgent = product.stock <= 5;
+    stockIndicator = (
+      <div className={`card-stock-marketing ${isUrgent ? 'stock-status-urgent' : 'stock-status-available'}`}>
+        <div className="stock-mkt-left">
+          <i className={`fa-solid ${isUrgent ? 'fa-fire-flame-curved text-amber' : 'fa-bolt-lightning text-emerald'}`}></i>
+          <span className="stock-mkt-label">Sisa Stok:</span>
+        </div>
+        <span className={`stock-mkt-badge ${isUrgent ? 'badge-urgent' : 'badge-available'}`}>
+          <strong>{product.stock}</strong> Akun
+        </span>
+      </div>
     );
   }
 
@@ -122,7 +136,6 @@ export default function ProductCard({
               <i className={product.icon}></i>
             </div>
           )}
-          {stockBadge}
         </div>
         <span className={`badge-status ${product.badgeClass}`}>{product.badge}</span>
       </div>
@@ -146,6 +159,9 @@ export default function ProductCard({
           <h3 className="product-title">{product.name}</h3>
         </div>
       )}
+
+      {/* Indikator Sisa Stok (Desain Baru Di Atas Harga) */}
+      {stockIndicator}
 
       <div className="product-price-box">
         <div>

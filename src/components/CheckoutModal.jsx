@@ -4,9 +4,10 @@ import { VOUCHERS, findVoucher } from '../data/vouchers';
 import {
   formatRupiah,
   copyToClipboard,
-  uploadProofImage,
+  compressImageFile,
   copyImageBlobToClipboard
 } from '../utils/format';
+import { createTransaction } from '../utils/transactions';
 
 export default function CheckoutModal({
   isOpen,
@@ -18,6 +19,7 @@ export default function CheckoutModal({
   onOrderSuccess,
   onShowToast
 }) {
+  const [buyerUsername, setBuyerUsername] = useState('');
   const [buyerName, setBuyerName] = useState('');
   const [buyerWa, setBuyerWa] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
@@ -45,11 +47,19 @@ export default function CheckoutModal({
   // Auto-fill dari akun login (Google / Member / Chaiz)
   React.useEffect(() => {
     if (isOpen && authUser) {
+      if (authUser.username && !buyerUsername) {
+        setBuyerUsername(authUser.username);
+      } else if (authUser.name && !buyerUsername) {
+        setBuyerUsername(authUser.name.toLowerCase().replace(/\s+/g, '_'));
+      }
       if (authUser.name && (!buyerName || buyerName === 'Chaiz')) {
         setBuyerName(authUser.name);
       }
       if (authUser.email && !buyerEmail) {
         setBuyerEmail(authUser.email);
+      }
+      if (authUser.phone && !buyerWa) {
+        setBuyerWa(authUser.phone);
       }
     }
   }, [isOpen, authUser]);
@@ -125,7 +135,7 @@ export default function CheckoutModal({
       });
   };
 
-  const handleProofChange = (e) => {
+  const handleProofChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
@@ -135,28 +145,23 @@ export default function CheckoutModal({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const sizeKb = (file.size / 1024).toFixed(1);
+    try {
+      const compressedDataUrl = await compressImageFile(file, 900, 1200, 0.72);
+      const sizeKb = ((compressedDataUrl?.length || file.size) * 0.75 / 1024).toFixed(1);
       const proofObj = {
         file: file,
         name: file.name,
-        size: `${sizeKb} KB`,
-        dataUrl: evt.target.result,
-        uploadedUrl: null,
-        uploadPromise: null
+        size: `${sizeKb} KB (Tervalidasi)`,
+        dataUrl: compressedDataUrl,
+        uploadedUrl: compressedDataUrl,
+        uploadPromise: Promise.resolve(compressedDataUrl)
       };
 
-      // Background upload for direct photo link in WA
-      proofObj.uploadPromise = uploadProofImage(file).then((url) => {
-        proofObj.uploadedUrl = url;
-        return url;
-      });
-
       setUploadedProof(proofObj);
-      onShowToast('Bukti pembayaran berhasil di-upload! Silakan klik tombol Order.', 'fa-circle-check');
-    };
-    reader.readAsDataURL(file);
+      onShowToast('Bukti pembayaran berhasil di-upload! Silakan klik tombol Kirim Pesanan.', 'fa-circle-check');
+    } catch {
+      onShowToast('Gagal memproses foto bukti transfer', 'fa-triangle-exclamation');
+    }
   };
 
   const handleRemoveProof = (e) => {
@@ -210,6 +215,7 @@ export default function CheckoutModal({
       return;
     }
 
+    const username = buyerUsername.trim();
     const name = buyerName.trim();
     const wa = buyerWa.trim();
     const email = buyerEmail.trim() || '-';
@@ -311,50 +317,36 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
     }
 
     let capcutAccountLine = '';
-    if (hasCapcutOwnAccount && capcutAccount.trim()) {
-      capcutAccountLine = `\n• Nama Akun CapCut: ${capcutAccount.trim()}`;
-    }
+    const proofImg = (uploadedProof ? uploadedProof.dataUrl : null) || photoUrl || null;
 
-    const message = `Halo Admin *${CONFIG.storeName}*, saya ingin konfirmasi checkout pesanan akun:
-
-━━━━━━━━━━━━━━━━━━━━━
-📦 *RINCIAN ITEM:*
-${itemsText}
-━━━━━━━━━━━━━━━━━━━━━
-${totalHargaText}
-💳 *METODE PEMBAYARAN:* ${methodTitle}
-━━━━━━━━━━━━━━━━━━━━━
-👤 *DATA PEMBELI:*
-• Nama: ${name}
-• No. WhatsApp: ${wa}
-• Email Akun: ${email}${capcutAccountLine}
-━━━━━━━━━━━━━━━━━━━━━
-${buktiPembayaranText}
-━━━━━━━━━━━━━━━━━━━━━
-
-Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
-
-    const waUrl = `https://wa.me/${CONFIG.adminWhatsApp}?text=${encodeURIComponent(message)}`;
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
-      window.location.href = waUrl;
-    } else {
-      window.open(waUrl, '_blank');
-    }
+    // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
+    try {
+      items.forEach((item) => {
+        createTransaction({
+          productName: item.name,
+          productDuration: item.duration || 'Reguler',
+          productCategory: 'Akun Premium',
+          price: item.price || 0,
+          qty: item.qty || 1,
+          total: item.total || item.price || 0,
+          customerUsername: username,
+          customerName: name,
+          customerEmail: email,
+          customerPhone: wa,
+          paymentMethod: methodTitle,
+          proofUrl: proofImg,
+          proofFileName: uploadedProof?.name || (proofImg ? 'Bukti_Transfer.png' : null),
+          proofSize: uploadedProof?.size || null,
+          warrantyPeriod: `Garansi Full ${item.duration || 'Aktif'}`
+        });
+      });
+    } catch (err) {}
 
     setIsSubmitting(false);
     onOrderSuccess(source);
     onClose();
 
-    if (photoUrl) {
-      onShowToast('Link foto bukti transfer & rincian pesanan berhasil masuk ke WhatsApp!', 'fa-circle-check');
-    } else if (isCopiedToClipboard) {
-      onShowToast('Foto bukti transfer tersalin di clipboard! Tekan Ctrl+V di chat WhatsApp.', 'fa-circle-check');
-    } else if (finalTotal === 0) {
-      onShowToast('Pesanan gratis berhasil diteruskan ke WhatsApp Admin!', 'fa-circle-check');
-    } else {
-      onShowToast('Pesanan dialihkan ke WhatsApp! Silakan kirimkan foto bukti transfer Anda di chat.', 'fa-circle-check');
-    }
+    onShowToast('🎉 Pesanan berhasil dikirim ke Admin! Anda dapat memantau status pesanan di menu Transaksi.', 'fa-circle-check');
   };
 
   return (
@@ -562,7 +554,7 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
             </div>
           </div>
 
-          {/* 2. Data Pemesan */}
+          {/* 2. Data Pemesan (Lurus ke bawah, rapi, bersih) */}
           <div className="checkout-section">
             <h4 className="checkout-section-title">
               <i className="fa-solid fa-user-check text-cyan"></i> Data Pemesan
@@ -594,79 +586,113 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
               </div>
             )}
 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label" htmlFor="checkoutBuyerName">
-                  <i className="fa-solid fa-user"></i> Nama Lengkap:
+            <div className="clean-vertical-form">
+              {/* 1. Username Akun */}
+              <div className="clean-field-group">
+                <label htmlFor="checkoutBuyerUsername" className="clean-field-label">
+                  <i className="fa-solid fa-at text-cyan"></i>
+                  <span>Username Akun</span>
+                  <span className="clean-field-badge badge-opt">Opsional</span>
                 </label>
-                <input
-                  type="text"
-                  id="checkoutBuyerName"
-                  className="form-input"
-                  placeholder="Nama Anda"
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  required
-                />
+                <div className="clean-input-wrapper">
+                  <i className="fa-solid fa-user-tag clean-input-lead-icon text-cyan"></i>
+                  <input
+                    type="text"
+                    id="checkoutBuyerUsername"
+                    className="clean-field-control"
+                    placeholder="Masukkan username akun pemesan (Opsional)..."
+                    value={buyerUsername}
+                    onChange={(e) => setBuyerUsername(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="checkoutBuyerWa">
-                  <i className="fa-brands fa-whatsapp"></i> No. WhatsApp:
-                </label>
-                <input
-                  type="tel"
-                  id="checkoutBuyerWa"
-                  className="form-input"
-                  placeholder="08xxxxxxxxxx"
-                  value={buyerWa}
-                  onChange={(e) => setBuyerWa(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="checkoutBuyerEmail">
-                <i className="fa-solid fa-envelope"></i> Email Akun (Wajib jika pilih invite):
-              </label>
-              <input
-                type="email"
-                id="checkoutBuyerEmail"
-                className="form-input"
-                placeholder="emailkamu@gmail.com"
-                value={buyerEmail}
-                onChange={(e) => setBuyerEmail(e.target.value)}
-              />
-            </div>
 
-            {/* Special CapCut Field */}
-            {hasCapcutOwnAccount && (
-              <div
-                className="form-group"
-                style={{ marginTop: 14, marginBottom: 0 }}
-              >
-                <label
-                  className="form-label"
-                  htmlFor="checkoutCapcutAccount"
-                  style={{ color: '#14b8a6', fontWeight: 700 }}
-                >
-                  <i className="fa-solid fa-scissors text-teal"></i> Nama Akun CapCut{' '}
-                  <span style={{ color: '#f43f5e' }}>*Wajib Diisi</span>:
+              {/* 2. Nama Lengkap */}
+              <div className="clean-field-group">
+                <label htmlFor="checkoutBuyerName" className="clean-field-label">
+                  <i className="fa-solid fa-user text-emerald"></i>
+                  <span>Nama Lengkap</span>
+                  <span className="clean-field-badge badge-req">*Wajib</span>
                 </label>
-                <input
-                  type="text"
-                  id="checkoutCapcutAccount"
-                  className="form-input"
-                  placeholder="Masukkan ID / Nama Akun CapCut kamu..."
-                  style={{ borderColor: 'rgba(20, 184, 166, 0.45)' }}
-                  value={capcutAccount}
-                  onChange={(e) => setCapcutAccount(e.target.value)}
-                  required
-                />
-                <small style={{ display: 'block', color: '#94a3b8', fontSize: '0.76rem', marginTop: 5 }}>
-                  <i className="fa-solid fa-circle-info text-teal"></i> Diperlukan untuk proses upgrade VIP langsung ke akun CapCut pribadi Anda.
-                </small>
+                <div className="clean-input-wrapper">
+                  <i className="fa-solid fa-user clean-input-lead-icon text-emerald"></i>
+                  <input
+                    type="text"
+                    id="checkoutBuyerName"
+                    required
+                    className="clean-field-control"
+                    placeholder="Contoh: Andi Pratama"
+                    value={buyerName}
+                    onChange={(e) => setBuyerName(e.target.value)}
+                  />
+                </div>
               </div>
-            )}
+
+              {/* 3. Email / Gmail Akun */}
+              <div className="clean-field-group">
+                <label htmlFor="checkoutBuyerEmail" className="clean-field-label">
+                  <i className="fa-brands fa-google text-amber"></i>
+                  <span>Email / Gmail Aktif</span>
+                  <span className="clean-field-badge badge-req">*Wajib</span>
+                </label>
+                <div className="clean-input-wrapper">
+                  <i className="fa-solid fa-envelope clean-input-lead-icon text-amber"></i>
+                  <input
+                    type="email"
+                    id="checkoutBuyerEmail"
+                    required
+                    className="clean-field-control"
+                    placeholder="Contoh: emailkamu@gmail.com"
+                    value={buyerEmail}
+                    onChange={(e) => setBuyerEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* 4. Nomor WhatsApp */}
+              <div className="clean-field-group">
+                <label htmlFor="checkoutBuyerWa" className="clean-field-label">
+                  <i className="fa-brands fa-whatsapp text-success"></i>
+                  <span>Nomor WhatsApp Aktif</span>
+                  <span className="clean-field-badge badge-req">*Wajib</span>
+                </label>
+                <div className="clean-input-wrapper">
+                  <i className="fa-brands fa-whatsapp clean-input-lead-icon text-success"></i>
+                  <input
+                    type="tel"
+                    id="checkoutBuyerWa"
+                    required
+                    className="clean-field-control"
+                    placeholder="Contoh: 081234567890"
+                    value={buyerWa}
+                    onChange={(e) => setBuyerWa(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Special CapCut Field */}
+              {hasCapcutOwnAccount && (
+                <div className="clean-field-group">
+                  <label htmlFor="checkoutCapcutAccount" className="clean-field-label">
+                    <i className="fa-solid fa-scissors text-teal"></i>
+                    <span>Nama / ID Akun CapCut</span>
+                    <span className="clean-field-badge badge-req">*Wajib CapCut</span>
+                  </label>
+                  <div className="clean-input-wrapper">
+                    <i className="fa-solid fa-user-pen clean-input-lead-icon text-teal"></i>
+                    <input
+                      type="text"
+                      id="checkoutCapcutAccount"
+                      required
+                      className="clean-field-control"
+                      placeholder="Masukkan ID / Nama Akun CapCut kamu..."
+                      value={capcutAccount}
+                      onChange={(e) => setCapcutAccount(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 3. Metode Pembayaran */}
@@ -915,24 +941,25 @@ Mohon segera diproses dan dikirimkan akunnya ya admin, terima kasih!`;
             <div className="checkout-order-actions">
               <button
                 type="button"
-                className={`btn btn-wa-order ${finalTotal === 0 ? 'btn-order-free' : ''}`}
+                className={`btn btn-submit-order ${finalTotal === 0 ? 'btn-order-free' : ''}`}
                 disabled={isSubmitting}
                 onClick={handleSubmitOrder}
               >
                 {isSubmitting ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>{' '}
-                    <span>Menyiapkan Pesanan & WhatsApp...</span>
+                    <span>Mengirim Pesanan ke Admin...</span>
                   </>
                 ) : finalTotal === 0 ? (
                   <>
-                    <i className="fa-solid fa-crown"></i>{' '}
-                    <span>Klaim Order Gratis via WhatsApp</span>{' '}
+                    <i className="fa-solid fa-gift"></i>{' '}
+                    <span>Klaim Pesanan Gratis</span>{' '}
                     <i className="fa-solid fa-arrow-right"></i>
                   </>
                 ) : (
                   <>
-                    <span>Order</span> <i className="fa-solid fa-arrow-right"></i>
+                    <i className="fa-solid fa-paper-plane"></i>{' '}
+                    <span>Kirim Pesanan</span> <i className="fa-solid fa-arrow-right"></i>
                   </>
                 )}
               </button>

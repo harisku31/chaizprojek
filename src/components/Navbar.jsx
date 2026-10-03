@@ -12,7 +12,8 @@ export default function Navbar({
   onExecuteSearch,
   onOpenTopUp,
   activeTab = 'store',
-  onSwitchTab
+  onSwitchTab,
+  isBanned = false
 }) {
   const [isDesktopSearchOpen, setIsDesktopSearchOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -122,9 +123,9 @@ export default function Navbar({
               if (onSwitchTab) onSwitchTab('topup');
               else if (onOpenTopUp) onOpenTopUp();
             }}
-            title="Pindah ke Halaman Khusus Top Up Game & E-Wallet"
+            title="Pindah ke Halaman Khusus Top Up"
           >
-            <i className="fa-solid fa-gamepad text-warning"></i> Top Up
+            <i className="fa-brands fa-steam text-warning"></i> Top Up
             <span className="nav-tab-badge">KILAT</span>
           </a>
         </nav>
@@ -263,9 +264,26 @@ export default function Navbar({
               )}
 
               <div className="user-details">
-                <span className="nav-user-name">{authUser.name || 'Pengguna'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="nav-user-name">{authUser.name || 'Pengguna'}</span>
+                  {isBanned && (
+                    <span style={{
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '9px',
+                      fontWeight: '800',
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      letterSpacing: '0.5px'
+                    }}>
+                      BANNED
+                    </span>
+                  )}
+                </div>
                 <span className="nav-user-email">
-                  {authUser.isGoogle ? (
+                  {isBanned ? (
+                    <span style={{ color: '#f87171', fontWeight: '700' }}>Akses Dibatasi</span>
+                  ) : authUser.isGoogle ? (
                     <>
                       <i className="fa-brands fa-google text-danger"></i> {authUser.email}
                     </>
@@ -424,7 +442,17 @@ export default function Navbar({
 
               {/* Status Badge */}
               <div className="profile-status-box">
-                {authUser.isGoogle ? (
+                {isBanned ? (
+                  <div className="status-item" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: '10px', padding: '10px' }}>
+                    <i className="fa-solid fa-ban text-danger" style={{ fontSize: '20px' }}></i>
+                    <div>
+                      <strong style={{ color: '#fca5a5' }}>Akun Terkena Sanksi Banned</strong>
+                      <small style={{ color: '#e2e8f0', display: 'block', marginTop: '2px' }}>
+                        Beli, keranjang & AI diblokir. Anda hanya dapat keluar akun (Logout).
+                      </small>
+                    </div>
+                  </div>
+                ) : authUser.isGoogle ? (
                   <div className="status-item status-google">
                     <i className="fa-solid fa-shield-check text-success"></i>
                     <div>
@@ -458,23 +486,28 @@ export default function Navbar({
                   <strong>{authUser.isGoogle ? 'Google OAuth 2.0 Asli' : 'Pengguna Biasa'}</strong>
                 </div>
                 <div className="meta-row">
-                  <span>Garansi Toko:</span>
-                  <span className="text-success"><i className="fa-solid fa-circle-check"></i> 100% Aktif & Aman</span>
+                  <span>Status Akses:</span>
+                  <span className={isBanned ? 'text-danger' : 'text-success'}>
+                    <i className={isBanned ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-check'}></i>
+                    {isBanned ? ' Diblokir Penuh (Hanya Logout)' : ' 100% Aktif & Aman'}
+                  </span>
                 </div>
               </div>
 
               {/* Action Buttons: Logout */}
               <div className="profile-card-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-block"
-                  onClick={() => {
-                    setIsProfileModalOpen(false);
-                    onOpenCart();
-                  }}
-                >
-                  <i className="fa-solid fa-bag-shopping"></i> Buka Keranjang Belanja ({cartCount})
-                </button>
+                {!isBanned && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-block"
+                    onClick={() => {
+                      setIsProfileModalOpen(false);
+                      onOpenCart();
+                    }}
+                  >
+                    <i className="fa-solid fa-bag-shopping"></i> Buka Keranjang Belanja ({cartCount})
+                  </button>
+                )}
 
                 <button
                   type="button"

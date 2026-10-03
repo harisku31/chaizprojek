@@ -1,12 +1,42 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+import { getActiveNotificationCount } from '../utils/transactions';
+
 export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab = 'store' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLanggananOpen, setIsLanggananOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
   const menuRef = useRef(null);
   const btnRef = useRef(null);
   const langgananRef = useRef(null);
   const langgananBtnRef = useRef(null);
+
+  useEffect(() => {
+    const updateNotif = () => {
+      setNotificationCount(getActiveNotificationCount());
+    };
+    updateNotif();
+
+    let bc = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('chaiz_admin_sync');
+        bc.onmessage = () => {
+          updateNotif();
+        };
+      }
+    } catch (e) {}
+
+    const handleStorage = (e) => {
+      if (e.key === 'chaiz_transactions') updateNotif();
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   // Close when clicking outside
   useEffect(() => {
@@ -99,6 +129,30 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
 
   return (
     <>
+      {/* 0. Tombol Bulat Transaksi (Di Atas Langganan) */}
+      <button
+        type="button"
+        className={`floating-transaksi-btn ${activeTab === 'transaksi' ? 'active' : ''}`}
+        id="floatingTransaksiBtn"
+        onClick={() => {
+          if (isOpen) setIsOpen(false);
+          if (isLanggananOpen) setIsLanggananOpen(false);
+          if (onSwitchTab) onSwitchTab('transaksi');
+        }}
+        title="Riwayat Transaksi & Akun Anda"
+        aria-label="Riwayat Transaksi"
+      >
+        {notificationCount > 0 && (
+          <span className="transaksi-notif-badge">{notificationCount}</span>
+        )}
+        <div className="setting-btn-pulse transaksi-pulse"></div>
+        <div className="setting-icon-wrap">
+          <i className="fa-solid fa-receipt"></i>
+        </div>
+        <span className="setting-live-badge transaksi-live-badge">Transaksi</span>
+        <span className="setting-tooltip">Riwayat Transaksi</span>
+      </button>
+
       {/* 1. Tombol Bulat Langganan (Pilihan: Akun Premium & Top Up) */}
       <button
         ref={langgananBtnRef}
@@ -163,14 +217,14 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
               }}
             >
               <div className="option-icon-wrap icon-cyan">
-                <i className="fa-solid fa-gamepad"></i>
+                <i className="fa-brands fa-steam"></i>
               </div>
               <div className="option-text-wrap">
                 <div className="option-title-row">
-                  <strong>Top Up Game & E-Wallet</strong>
-                  <span className="option-mini-badge badge-hot">HALAMAN BARU</span>
+                  <strong>Top Up</strong>
+                  <span className="option-mini-badge badge-hot">RESMI</span>
                 </div>
-                <small>Mobile Legends, Free Fire, Valorant, DANA, GoPay</small>
+                <small>Voucher Steam Wallet Code (IDR) Resmi Valve</small>
               </div>
               <i className="fa-solid fa-chevron-right option-chevron"></i>
             </button>

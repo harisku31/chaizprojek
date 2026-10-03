@@ -15,7 +15,6 @@ export default function LoginGateModal({
 }) {
   const [isProcessingGoogle, setIsProcessingGoogle] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [customName, setCustomName] = useState('');
   const [showMemberLogin, setShowMemberLogin] = useState(false);
   const [memberUser, setMemberUser] = useState('');
   const [memberPass, setMemberPass] = useState('');
@@ -28,7 +27,7 @@ export default function LoginGateModal({
     setAuthError('');
 
     if (isIpAddressHostname()) {
-      setAuthError('Google tidak mengizinkan login melalui IP Address lokal (192.168...). Silakan klik "Masuk sebagai Pengguna Biasa" di bawah ini, atau buka domain Vercel resmi.');
+      setAuthError('Google tidak mengizinkan login melalui IP Address lokal (192.168...). Silakan buka domain resmi (localhost / domain Vercel) atau gunakan akun Member VIP.');
       onShowToast('Google melarang login via IP lokal.', 'fa-triangle-exclamation');
       return;
     }
@@ -55,33 +54,16 @@ export default function LoginGateModal({
         const errStr = String(err?.message || err || '');
         const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
         if (errStr.includes('origin_mismatch') || errStr.includes('unregistered') || errStr.includes('policy')) {
-          setAuthError(`Otorisasi Google belum aktif untuk origin: ${currentOrigin}. Pastikan "${currentOrigin}" sudah didaftarkan di Authorized JavaScript Origins di Google Cloud Console. Atau kamu bisa langsung klik "Masuk sebagai Pengguna Biasa" di bawah!`);
+          setAuthError(`Otorisasi Google belum aktif untuk origin: ${currentOrigin}. Pastikan "${currentOrigin}" sudah didaftarkan di Authorized JavaScript Origins di Google Cloud Console.`);
         } else {
-          setAuthError('Jendela popup Google ditutup atau dibatalkan. Kamu bisa coba lagi atau masuk langsung sebagai Pengguna Biasa.');
+          setAuthError('Jendela popup Google ditutup atau dibatalkan. Silakan klik tombol di bawah untuk mencoba kembali.');
         }
         onShowToast('Login Google dibatalkan atau terkendala izin.', 'fa-triangle-exclamation');
       }
     });
   };
 
-  // 2. Handle Masuk sebagai Pengguna Biasa (Tamu / Nama Sendiri)
-  const handleGuestLogin = () => {
-    const displayName = customName.trim() || 'Pengguna Chaiz';
-    const user = {
-      role: 'guest',
-      name: displayName,
-      email: `${displayName.toLowerCase().replace(/\s+/g, '')}@chaizstore.id`,
-      avatarLetter: displayName.charAt(0).toUpperCase(),
-      isMember: false,
-      isGoogle: false,
-      loginTime: new Date().toISOString()
-    };
-    onLoginSuccess(user);
-    onClose();
-    onShowToast(`Selamat datang, ${displayName}! Selamat berbelanja.`, 'fa-circle-check');
-  };
-
-  // 3. Handle Login Member VIP
+  // 2. Handle Login Member VIP
   const handleMemberSubmit = (e) => {
     e.preventDefault();
     setMemberError('');
@@ -114,11 +96,13 @@ export default function LoginGateModal({
     <div className="login-gate-overlay" id="loginGateOverlay" style={{ display: 'flex' }}>
       <div className="login-gate-backdrop" onClick={onClose}></div>
       <div className="login-gate-card login-gate-card-clean">
+        {/* Tombol Tutup 'X' Warna Merah Tegas & Jelas */}
         <button
           type="button"
           className="modal-close-btn"
           onClick={onClose}
           title="Tutup Login"
+          aria-label="Tutup Login"
         >
           <i className="fa-solid fa-xmark"></i>
         </button>
@@ -134,7 +118,7 @@ export default function LoginGateModal({
             </div>
           </div>
           <h2>Masuk ke ChaizStore</h2>
-          <p>Pilih metode masuk untuk menikmati layanan akun premium bergaransi:</p>
+          <p>Masuk dengan akun Google Anda untuk menikmati layanan akun premium bergaransi:</p>
         </div>
 
         {/* Pesan Edukasi jika Google Error / Belum terdaftar */}
@@ -162,9 +146,8 @@ export default function LoginGateModal({
           </div>
         )}
 
-        {/* Tombol Login */}
+        {/* Tombol Login Google */}
         <div className="login-buttons-stack">
-          {/* Tombol 1: Login dengan Google Asli */}
           <button
             type="button"
             className="btn-login-main btn-login-google"
@@ -190,51 +173,6 @@ export default function LoginGateModal({
                   ? 'Membuka jendela resmi Google...'
                   : 'Masuk instan dengan akun Gmail Anda'}
               </span>
-            </div>
-            <i className="fa-solid fa-arrow-right login-btn-arrow"></i>
-          </button>
-
-          <div className="login-options-divider">
-            <span>atau masuk instan</span>
-          </div>
-
-          {/* Input Opsional Nama untuk Pengguna Biasa */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-            <input
-              type="text"
-              className="form-input"
-              style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                padding: '9px 12px',
-                fontSize: '0.85rem'
-              }}
-              placeholder="Ketik nama kamu (opsional, contoh: Haris)"
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleGuestLogin();
-                }
-              }}
-            />
-          </div>
-
-          {/* Tombol 2: Masuk Sebagai Pengguna Biasa (100% Berhasil) */}
-          <button
-            type="button"
-            className="btn-login-main btn-login-guest"
-            onClick={handleGuestLogin}
-          >
-            <div className="login-btn-icon-wrapper guest-icon">
-              <i className="fa-solid fa-bolt text-warning"></i>
-            </div>
-            <div className="login-btn-text">
-              <span className="login-btn-title">
-                {customName.trim() ? `Masuk sebagai "${customName.trim()}"` : 'Masuk sebagai Pengguna Biasa'}
-              </span>
-              <span className="login-btn-desc">1-Klik langsung belanja tanpa login akun luar</span>
             </div>
             <i className="fa-solid fa-arrow-right login-btn-arrow"></i>
           </button>
@@ -301,4 +239,3 @@ export default function LoginGateModal({
     </div>
   );
 }
-
