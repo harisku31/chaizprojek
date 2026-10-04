@@ -31,10 +31,12 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
       if (e.key === 'chaiz_transactions') updateNotif();
     };
     window.addEventListener('storage', handleStorage);
+    window.addEventListener('chaiz_trx_updated', updateNotif);
 
     return () => {
       if (bc) bc.close();
       window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('chaiz_trx_updated', updateNotif);
     };
   }, []);
 

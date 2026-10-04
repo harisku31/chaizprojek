@@ -180,6 +180,25 @@ export default function AdminApp() {
       }
     }
 
+    // Cloud Event Listeners (Firebase Cloud Realtime Updates)
+    const handleCustomTrx = (e) => {
+      reloadAllData();
+      if (e.detail?.type === 'NEW_TRANSACTION') {
+        showToast('Pesanan baru masuk dari pelanggan!', 'fa-receipt', 'success');
+      }
+    };
+
+    const handleCustomChat = (e) => {
+      // Refresh order list if chat changed unread status
+      setOrdersList(getTransactions());
+      if (e.detail?.eventType === 'NEW_MESSAGE' && e.detail?.from === 'customer') {
+        showToast(`Pesan chat baru masuk untuk pesanan #${e.detail?.orderId || ''}!`, 'fa-comments', 'info');
+      }
+    };
+
+    window.addEventListener('chaiz_trx_updated', handleCustomTrx);
+    window.addEventListener('chaiz_chat_event', handleCustomChat);
+
     // Auto poll every 3 seconds for live online/offline heartbeat detection & countdown
     const interval = setInterval(() => {
       reloadAllData();
@@ -188,6 +207,8 @@ export default function AdminApp() {
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
+      window.removeEventListener('chaiz_chat_event', handleCustomChat);
       if (bc) bc.close();
       clearInterval(interval);
     };

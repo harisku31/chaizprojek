@@ -58,11 +58,24 @@ export default function TransactionsPage({
         loadData();
       }
     };
+
+    const handleCustomTrx = (e) => {
+      loadData();
+      if (e.detail?.type === 'TRANSACTION_FULFILLED') {
+        onShowToast?.(
+          '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
+          'fa-circle-check text-success'
+        );
+      }
+    };
+
     window.addEventListener('storage', handleStorage);
+    window.addEventListener('chaiz_trx_updated', handleCustomTrx);
 
     return () => {
       if (bc) bc.close();
       window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
     };
   }, []);
 

@@ -128,6 +128,17 @@ export default function Navbar({
             <i className="fa-brands fa-steam text-warning"></i> Top Up
             <span className="nav-tab-badge">KILAT</span>
           </a>
+          <a
+            href="#transaksi"
+            className={`nav-item ${activeTab === 'transaksi' ? 'active' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              if (onSwitchTab) onSwitchTab('transaksi');
+            }}
+            title="Riwayat Pesanan & Transaksi Anda"
+          >
+            <i className="fa-solid fa-receipt text-cyan"></i> Transaksi
+          </a>
         </nav>
 
         {/* Navigation Actions (Kanan): Urutan: [Pencarian] -> [Keranjang] -> [WhatsApp] -> [Profil di Pojok Kanan Atas] */}

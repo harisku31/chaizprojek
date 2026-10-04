@@ -1,160 +1,148 @@
 // ===================================================================
-// CHAIZSTORE FIREBASE REALTIME DATABASE SYNC ENGINE
-// Connects phone, laptop, and all devices worldwide in real-time!
+// CHAIZSTORE CLOUD SYNC ENGINE (Firebase Realtime Database)
+// Native zero-dependency implementation using Web Fetch + EventSource (SSE)
+// Fast, robust, and 100% compatible with all mobile browsers & laptops!
 // ===================================================================
-
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import {
-  getDatabase,
-  ref,
-  set,
-  get,
-  update,
-  remove,
-  onValue,
-  off
-} from 'firebase/database';
 
 export const FIREBASE_DB_URL = 'https://chaizstore-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-const firebaseConfig = {
-  databaseURL: FIREBASE_DB_URL,
-  projectId: 'chaizstore'
-};
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getDatabase(app);
-
-// 1. Simpan Data ke Firebase (Set)
+// 1. Simpan Data ke Firebase (Set / Overwrite)
 export async function writeToFirebase(path, data) {
   try {
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    const dbRef = ref(db, cleanPath);
-    await set(dbRef, data);
-    return { success: true };
+    const cleanPath = path.replace(/^\/+|\/+$/g, '');
+    const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return { success: res.ok };
   } catch (err) {
-    console.warn(`[Firebase SDK Set Failed for ${path}, falling back to REST]:`, err);
-    // REST API Fallback
-    try {
-      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-      const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return { success: res.ok };
-    } catch (restErr) {
-      console.error(`[Firebase REST Set Failed for ${path}]:`, restErr);
-      return { success: false, error: restErr };
-    }
+    console.error(`[Firebase write error on ${path}]:`, err);
+    return { success: false, error: err };
   }
 }
 
-// 2. Update Parsial Data ke Firebase (Update / Patch)
+// 2. Update Parsial Data ke Firebase (Patch)
 export async function updateInFirebase(path, partialData) {
   try {
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    const dbRef = ref(db, cleanPath);
-    await update(dbRef, partialData);
-    return { success: true };
+    const cleanPath = path.replace(/^\/+|\/+$/g, '');
+    const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(partialData)
+    });
+    return { success: res.ok };
   } catch (err) {
-    console.warn(`[Firebase SDK Update Failed for ${path}, falling back to REST]:`, err);
-    // REST API Fallback
-    try {
-      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-      const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partialData)
-      });
-      return { success: res.ok };
-    } catch (restErr) {
-      console.error(`[Firebase REST Update Failed for ${path}]:`, restErr);
-      return { success: false, error: restErr };
-    }
+    console.error(`[Firebase update error on ${path}]:`, err);
+    return { success: false, error: err };
   }
 }
 
 // 3. Baca Data Sekali dari Firebase (Get)
 export async function readFromFirebase(path) {
   try {
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    const dbRef = ref(db, cleanPath);
-    const snapshot = await get(dbRef);
-    if (snapshot.exists()) {
-      return snapshot.val();
+    const cleanPath = path.replace(/^\/+|\/+$/g, '');
+    const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json?ts=${Date.now()}`, {
+      cache: 'no-store'
+    });
+    if (res.ok) {
+      return await res.json();
     }
     return null;
   } catch (err) {
-    console.warn(`[Firebase SDK Get Failed for ${path}, falling back to REST]:`, err);
-    try {
-      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-      const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`);
-      if (res.ok) {
-        return await res.json();
-      }
-      return null;
-    } catch (restErr) {
-      console.error(`[Firebase REST Get Failed for ${path}]:`, restErr);
-      return null;
-    }
+    console.error(`[Firebase read error on ${path}]:`, err);
+    return null;
   }
 }
 
-// 4. Hapus Data dari Firebase (Remove)
+// 4. Hapus Data dari Firebase (Delete)
 export async function deleteFromFirebase(path) {
   try {
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    const dbRef = ref(db, cleanPath);
-    await remove(dbRef);
-    return { success: true };
+    const cleanPath = path.replace(/^\/+|\/+$/g, '');
+    const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`, {
+      method: 'DELETE'
+    });
+    return { success: res.ok };
   } catch (err) {
-    try {
-      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-      const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json`, { method: 'DELETE' });
-      return { success: res.ok };
-    } catch (restErr) {
-      return { success: false, error: restErr };
-    }
+    console.error(`[Firebase delete error on ${path}]:`, err);
+    return { success: false, error: err };
   }
 }
 
-// 5. Langganan Realtime Real-Time Listener (onValue)
+// 5. Langganan Realtime Real-Time Listener (SSE EventSource + Smart Polling Heartbeat)
 export function listenToFirebase(path, callback) {
   if (typeof window === 'undefined') return () => {};
 
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  const dbRef = ref(db, cleanPath);
+  const cleanPath = path.replace(/^\/+|\/+$/g, '');
+  const url = `${FIREBASE_DB_URL}/${cleanPath}.json`;
 
-  const unsubscribe = onValue(
-    dbRef,
-    (snapshot) => {
-      const val = snapshot.exists() ? snapshot.val() : null;
-      callback(val);
-    },
-    (error) => {
-      console.error(`[Firebase onValue listener error on ${path}]:`, error);
+  let eventSource = null;
+  let isClosed = false;
+
+  // Initial immediate fetch
+  readFromFirebase(cleanPath).then((data) => {
+    if (!isClosed && data !== undefined) {
+      callback(data);
     }
-  );
+  });
 
+  // A. Realtime Streaming via Native Browser EventSource (Server-Sent Events)
+  try {
+    if (typeof EventSource !== 'undefined') {
+      eventSource = new EventSource(url);
+
+      eventSource.addEventListener('put', (e) => {
+        if (isClosed) return;
+        try {
+          const parsed = JSON.parse(e.data);
+          if (parsed.path === '/' || parsed.path === '') {
+            callback(parsed.data);
+          } else {
+            // Child modified, refresh entire collection
+            readFromFirebase(cleanPath).then((fresh) => {
+              if (!isClosed) callback(fresh);
+            });
+          }
+        } catch (err) {
+          // ignore parse errors
+        }
+      });
+
+      eventSource.addEventListener('patch', () => {
+        if (isClosed) return;
+        readFromFirebase(cleanPath).then((fresh) => {
+          if (!isClosed) callback(fresh);
+        });
+      });
+
+      eventSource.onerror = () => {
+        // EventSource will automatically retry in background
+      };
+    }
+  } catch (esErr) {
+    console.warn(`[EventSource init error for ${cleanPath}]:`, esErr);
+  }
+
+  // B. Fallback / Heartbeat Polling: setiap 2.5 detik saat tab browser aktif (supaya di HP tidak putus)
+  const pollInterval = setInterval(() => {
+    if (isClosed) return;
+    if (typeof document !== 'undefined' && document.hidden) return; // hemat baterai jika tab di-minimize
+
+    readFromFirebase(cleanPath).then((data) => {
+      if (!isClosed && data !== undefined) {
+        callback(data);
+      }
+    });
+  }, 2500);
+
+  // Return unsubscribe cleaner
   return () => {
-    try {
-      off(dbRef);
-      if (typeof unsubscribe === 'function') unsubscribe();
-    } catch {
-      // ignore
+    isClosed = true;
+    clearInterval(pollInterval);
+    if (eventSource) {
+      try {
+        eventSource.close();
+      } catch {}
     }
   };
 }
-
-// 6. Monitor Status Koneksi Cloud Firebase
-export function listenToFirebaseConnection(callback) {
-  if (typeof window === 'undefined') return () => {};
-  const connectedRef = ref(db, '.info/connected');
-  return onValue(connectedRef, (snap) => {
-    const isConnected = snap.val() === true;
-    callback(isConnected);
-  });
-}
-
-export { ref, set, get, update, remove, onValue, off };
