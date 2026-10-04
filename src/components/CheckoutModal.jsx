@@ -8,7 +8,6 @@ import {
   copyImageBlobToClipboard
 } from '../utils/format';
 import { createTransaction } from '../utils/transactions';
-import { deductProductStock } from '../utils/productDatabase';
 
 export default function CheckoutModal({
   isOpen,
@@ -324,6 +323,7 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
     try {
       items.forEach((item) => {
         createTransaction({
+          productId: item.productId || null,
           productName: item.name,
           productDuration: item.duration || 'Reguler',
           productCategory: 'Akun Premium',
@@ -340,13 +340,6 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
           proofSize: uploadedProof?.size || null,
           warrantyPeriod: `Garansi Full ${item.duration || 'Aktif'}`
         });
-
-        // Kurangi stok produk secara realtime di database toko & admin
-        try {
-          deductProductStock(item.productId || item.name, item.qty || 1);
-        } catch (e) {
-          console.warn('Gagal mengurangi stok:', e);
-        }
       });
     } catch (err) {}
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/format';
 import { PAYMENT_INFO } from '../data/config';
 import { createTransaction } from '../utils/transactions';
-import { deductProductStock } from '../utils/productDatabase';
 
 export const STEAM_KEY_PACKAGES = [
   {
@@ -233,6 +232,7 @@ export default function SteamKeyModal({
     // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
     try {
       createTransaction({
+        productId: 'steam-' + currentKey.id,
         productName: `Steam Key (${currentKey.name})`,
         productDuration: `${quantity} Key`,
         productCategory: 'Steam Key',
@@ -249,13 +249,6 @@ export default function SteamKeyModal({
         proofSize: uploadedProof?.size || null,
         warrantyPeriod: 'Garansi Resmi Valve 100% Valid'
       });
-
-      // Kurangi stok Steam Key realtime
-      try {
-        deductProductStock(currentKey.name, quantity);
-      } catch (e) {
-        console.warn('Gagal memotong stok steam key:', e);
-      }
     } catch (err) {}
 
     setIsSubmitting(false);

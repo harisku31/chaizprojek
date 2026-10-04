@@ -153,6 +153,7 @@ export function saveTransactions(transactions) {
 
 // 3. Buat Transaksi Baru (Dari Checkout Akun Premium / Steam Key)
 export function createTransaction({
+  productId = null,
   productName,
   productDuration = 'Reguler',
   productCategory = 'Akun Premium',
@@ -180,6 +181,7 @@ export function createTransaction({
 
   const newTrx = {
     id: newId,
+    productId: productId || null,
     createdAt: now.toISOString(),
     customerUsername: customerUsername || '',
     customerName,

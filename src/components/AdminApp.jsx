@@ -25,6 +25,7 @@ import {
   addAccountToProduct,
   deleteAccountFromProduct,
   updateStockManuality,
+  deductProductStock,
   subscribeToProductChanges
 } from '../utils/productDatabase';
 import {
@@ -460,15 +461,34 @@ export default function AdminApp() {
         fulfillAdminNote.trim()
       );
 
+      // Kurangi stok produk secara realtime di database saat admin memproses selesai & kirim akun
+      let stockResult = null;
+      try {
+        const prodIdentifier =
+          selectedOrderForFulfill.productId ||
+          selectedOrderForFulfill.productName;
+        const qtyToDeduct = selectedOrderForFulfill.qty || 1;
+        const sentEmail = fulfillMode === 'account' ? fulfillAccount.trim() : null;
+        stockResult = deductProductStock(prodIdentifier, qtyToDeduct, sentEmail);
+      } catch (errStock) {
+        console.warn('Gagal memotong stok saat fulfillment:', errStock);
+      }
+
       recordUserActivity(
         adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
         'ORDER_FULFILLED',
-        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - ${fulfillMode === 'steam' ? 'Code Key Steam terkirim' : 'Kredensial akun terkirim'}`
+        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - ${fulfillMode === 'steam' ? 'Code Key Steam terkirim' : 'Kredensial akun terkirim'} (Stok otomatis terpotong)`
       );
 
       setOrdersList(getTransactions());
+      setProductsList(getDatabaseProducts());
+
+      const stockNote = stockResult
+        ? ` • Sisa stok ${stockResult.product?.name || 'produk'}: ${stockResult.newStock} akun`
+        : '';
+
       showToast(
-        `Pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) berhasil diproses & ${fulfillMode === 'steam' ? 'Steam Key' : 'akun'} terkirim ke transaksi user!`,
+        `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & dikirim! Sisa stok otomatis berkurang${stockNote}`,
         'fa-circle-check',
         'success'
       );

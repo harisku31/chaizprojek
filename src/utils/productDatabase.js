@@ -251,8 +251,8 @@ export function updateStockManuality(productId, newStockValue) {
   };
 }
 
-// Kurangi stok produk saat terjadi transaksi pembelian baru (Realtime Sync ke Pembeli & Admin)
-export function deductProductStock(productIdentifier, qty = 1) {
+// Kurangi stok produk saat transaksi diproses/dikirim oleh Admin (Realtime Sync ke Pembeli & Admin)
+export function deductProductStock(productIdentifier, qty = 1, sentAccountEmail = null) {
   const products = getDatabaseProducts();
   const cleanQty = Math.max(1, parseInt(qty, 10) || 1);
 
@@ -263,7 +263,14 @@ export function deductProductStock(productIdentifier, qty = 1) {
   // 1. Cari exact match ID
   let index = products.findIndex((p) => p.id && p.id.toLowerCase() === targetStr);
 
-  // 2. Jika tidak ketemu, cari berdasarkan nama produk
+  // 2. Jika tidak ketemu, cari partial match ID
+  if (index === -1) {
+    index = products.findIndex(
+      (p) => p.id && (p.id.toLowerCase().includes(targetStr) || targetStr.includes(p.id.toLowerCase()))
+    );
+  }
+
+  // 3. Cari berdasarkan nama produk
   if (index === -1) {
     index = products.findIndex((p) => {
       if (!p.name) return false;
@@ -272,9 +279,25 @@ export function deductProductStock(productIdentifier, qty = 1) {
     });
   }
 
-  // 3. Jika masih tidak ketemu, coba kata kunci utama
+  // 4. Jika masih tidak ketemu, coba kata kunci utama
   if (index === -1) {
-    const keywords = ['canva', 'netflix', 'youtube', 'spotify', 'capcut', 'gemini', 'chatgpt', 'steam', 'disney', 'prime'];
+    const keywords = [
+      'canva',
+      'netflix',
+      'youtube',
+      'spotify',
+      'capcut',
+      'gemini',
+      'alight',
+      'disney',
+      'vidio',
+      'viu',
+      'wibuku',
+      'bstation',
+      'wink',
+      'duolingo',
+      'grok'
+    ];
     for (const kw of keywords) {
       if (targetStr.includes(kw)) {
         index = products.findIndex((p) => (p.name || p.id || '').toLowerCase().includes(kw));
@@ -292,9 +315,22 @@ export function deductProductStock(productIdentifier, qty = 1) {
   const oldStock = typeof target.stock === 'number' ? target.stock : 5;
   const newStock = Math.max(0, oldStock - cleanQty);
 
+  // Jika akun tertentu dikirimkan dan tersimpan di vault akun produk, hapus akun tersebut dari daftar akun siap pakai
+  let updatedAccounts = Array.isArray(target.accounts) ? [...target.accounts] : [];
+  if (sentAccountEmail && updatedAccounts.length > 0) {
+    const cleanMail = String(sentAccountEmail).toLowerCase().trim();
+    const accMatchIdx = updatedAccounts.findIndex(
+      (a) => a.email && a.email.toLowerCase().trim() === cleanMail
+    );
+    if (accMatchIdx !== -1) {
+      updatedAccounts.splice(accMatchIdx, 1);
+    }
+  }
+
   products[index] = {
     ...target,
-    stock: newStock
+    stock: newStock,
+    accounts: updatedAccounts
   };
 
   saveAndBroadcastProducts(products, 'PURCHASE_STOCK_DEDUCTED', {
