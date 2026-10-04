@@ -95,6 +95,7 @@ export default function ProductModal({
     const viaLabel = currentDur.tag || currentDur.warranty || 'Reguler';
     onProceedCheckout(
       {
+        productId: product.id,
         name: product.name,
         duration: currentDur.name,
         via: viaLabel,

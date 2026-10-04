@@ -251,6 +251,69 @@ export function updateStockManuality(productId, newStockValue) {
   };
 }
 
+// Kurangi stok produk saat terjadi transaksi pembelian baru (Realtime Sync ke Pembeli & Admin)
+export function deductProductStock(productIdentifier, qty = 1) {
+  const products = getDatabaseProducts();
+  const cleanQty = Math.max(1, parseInt(qty, 10) || 1);
+
+  if (!productIdentifier) return null;
+
+  const targetStr = String(productIdentifier).toLowerCase().trim();
+
+  // 1. Cari exact match ID
+  let index = products.findIndex((p) => p.id && p.id.toLowerCase() === targetStr);
+
+  // 2. Jika tidak ketemu, cari berdasarkan nama produk
+  if (index === -1) {
+    index = products.findIndex((p) => {
+      if (!p.name) return false;
+      const pName = p.name.toLowerCase();
+      return pName === targetStr || pName.includes(targetStr) || targetStr.includes(pName);
+    });
+  }
+
+  // 3. Jika masih tidak ketemu, coba kata kunci utama
+  if (index === -1) {
+    const keywords = ['canva', 'netflix', 'youtube', 'spotify', 'capcut', 'gemini', 'chatgpt', 'steam', 'disney', 'prime'];
+    for (const kw of keywords) {
+      if (targetStr.includes(kw)) {
+        index = products.findIndex((p) => (p.name || p.id || '').toLowerCase().includes(kw));
+        if (index !== -1) break;
+      }
+    }
+  }
+
+  if (index === -1) {
+    console.warn(`[Stock Deduction] Produk "${productIdentifier}" tidak ditemukan di database.`);
+    return null;
+  }
+
+  const target = products[index];
+  const oldStock = typeof target.stock === 'number' ? target.stock : 5;
+  const newStock = Math.max(0, oldStock - cleanQty);
+
+  products[index] = {
+    ...target,
+    stock: newStock
+  };
+
+  saveAndBroadcastProducts(products, 'PURCHASE_STOCK_DEDUCTED', {
+    productId: target.id,
+    productName: target.name,
+    deductedQty: cleanQty,
+    oldStock,
+    newStock
+  });
+
+  return {
+    success: true,
+    product: products[index],
+    deductedQty: cleanQty,
+    oldStock,
+    newStock
+  };
+}
+
 // Listener untuk subscribe perubahan stok realtime (untuk Admin dan Storefront)
 export function subscribeToProductChanges(callback) {
   if (typeof window === 'undefined') return () => {};

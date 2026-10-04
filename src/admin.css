@@ -3681,6 +3681,370 @@ body.admin-body {
   border-color: #fff;
 }
 
+/* =========================================================================
+   FULFILLMENT: DATA PELANGGAN CARD (NAMA, GMAIL, WHATSAPP)
+   ========================================================================= */
 
+.fulfill-customer-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.85) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: var(--admin-radius-md);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
 
+.fulfill-customer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
 
+.customer-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.customer-no-pwd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.fulfill-customer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.customer-tile {
+  background: rgba(11, 15, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--admin-radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.customer-tile.tile-email-focus {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.customer-tile.tile-wa-focus {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.customer-tile-label {
+  font-size: 11.5px;
+  color: var(--admin-text-sub);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.customer-tile-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.customer-tile-val {
+  font-size: 13.5px;
+  color: #fff;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.customer-tile-val.email-val {
+  color: #fbbf24;
+  font-family: var(--admin-font-mono);
+  font-size: 13px;
+}
+
+.customer-tile-val.wa-val {
+  color: #34d399;
+  font-family: var(--admin-font-mono);
+  font-size: 13px;
+}
+
+.customer-tile-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-customer-tile-action {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: all 0.2s ease;
+}
+
+.btn-customer-tile-action:hover {
+  background: var(--admin-cyan);
+  border-color: var(--admin-cyan);
+  color: #042f2e;
+}
+
+.btn-use-gmail-quick {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.25));
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-use-gmail-quick:hover {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+}
+
+.btn-chat-wa-quick {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-chat-wa-quick:hover {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+}
+
+/* =========================================================================
+   FULFILLMENT: SIMPLIFIED ACCOUNT FLOW (GMAIL + CATATAN UTAMA)
+   ========================================================================= */
+
+.fulfill-account-simplified-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.account-mode-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.7) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--admin-radius-sm);
+  padding: 12px 16px;
+}
+
+.account-banner-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.account-banner-icon {
+  font-size: 24px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.account-banner-header strong {
+  display: block;
+  font-size: 13.5px;
+  color: #34d399;
+  margin-bottom: 3px;
+}
+
+.account-banner-header p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--admin-text-sub);
+  line-height: 1.4;
+}
+
+.account-field-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--admin-radius-sm);
+  padding: 16px;
+  margin-bottom: 0 !important;
+  transition: border-color 0.2s;
+}
+
+.account-field-card:focus-within {
+  border-color: rgba(6, 182, 212, 0.45);
+}
+
+.account-field-card.primary-field-card {
+  border-left: 3px solid var(--admin-cyan);
+}
+
+.field-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-field-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0 !important;
+}
+
+.account-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--admin-cyan);
+  color: #042f2e;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.btn-use-customer-gmail-inline {
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: var(--admin-cyan-light);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.btn-use-customer-gmail-inline:hover {
+  background: var(--admin-cyan);
+  color: #042f2e;
+}
+
+.account-primary-input {
+  font-family: var(--admin-font-mono);
+  font-size: 14.5px;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  color: #fff !important;
+  background: rgba(11, 16, 26, 0.8) !important;
+  border-color: rgba(6, 182, 212, 0.35) !important;
+  padding: 12px 14px !important;
+}
+
+.account-primary-input:focus {
+  border-color: var(--admin-cyan) !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25) !important;
+}
+
+/* Accordion for Extra Optional Fields */
+.fulfill-extra-accordion-section {
+  background: rgba(11, 15, 25, 0.5);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--admin-radius-sm);
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.fulfill-extra-accordion-section:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-toggle-extra-accordion {
+  width: 100%;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.extra-accordion-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.extra-accordion-badge {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--admin-text-sub);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.btn-toggle-extra-accordion.active .extra-accordion-badge {
+  background: rgba(6, 182, 212, 0.2);
+  color: var(--admin-cyan-light);
+}
+
+.extra-fields-collapsible-content {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.extra-fields-info-text {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  color: var(--admin-text-muted);
+}

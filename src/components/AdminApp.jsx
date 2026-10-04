@@ -79,6 +79,7 @@ export default function AdminApp() {
   const [fulfillCode, setFulfillCode] = useState('');
   const [fulfillAdminNote, setFulfillAdminNote] = useState('');
   const [showFulfillPassword, setShowFulfillPassword] = useState(false);
+  const [showExtraFields, setShowExtraFields] = useState(false);
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
   const [proofImgError, setProofImgError] = useState(false);
   const [fulfillMode, setFulfillMode] = useState('account'); // 'account' | 'steam'
@@ -401,17 +402,30 @@ export default function AdminApp() {
       (order.productName || '').toLowerCase().includes('steam key') ||
       (order.productName || '').toLowerCase().includes('steam');
     setFulfillMode(isSteam ? 'steam' : 'account');
-    setFulfillAccount(order.credentials?.account || '');
+
+    // Auto pre-fill with customer's email if fulfilling regular account
+    const customerMail =
+      order.customerEmail && order.customerEmail !== '-' ? order.customerEmail : '';
+    const initialAccount = order.credentials?.account || (!isSteam ? customerMail : '');
+
+    setFulfillAccount(initialAccount);
     setFulfillPassword(order.credentials?.password || '');
     setFulfillUsername(order.credentials?.username || '');
     setFulfillPin(order.credentials?.pin || '');
     setFulfillProfile(order.credentials?.profile || '');
     setFulfillCode(order.credentials?.code || '');
+    setShowExtraFields(
+      Boolean(
+        order.credentials?.password ||
+          order.credentials?.pin ||
+          order.credentials?.profile
+      )
+    );
     setFulfillAdminNote(
       order.adminNote ||
         (isSteam
           ? 'Steam Key Original aktif & bergaransi resmi Valve. Cara Aktivasi: Buka aplikasi Steam di PC -> Klik menu "Games" -> Klik "Activate a Product on Steam" -> Masukkan Code Key di atas -> Klik Lanjut. Selamat bermain!'
-          : 'Akun pesanan Anda sudah aktif dan siap digunakan. Garansi penuh berlaku sejak transaksi selesai diproses. Silakan hubungi Customer Service jika butuh bantuan. Selamat berbelanja!')
+          : `Layanan Akun ${order.productName || 'Premium'} sudah berhasil diproses dan diaktifkan langsung ke email Anda (${customerMail || 'email terdaftar'}). Silakan periksa inbox atau undangan email Anda. Garansi penuh ChaizStore aktif!`)
     );
     setShowFulfillPassword(false);
   };
@@ -426,8 +440,8 @@ export default function AdminApp() {
         return;
       }
     } else {
-      if (!fulfillAccount.trim() && !fulfillCode.trim() && !fulfillPassword.trim()) {
-        showToast('Harap isi minimal salah satu: Akun/Email, Password, atau Kode Key!', 'fa-triangle-exclamation', 'warning');
+      if (!fulfillAccount.trim() && !fulfillCode.trim()) {
+        showToast('Harap isi Akun / Gmail Pelanggan terlebih dahulu!', 'fa-triangle-exclamation', 'warning');
         return;
       }
     }
@@ -3397,6 +3411,135 @@ export default function AdminApp() {
                   </div>
                 ) : null}
 
+                {/* Data Pelanggan / Buyer Information Card */}
+                <div className="fulfill-customer-card">
+                  <div className="fulfill-customer-card-header">
+                    <div className="customer-header-title">
+                      <i className="fa-solid fa-address-card text-cyan"></i>
+                      <span>Data Pemesan (Gunakan Langsung untuk Undangan / Aktivasi Akun)</span>
+                    </div>
+                    <span className="customer-no-pwd-badge">
+                      <i className="fa-solid fa-shield-check"></i> Proses Cepat Tanpa Minta Password
+                    </span>
+                  </div>
+
+                  <div className="fulfill-customer-grid">
+                    {/* Nama Lengkap */}
+                    <div className="customer-tile">
+                      <span className="customer-tile-label">
+                        <i className="fa-solid fa-user text-cyan"></i> Nama Lengkap:
+                      </span>
+                      <div className="customer-tile-content">
+                        <strong className="customer-tile-val">{selectedOrderForFulfill.customerName || 'Pelanggan ChaizStore'}</strong>
+                        <button
+                          type="button"
+                          className="btn-customer-tile-action"
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedOrderForFulfill.customerName || '');
+                            showToast('Nama pembeli disalin!', 'fa-copy', 'info');
+                          }}
+                          title="Salin Nama"
+                        >
+                          <i className="fa-solid fa-copy"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Gmail / Email */}
+                    <div className="customer-tile tile-email-focus">
+                      <span className="customer-tile-label">
+                        <i className="fa-solid fa-envelope text-warning"></i> Gmail / Email Pelanggan:
+                      </span>
+                      <div className="customer-tile-content">
+                        <strong className="customer-tile-val email-val">{selectedOrderForFulfill.customerEmail || '-'}</strong>
+                        <div className="customer-tile-btns">
+                          {selectedOrderForFulfill.customerEmail && selectedOrderForFulfill.customerEmail !== '-' && (
+                            <button
+                              type="button"
+                              className="btn-use-gmail-quick"
+                              onClick={() => {
+                                setFulfillAccount(selectedOrderForFulfill.customerEmail);
+                                showToast('Gmail pelanggan dimasukkan ke kolom akun!', 'fa-bolt', 'success');
+                              }}
+                              title="Masukkan email ini ke kolom formulir Akun"
+                            >
+                              <i className="fa-solid fa-arrow-turn-down"></i> Pakai Gmail Ini
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-customer-tile-action"
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedOrderForFulfill.customerEmail || '');
+                              showToast('Gmail pembeli disalin!', 'fa-copy', 'info');
+                            }}
+                            title="Salin Gmail"
+                          >
+                            <i className="fa-solid fa-copy"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* WhatsApp */}
+                    <div className="customer-tile tile-wa-focus">
+                      <span className="customer-tile-label">
+                        <i className="fa-brands fa-whatsapp text-success"></i> WhatsApp / No. HP:
+                      </span>
+                      <div className="customer-tile-content">
+                        <strong className="customer-tile-val wa-val">{selectedOrderForFulfill.customerPhone || '-'}</strong>
+                        <div className="customer-tile-btns">
+                          {selectedOrderForFulfill.customerPhone && selectedOrderForFulfill.customerPhone !== '-' && (
+                            <a
+                              href={`https://wa.me/${selectedOrderForFulfill.customerPhone.replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan ${selectedOrderForFulfill.productName} di ChaizStore sedang kami proses.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn-chat-wa-quick"
+                              title="Buka Chat WhatsApp ke nomor pembeli"
+                            >
+                              <i className="fa-brands fa-whatsapp"></i> Chat WA
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-customer-tile-action"
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedOrderForFulfill.customerPhone || '');
+                              showToast('Nomor WhatsApp disalin!', 'fa-copy', 'info');
+                            }}
+                            title="Salin Nomor WhatsApp"
+                          >
+                            <i className="fa-solid fa-copy"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Username jika ada */}
+                    {selectedOrderForFulfill.customerUsername && selectedOrderForFulfill.customerUsername !== '-' && (
+                      <div className="customer-tile">
+                        <span className="customer-tile-label">
+                          <i className="fa-solid fa-id-badge text-purple"></i> Username:
+                        </span>
+                        <div className="customer-tile-content">
+                          <strong className="customer-tile-val">{selectedOrderForFulfill.customerUsername}</strong>
+                          <button
+                            type="button"
+                            className="btn-customer-tile-action"
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedOrderForFulfill.customerUsername);
+                              showToast('Username disalin!', 'fa-copy', 'info');
+                            }}
+                            title="Salin Username"
+                          >
+                            <i className="fa-solid fa-copy"></i>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Mode Selector Tabs: Akun Premium vs Steam Key */}
                 <div className="fulfill-mode-selector-card">
                   <div className="fulfill-mode-header">
@@ -3453,6 +3596,7 @@ export default function AdminApp() {
                                 setFulfillAccount(acc.email);
                                 setFulfillPassword(acc.password);
                                 if (acc.note) setFulfillProfile(acc.note);
+                                setShowExtraFields(true);
                                 showToast(`Akun ${acc.email} berhasil dimasukkan ke form!`, 'fa-vault', 'info');
                               }}
                               title="Klik untuk gunakan akun ini"
@@ -3551,158 +3695,223 @@ export default function AdminApp() {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <div className="fulfill-section-heading">
-                      <i className="fa-solid fa-key text-cyan"></i>
-                      <h4>Detail Kredensial Akun (Dikirimkan ke Transaksi Pelanggan)</h4>
-                    </div>
-
-                    {/* 6 Grid Fields: Akun, Password, Username, PIN, Profile, Code */}
-                    <div className="fulfill-fields-grid">
-                      {/* 1. Akun / Email */}
-                      <div className="admin-form-group">
-                        <label htmlFor="fulfillAccount">
-                          <i className="fa-solid fa-envelope text-cyan"></i> Akun / Email
-                        </label>
-                        <input
-                          id="fulfillAccount"
-                          type="text"
-                          className="admin-text-input"
-                          placeholder="contoh: user.canva@gmail.com"
-                          value={fulfillAccount}
-                          onChange={(e) => setFulfillAccount(e.target.value)}
-                        />
-                      </div>
-
-                      {/* 2. Password */}
-                      <div className="admin-form-group">
-                        <label htmlFor="fulfillPassword">
-                          <i className="fa-solid fa-lock text-warning"></i> Password Akun
-                        </label>
-                        <div className="password-input-wrapper">
-                          <input
-                            id="fulfillPassword"
-                            type={showFulfillPassword ? 'text' : 'password'}
-                            className="admin-text-input"
-                            placeholder="contoh: SecretPass2026!"
-                            value={fulfillPassword}
-                            onChange={(e) => setFulfillPassword(e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            className="btn-toggle-eye"
-                            onClick={() => setShowFulfillPassword(!showFulfillPassword)}
-                            title={showFulfillPassword ? 'Sembunyikan password' : 'Lihat password'}
-                          >
-                            <i className={`fa-solid ${showFulfillPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                          </button>
+                  <div className="fulfill-account-simplified-box">
+                    <div className="account-mode-banner">
+                      <div className="account-banner-header">
+                        <i className="fa-solid fa-circle-check text-success account-banner-icon"></i>
+                        <div>
+                          <strong>Proses Cepat via Gmail Pelanggan</strong>
+                          <p>
+                            Cukup masukkan <strong>Gmail Pelanggan</strong> dan <strong>Catatan Konfirmasi</strong>. Anda tidak perlu meminta password dari pembeli.
+                          </p>
                         </div>
                       </div>
-
-                      {/* 3. Username */}
-                      <div className="admin-form-group">
-                        <label htmlFor="fulfillUsername">
-                          <i className="fa-solid fa-user-tag text-purple"></i> Username (Opsional)
-                        </label>
-                        <input
-                          id="fulfillUsername"
-                          type="text"
-                          className="admin-text-input"
-                          placeholder="contoh: chaiz_member1"
-                          value={fulfillUsername}
-                          onChange={(e) => setFulfillUsername(e.target.value)}
-                        />
-                      </div>
-
-                      {/* 4. PIN */}
-                      <div className="admin-form-group">
-                        <label htmlFor="fulfillPin">
-                          <i className="fa-solid fa-hashtag text-success"></i> PIN Profile (Khusus Netflix/dll)
-                        </label>
-                        <input
-                          id="fulfillPin"
-                          type="text"
-                          className="admin-text-input"
-                          placeholder="contoh: 1234"
-                          value={fulfillPin}
-                          onChange={(e) => setFulfillPin(e.target.value)}
-                        />
-                      </div>
-
-                      {/* 5. Profile / Screen */}
-                      <div className="admin-form-group">
-                        <label htmlFor="fulfillProfile">
-                          <i className="fa-solid fa-tv text-cyan"></i> Profile / Slot (Opsional)
-                        </label>
-                        <input
-                          id="fulfillProfile"
-                          type="text"
-                          className="admin-text-input"
-                          placeholder="contoh: Profile 2 / Layar 1"
-                          value={fulfillProfile}
-                          onChange={(e) => setFulfillProfile(e.target.value)}
-                        />
-                      </div>
-
-                      {/* 6. Code / Key */}
-                      <div className="admin-form-group">
-                        <label htmlFor="fulfillCode">
-                          <i className="fa-solid fa-barcode text-warning"></i> Kode / Steam Key / Invitation Code
-                        </label>
-                        <input
-                          id="fulfillCode"
-                          type="text"
-                          className="admin-text-input"
-                          placeholder="contoh: STEAM-ABC12-DEF34 / INVITE-PRO-772"
-                          value={fulfillCode}
-                          onChange={(e) => setFulfillCode(e.target.value)}
-                        />
-                      </div>
                     </div>
 
-                    {/* Catatan Khusus Admin */}
-                    <div className="fulfill-section-heading" style={{ marginTop: '20px' }}>
-                      <i className="fa-solid fa-comment-dots text-warning"></i>
-                      <h4>Catatan Khusus Admin (Tampil di Detail Transaksi Pelanggan)</h4>
+                    {/* 1. AKUN / GMAIL PELANGGAN */}
+                    <div className="admin-form-group account-field-card primary-field-card">
+                      <div className="field-card-header">
+                        <label htmlFor="fulfillAccount" className="account-field-label">
+                          <span className="account-num-badge">1</span>
+                          <i className="fa-solid fa-envelope text-cyan"></i>
+                          <span>Akun / Gmail Pelanggan (Tujuan Layanan / Undangan)</span>
+                          <span className="field-required-pill">Wajib Diisi</span>
+                        </label>
+                        {selectedOrderForFulfill.customerEmail && selectedOrderForFulfill.customerEmail !== '-' && (
+                          <button
+                            type="button"
+                            className="btn-use-customer-gmail-inline"
+                            onClick={() => {
+                              setFulfillAccount(selectedOrderForFulfill.customerEmail);
+                              showToast('Gmail pelanggan dimasukkan ke kolom akun!', 'fa-bolt', 'success');
+                            }}
+                          >
+                            <i className="fa-solid fa-arrow-turn-down"></i> Salin Dari Pelanggan
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        id="fulfillAccount"
+                        type="text"
+                        className="admin-text-input account-primary-input"
+                        placeholder="contoh: user.pelanggan@gmail.com"
+                        value={fulfillAccount}
+                        onChange={(e) => setFulfillAccount(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                      <span className="field-sub-hint">
+                        <i className="fa-solid fa-circle-info text-cyan"></i> Email ini yang akan menerima invite Canva Pro, Family Invite Spotify/YouTube, atau kredensial akun.
+                      </span>
                     </div>
 
-                    <div className="admin-form-group">
+                    {/* 2. CATATAN KHUSUS ADMIN */}
+                    <div className="admin-form-group account-field-card primary-field-card">
+                      <label htmlFor="fulfillAdminNote" className="account-field-label">
+                        <span className="account-num-badge">2</span>
+                        <i className="fa-solid fa-comment-dots text-warning"></i>
+                        <span>Catatan Konfirmasi / Panduan Pelanggan (Tampil di Menu Transaksi)</span>
+                      </label>
                       <textarea
                         id="fulfillAdminNote"
                         className="admin-text-input fulfill-note-textarea"
                         rows="3"
-                        placeholder="Tuliskan catatan khusus atau pesan untuk pelanggan (aturan login, larangan ganti email/password, cara klaim garansi)..."
+                        placeholder="Tuliskan catatan konfirmasi bahwa pesanan sudah diproses atau cara aktivasi akun..."
                         value={fulfillAdminNote}
                         onChange={(e) => setFulfillAdminNote(e.target.value)}
                       ></textarea>
 
-                      {/* Quick Preset Buttons */}
+                      {/* Quick Presets for Account */}
                       <div className="fulfill-note-presets">
-                        <span className="presets-label">Template Catatan:</span>
+                        <span className="presets-label">Template Catatan Cepat:</span>
                         <button
                           type="button"
                           className="btn-preset-quick"
-                          onClick={() => setFulfillAdminNote('Akun Canva Pro aktif full garansi. Silakan login di canva.com dengan email di atas. Dilarang mengubah email/password langganan. Selamat berkarya!')}
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, akun Canva Pro sudah aktif langsung di email ${fulfillAccount || selectedOrderForFulfill.customerEmail || 'Anda'}. Silakan buka Canva.com atau aplikasi Canva dan cek invite tim. Full garansi 100%! Selamat berkarya!`
+                            )
+                          }
                         >
-                          + Template Canva
+                          + Template Canva Pro
                         </button>
                         <button
                           type="button"
                           className="btn-preset-quick"
-                          onClick={() => setFulfillAdminNote('Akun Netflix Premium 4K UHD. Masuk ke Profile yang sudah ditentukan dan masukkan PIN di atas. Jangan ubah profil orang lain ya kak!')}
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, undangan YouTube / Spotify Premium sudah dikirim ke email ${fulfillAccount || selectedOrderForFulfill.customerEmail || 'Anda'}. Silakan buka inbox/spam email dan klik Accept Invitation. Garansi resmi ChaizStore aktif!`
+                            )
+                          }
                         >
-                          + Template Netflix
+                          + Template YouTube / Spotify
                         </button>
                         <button
                           type="button"
                           className="btn-preset-quick"
-                          onClick={() => setFulfillAdminNote('Steam Key Original aktif. Buka Steam Client -> Games -> Activate a Product on Steam -> Masukkan Kode Key di atas. Selamat bermain!')}
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Pesanan ${selectedOrderForFulfill.productName} Anda telah berhasil diproses ke email Anda. Silakan dicek langsung. Terima kasih telah berbelanja di ChaizStore!`
+                            )
+                          }
                         >
-                          + Template Steam Key
+                          + Template Selesai
                         </button>
                       </div>
                     </div>
-                  </>
+
+                    {/* OPTIONAL EXTRA FIELDS TOGGLE (PASSWORD, PIN, PROFIL, KODE) */}
+                    <div className="fulfill-extra-accordion-section">
+                      <button
+                        type="button"
+                        className={`btn-toggle-extra-accordion ${showExtraFields ? 'active' : ''}`}
+                        onClick={() => setShowExtraFields(!showExtraFields)}
+                      >
+                        <div className="extra-accordion-title">
+                          <i className={`fa-solid ${showExtraFields ? 'fa-circle-chevron-down text-cyan' : 'fa-circle-plus text-muted'}`}></i>
+                          <span>{showExtraFields ? 'Tutup Kredensial Tambahan' : 'Tambah Detail Tambahan (Password, PIN, Profil, Kode) - Opsional'}</span>
+                        </div>
+                        <span className="extra-accordion-badge">
+                          {showExtraFields ? 'Sedang Ditampilkan' : 'Tidak Wajib'}
+                        </span>
+                      </button>
+
+                      {showExtraFields && (
+                        <div className="extra-fields-collapsible-content">
+                          <p className="extra-fields-info-text">
+                            <i className="fa-solid fa-circle-info"></i> Bagian ini <strong>hanya jika</strong> jenis produk memerlukan password bersama (shared/Netflix), PIN profil, atau kode khusus:
+                          </p>
+
+                          <div className="fulfill-fields-grid">
+                            {/* Password */}
+                            <div className="admin-form-group">
+                              <label htmlFor="fulfillPassword">
+                                <i className="fa-solid fa-lock text-warning"></i> Password Akun (Opsional)
+                              </label>
+                              <div className="password-input-wrapper">
+                                <input
+                                  id="fulfillPassword"
+                                  type={showFulfillPassword ? 'text' : 'password'}
+                                  className="admin-text-input"
+                                  placeholder="contoh: SecretPass2026!"
+                                  value={fulfillPassword}
+                                  onChange={(e) => setFulfillPassword(e.target.value)}
+                                />
+                                <button
+                                  type="button"
+                                  className="btn-toggle-eye"
+                                  onClick={() => setShowFulfillPassword(!showFulfillPassword)}
+                                  title={showFulfillPassword ? 'Sembunyikan password' : 'Lihat password'}
+                                >
+                                  <i className={`fa-solid ${showFulfillPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Username */}
+                            <div className="admin-form-group">
+                              <label htmlFor="fulfillUsername">
+                                <i className="fa-solid fa-user-tag text-purple"></i> Username (Opsional)
+                              </label>
+                              <input
+                                id="fulfillUsername"
+                                type="text"
+                                className="admin-text-input"
+                                placeholder="contoh: chaiz_member1"
+                                value={fulfillUsername}
+                                onChange={(e) => setFulfillUsername(e.target.value)}
+                              />
+                            </div>
+
+                            {/* PIN */}
+                            <div className="admin-form-group">
+                              <label htmlFor="fulfillPin">
+                                <i className="fa-solid fa-hashtag text-success"></i> PIN Profile (Khusus Netflix/dll)
+                              </label>
+                              <input
+                                id="fulfillPin"
+                                type="text"
+                                className="admin-text-input"
+                                placeholder="contoh: 1234"
+                                value={fulfillPin}
+                                onChange={(e) => setFulfillPin(e.target.value)}
+                              />
+                            </div>
+
+                            {/* Profile / Screen */}
+                            <div className="admin-form-group">
+                              <label htmlFor="fulfillProfile">
+                                <i className="fa-solid fa-tv text-cyan"></i> Profile / Slot (Opsional)
+                              </label>
+                              <input
+                                id="fulfillProfile"
+                                type="text"
+                                className="admin-text-input"
+                                placeholder="contoh: Profile 2 / Layar 1"
+                                value={fulfillProfile}
+                                onChange={(e) => setFulfillProfile(e.target.value)}
+                              />
+                            </div>
+
+                            {/* Code / Key */}
+                            <div className="admin-form-group">
+                              <label htmlFor="fulfillCode">
+                                <i className="fa-solid fa-barcode text-warning"></i> Kode / Invitation Code (Opsional)
+                              </label>
+                              <input
+                                id="fulfillCode"
+                                type="text"
+                                className="admin-text-input"
+                                placeholder="contoh: INVITE-PRO-772"
+                                value={fulfillCode}
+                                onChange={(e) => setFulfillCode(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
