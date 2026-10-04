@@ -1,7 +1,15 @@
 import { PRODUCTS } from '../data/products';
+import {
+  writeToFirebase,
+  readFromFirebase,
+  listenToFirebase
+} from './firebase';
 
 const DB_STORAGE_KEY = 'chaiz_products_database';
 const SYNC_CHANNEL_NAME = 'chaiz_products_sync';
+const FIREBASE_PATH_PRODUCTS = 'products';
+
+let isCloudProductSyncing = false;
 
 // Inisialisasi Database Produk dan Gudang Restock
 export function initializeProductsDatabase() {
@@ -109,8 +117,8 @@ export function getDatabaseProductById(id) {
   return products.find((p) => p.id === id) || null;
 }
 
-// Simpan perubahan ke storage & broadcast event ke semua tab/window
-function saveAndBroadcastProducts(products, reason = 'STOCK_UPDATED', meta = {}) {
+// Simpan perubahan ke storage & broadcast event ke semua tab/window & Firebase Cloud
+function saveAndBroadcastProducts(products, reason = 'STOCK_UPDATED', meta = {}, syncToCloud = true) {
   try {
     localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(products));
   } catch (e) {
@@ -135,6 +143,11 @@ function saveAndBroadcastProducts(products, reason = 'STOCK_UPDATED', meta = {})
     } catch {
       // Ignore broadcast channel errors
     }
+  }
+
+  // 3. Sinkronisasi Realtime ke Firebase Cloud (lintas seluruh HP & Laptop pembeli dan admin)
+  if (syncToCloud && !isCloudProductSyncing) {
+    writeToFirebase(FIREBASE_PATH_PRODUCTS, products);
   }
 }
 
@@ -173,7 +186,7 @@ export function addAccountToProduct(productId, { email, password, note = '' }) {
     productName: target.name,
     email: newAccount.email,
     newStock: updatedStock
-  });
+  }, true);
 
   return {
     success: true,
@@ -206,7 +219,7 @@ export function deleteAccountFromProduct(productId, accountId) {
     productName: target.name,
     accountId,
     newStock: updatedStock
-  });
+  }, true);
 
   return {
     success: true,
@@ -241,7 +254,7 @@ export function updateStockManuality(productId, newStockValue) {
     productName: target.name,
     oldStock,
     newStock: parsedStock
-  });
+  }, true);
 
   return {
     success: true,
@@ -339,7 +352,7 @@ export function deductProductStock(productIdentifier, qty = 1, sentAccountEmail 
     deductedQty: cleanQty,
     oldStock,
     newStock
-  });
+  }, true);
 
   return {
     success: true,
@@ -388,4 +401,52 @@ export function subscribeToProductChanges(callback) {
       bc.close();
     }
   };
+}
+
+// ===================================================================
+// FIREBASE REALTIME PRODUCT SYNC INITIALIZER
+// Sinkronisasi realtime stok dan gudang akun ke Firebase Cloud
+// ===================================================================
+let isProductSyncInitialized = false;
+
+export function initProductDatabaseFirebaseSync() {
+  if (isProductSyncInitialized || typeof window === 'undefined') return;
+  isProductSyncInitialized = true;
+
+  listenToFirebase(FIREBASE_PATH_PRODUCTS, (cloudProducts) => {
+    if (cloudProducts === null) {
+      // Seed produk awal ke Firebase jika masih kosong
+      const initialProducts = getDatabaseProducts();
+      writeToFirebase(FIREBASE_PATH_PRODUCTS, initialProducts);
+      return;
+    }
+
+    try {
+      const parsedProducts = Array.isArray(cloudProducts)
+        ? cloudProducts
+        : Object.values(cloudProducts);
+
+      if (parsedProducts && parsedProducts.length > 0) {
+        isCloudProductSyncing = true;
+        localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(parsedProducts));
+        isCloudProductSyncing = false;
+
+        // Beritahu Storefront pembeli & Admin portal
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('chaiz_stock_updated', {
+              detail: { reason: 'CLOUD_SYNC', products: parsedProducts }
+            })
+          );
+        }
+      }
+    } catch (err) {
+      console.warn('Error syncing cloud products:', err);
+    }
+  });
+}
+
+// Auto init saat dimuat
+if (typeof window !== 'undefined') {
+  initProductDatabaseFirebaseSync();
 }

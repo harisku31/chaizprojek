@@ -1,13 +1,23 @@
 // ===================================================================
 // CHAIZSTORE TRANSACTIONS & REVIEWS ENGINE
-// Realtime sync via localStorage & BroadcastChannel
+// Realtime sync via Firebase Cloud Database + localStorage + BroadcastChannel
 // ===================================================================
+
+import {
+  writeToFirebase,
+  updateInFirebase,
+  readFromFirebase,
+  deleteFromFirebase,
+  listenToFirebase
+} from './firebase';
 
 const STORAGE_KEY_TRX = 'chaiz_transactions';
 const STORAGE_KEY_REVIEWS = 'chaiz_customer_reviews';
 const CHANNEL_NAME = 'chaiz_admin_sync';
+const FIREBASE_PATH_TRX = 'transactions';
+const FIREBASE_PATH_REVIEWS = 'customer_reviews';
 
-// Default Demo Transactions jika baru pertama kali dibuka
+// Default Demo Transactions jika database awal masih kosong
 const INITIAL_TRANSACTIONS = [
   {
     id: 'TRX-20261003-CANVA1',
@@ -82,13 +92,16 @@ const INITIAL_TRANSACTIONS = [
 // Masa simpan bukti transfer: 2 Hari (48 Jam) dalam milidetik
 export const PROOF_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
 
-// Helper Broadcast Channel
+// Helper: Broadcast Channel & Custom Event
 function broadcastSync(type, data) {
   try {
-    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      const bc = new BroadcastChannel(CHANNEL_NAME);
-      bc.postMessage({ type, data, timestamp: Date.now() });
-      bc.close();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('chaiz_trx_updated', { detail: { type, data } }));
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel(CHANNEL_NAME);
+        bc.postMessage({ type, data, timestamp: Date.now() });
+        setTimeout(() => bc.close(), 100);
+      }
     }
   } catch (e) {
     // fallback
@@ -127,6 +140,9 @@ function purgeExpiredProofs(list) {
   return sanitized;
 }
 
+// Flag untuk menghindari infinite loop saat sync dari Firebase
+let isCloudSyncing = false;
+
 // 1. Ambil Semua Transaksi (dengan auto-purge bukti kedaluwarsa 2 hari)
 export function getTransactions() {
   try {
@@ -143,12 +159,23 @@ export function getTransactions() {
   }
 }
 
-// 2. Simpan Transaksi
-export function saveTransactions(transactions) {
+// 2. Simpan Transaksi (ke LocalStorage + Firebase Cloud)
+export function saveTransactions(transactions, syncToCloud = true) {
   try {
     localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(transactions));
     broadcastSync('TRANSACTIONS_UPDATED', transactions);
   } catch (e) {}
+
+  if (syncToCloud && !isCloudSyncing) {
+    // Simpan seluruh map transaksi ke Firebase agar sinkron antar semua perangkat
+    const map = {};
+    (transactions || []).forEach((t) => {
+      if (t && t.id) {
+        map[t.id] = t;
+      }
+    });
+    writeToFirebase(FIREBASE_PATH_TRX, map);
+  }
 }
 
 // 3. Buat Transaksi Baru (Dari Checkout Akun Premium / Steam Key)
@@ -218,8 +245,13 @@ export function createTransaction({
   };
 
   const updated = [newTrx, ...transactions];
-  saveTransactions(updated);
+  saveTransactions(updated, false); // simpan lokal dulu
   broadcastSync('NEW_TRANSACTION', newTrx);
+
+  // Push langsung pesanan baru ke Firebase Cloud Realtime Database!
+  // Perangkat Admin di laptop langsung menerima notifikasi pesanan baru secara realtime
+  writeToFirebase(`${FIREBASE_PATH_TRX}/${newTrx.id}`, newTrx);
+
   return newTrx;
 }
 
@@ -241,13 +273,21 @@ export function deleteTransactionProof(id, deletedBy = 'Admin') {
     return trx;
   });
 
-  saveTransactions(updated);
+  saveTransactions(updated, false);
+  if (targetTrx) {
+    updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, {
+      proofUrl: null,
+      proofExpired: true,
+      proofDeletedReason: `Foto bukti dihapus langsung oleh ${deletedBy}`
+    });
+  }
   return targetTrx;
 }
 
 // Helper: Bersihkan Seluruh Riwayat Pesanan & Foto Kiriman Bukti Transfer oleh Admin
 export function clearAllTransactions() {
-  saveTransactions([]);
+  saveTransactions([], false);
+  deleteFromFirebase(FIREBASE_PATH_TRX);
   broadcastSync('TRANSACTIONS_UPDATED', []);
   return [];
 }
@@ -320,7 +360,11 @@ export function fulfillTransaction(id, credentials, adminNote) {
     return trx;
   });
 
-  saveTransactions(updated);
+  saveTransactions(updated, false);
+  if (updatedTrx) {
+    // Sinkronisasi realtime ke Firebase Cloud: Pembeli di HP langsung menerima akun & status selesai!
+    writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
+  }
   broadcastSync('TRANSACTION_FULFILLED', updatedTrx);
   return updatedTrx;
 }
@@ -345,10 +389,11 @@ export function rateTransaction(id, stars, comment) {
     return trx;
   });
 
-  saveTransactions(updated);
+  saveTransactions(updated, false);
 
-  // Otomatis tambahkan ke Testimoni / Ulasan Publik di website!
   if (ratedTrx) {
+    writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, ratedTrx);
+    // Otomatis tambahkan ke Testimoni / Ulasan Publik di website!
     addCustomerReview({
       id: `REV-${Date.now()}`,
       name: ratedTrx.customerName || 'Pelanggan Setia',
@@ -367,13 +412,12 @@ export function rateTransaction(id, stars, comment) {
 export function markTransactionsAsRead() {
   const transactions = getTransactions();
   const updated = transactions.map((t) => ({ ...t, isRead: true }));
-  saveTransactions(updated);
+  saveTransactions(updated, true);
 }
 
 // 7. Ambil Hitungan Notifikasi Transaksi Aktif
 export function getActiveNotificationCount() {
   const transactions = getTransactions();
-  // Notifikasi muncul jika ada pesanan baru diproses atau pesanan baru selesai yang belum dibuka (isRead: false)
   return transactions.filter((t) => !t.isRead).length;
 }
 
@@ -427,8 +471,86 @@ export function addCustomerReview(review) {
     const updated = [review, ...reviews];
     localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(updated));
     broadcastSync('NEW_CUSTOMER_REVIEW', review);
+    writeToFirebase(`${FIREBASE_PATH_REVIEWS}/${review.id}`, review);
     return updated;
   } catch (e) {
     return [];
   }
+}
+
+// ===================================================================
+// AUTOMATIC FIREBASE REALTIME LISTENER INITIALIZER
+// Mendengarkan perubahan data secara realtime dari Firebase Cloud
+// ===================================================================
+let isListenerActive = false;
+
+export function initTransactionsFirebaseSync() {
+  if (isListenerActive || typeof window === 'undefined') return;
+  isListenerActive = true;
+
+  // 1. Sinkronisasi Realtime Transaksi dari Cloud
+  listenToFirebase(FIREBASE_PATH_TRX, (cloudData) => {
+    if (cloudData === null) {
+      // Jika Firebase masih kosong, seed transaksi lokal awal ke cloud
+      const local = getTransactions();
+      if (local && local.length > 0) {
+        const map = {};
+        local.forEach((t) => {
+          if (t && t.id) map[t.id] = t;
+        });
+        writeToFirebase(FIREBASE_PATH_TRX, map);
+      }
+      return;
+    }
+
+    try {
+      // Konversi object map dari Firebase menjadi Array transaksi
+      const list = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+
+      // Urutkan transaksi dari yang paling baru ke lama
+      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+      isCloudSyncing = true;
+      localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(list));
+      isCloudSyncing = false;
+
+      // Beritahu seluruh komponen UI bahwa data transaksi telah terupdate dari cloud
+      broadcastSync('TRANSACTIONS_UPDATED', list);
+    } catch (err) {
+      console.warn('Error syncing cloud transactions to local:', err);
+    }
+  });
+
+  // 2. Sinkronisasi Realtime Ulasan Pelanggan dari Cloud
+  listenToFirebase(FIREBASE_PATH_REVIEWS, (cloudReviews) => {
+    if (cloudReviews === null) {
+      const localReviews = getCustomerReviews();
+      if (localReviews && localReviews.length > 0) {
+        const rMap = {};
+        localReviews.forEach((r) => {
+          if (r && r.id) rMap[r.id] = r;
+        });
+        writeToFirebase(FIREBASE_PATH_REVIEWS, rMap);
+      }
+      return;
+    }
+
+    try {
+      const revList = Array.isArray(cloudReviews)
+        ? cloudReviews.filter(Boolean)
+        : Object.values(cloudReviews).filter(Boolean);
+
+      localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(revList));
+      broadcastSync('REVIEWS_UPDATED', revList);
+    } catch (err) {
+      console.warn('Error syncing cloud reviews:', err);
+    }
+  });
+}
+
+// Inisialisasi otomatis listener saat file ini dimuat di browser
+if (typeof window !== 'undefined') {
+  initTransactionsFirebaseSync();
 }

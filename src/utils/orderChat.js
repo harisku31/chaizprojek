@@ -1,17 +1,26 @@
 // ===================================================================
 // CHAIZSTORE ORDER CHAT ENGINE (Realtime Customer <-> Admin Live Chat)
 // Features:
-// 1. WhatsApp-like Realtime Messaging
+// 1. WhatsApp-like Realtime Messaging powered by Firebase Cloud RTDB
 // 2. Customer rate limit: Max 2 messages in a row -> 5 minutes cooldown
 // 3. Admin reply instantly removes the 5-minute cooldown (reset limit)
 // 4. Admin special permission bypass (Izin khusus chat)
-// 5. Cross-tab & multi-window instant synchronization via BroadcastChannel
+// 5. Cross-device sync: Phone <-> Laptop across any physical device worldwide!
 // ===================================================================
+
+import {
+  writeToFirebase,
+  readFromFirebase,
+  listenToFirebase
+} from './firebase';
 
 const CHAT_STORAGE_KEY = 'chaiz_order_chats';
 const CHAT_CHANNEL_NAME = 'chaiz_chat_sync';
+const FIREBASE_PATH_CHATS = 'order_chats';
 const CUSTOMER_MAX_CONSECUTIVE_MSGS = 2;
 const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 Menit (300.000 ms)
+
+let isCloudChatSyncing = false;
 
 // Helper: Ambil seluruh data chat dari localStorage
 export function getAllOrderChats() {
@@ -24,8 +33,8 @@ export function getAllOrderChats() {
   }
 }
 
-// Helper: Simpan ke localStorage & broadcast ke seluruh tab/jendela
-function saveAndBroadcastChats(allChats, eventType = 'CHAT_UPDATED', detail = {}) {
+// Helper: Simpan ke localStorage & broadcast ke seluruh tab/jendela & Firebase Cloud
+function saveAndBroadcastChats(allChats, eventType = 'CHAT_UPDATED', detail = {}, syncToCloud = true) {
   try {
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(allChats));
   } catch (e) {
@@ -41,7 +50,7 @@ function saveAndBroadcastChats(allChats, eventType = 'CHAT_UPDATED', detail = {}
     );
   }
 
-  // 2. BroadcastChannel antar tab
+  // 2. BroadcastChannel antar tab lokal
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const bc = new BroadcastChannel(CHAT_CHANNEL_NAME);
@@ -49,6 +58,15 @@ function saveAndBroadcastChats(allChats, eventType = 'CHAT_UPDATED', detail = {}
       setTimeout(() => bc.close(), 100);
     } catch {
       // Ignore
+    }
+  }
+
+  // 3. Sinkronisasi Realtime ke Firebase Cloud (lintas HP & Laptop)
+  if (syncToCloud && !isCloudChatSyncing) {
+    if (detail.orderId && allChats[detail.orderId]) {
+      writeToFirebase(`${FIREBASE_PATH_CHATS}/${detail.orderId}`, allChats[detail.orderId]);
+    } else {
+      writeToFirebase(FIREBASE_PATH_CHATS, allChats);
     }
   }
 }
@@ -174,7 +192,7 @@ export function sendCustomerMessage(orderId, text, customerContext = {}) {
   }
 
   allChats[orderId] = chat;
-  saveAndBroadcastChats(allChats, 'NEW_MESSAGE', { orderId, message: newMsg, from: 'customer' });
+  saveAndBroadcastChats(allChats, 'NEW_MESSAGE', { orderId, message: newMsg, from: 'customer' }, true);
 
   return {
     success: true,
@@ -227,7 +245,8 @@ export function sendAdminMessage(orderId, text, adminName = 'Admin ChaizStore') 
   }
 
   allChats[orderId] = chat;
-  saveAndBroadcastChats(allChats, 'NEW_MESSAGE', { orderId, message: newMsg, from: 'admin' });
+  // Push ke Firebase Cloud: HP Pelanggan langsung menerima chat & batasan waktu langsung lepas!
+  saveAndBroadcastChats(allChats, 'NEW_MESSAGE', { orderId, message: newMsg, from: 'admin' }, true);
 
   return {
     success: true,
@@ -255,7 +274,7 @@ export function grantCustomerChatPermission(orderId) {
   });
 
   allChats[orderId] = chat;
-  saveAndBroadcastChats(allChats, 'PERMISSION_GRANTED', { orderId });
+  saveAndBroadcastChats(allChats, 'PERMISSION_GRANTED', { orderId }, true);
 
   return {
     success: true,
@@ -280,7 +299,7 @@ export function markOrderChatAsRead(orderId, role = 'customer') {
 
   if (changed) {
     allChats[orderId] = chat;
-    saveAndBroadcastChats(allChats, 'CHAT_READ', { orderId, role });
+    saveAndBroadcastChats(allChats, 'CHAT_READ', { orderId, role }, true);
   }
 }
 
@@ -342,4 +361,48 @@ export function subscribeToOrderChat(orderId, callback) {
     window.removeEventListener('storage', handleStorage);
     if (bc) bc.close();
   };
+}
+
+// ===================================================================
+// FIREBASE REALTIME CHAT SYNC INITIALIZER
+// Mendengarkan pembaruan chat live dari Firebase Cloud
+// ===================================================================
+let isChatSyncInitialized = false;
+
+export function initOrderChatFirebaseSync() {
+  if (isChatSyncInitialized || typeof window === 'undefined') return;
+  isChatSyncInitialized = true;
+
+  listenToFirebase(FIREBASE_PATH_CHATS, (cloudChats) => {
+    if (cloudChats === null) {
+      // Jika di cloud masih kosong, seed chat lokal jika ada
+      const localChats = getAllOrderChats();
+      if (localChats && Object.keys(localChats).length > 0) {
+        writeToFirebase(FIREBASE_PATH_CHATS, localChats);
+      }
+      return;
+    }
+
+    try {
+      isCloudChatSyncing = true;
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(cloudChats));
+      isCloudChatSyncing = false;
+
+      // Beritahu UI saat ini
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('chaiz_chat_event', {
+            detail: { eventType: 'CLOUD_CHAT_SYNC', allChats: cloudChats }
+          })
+        );
+      }
+    } catch (err) {
+      console.warn('Error syncing cloud chats to local:', err);
+    }
+  });
+}
+
+// Auto init saat dimuat
+if (typeof window !== 'undefined') {
+  initOrderChatFirebaseSync();
 }
