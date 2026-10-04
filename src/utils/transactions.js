@@ -452,7 +452,7 @@ export function rateTransaction(id, stars, comment) {
   saveTransactions(updated);
 
   if (ratedTrx) {
-    writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, ratedTrx);
+    updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, { rating: ratedTrx.rating });
     addCustomerReview({
       id: `REV-${Date.now()}`,
       name: ratedTrx.customerName || 'Pelanggan Setia',
