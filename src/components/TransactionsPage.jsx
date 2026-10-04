@@ -6,6 +6,7 @@ import {
 } from '../utils/transactions';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
+import OrderChatModal from './OrderChatModal';
 
 export default function TransactionsPage({
   onBackToStore,
@@ -17,6 +18,7 @@ export default function TransactionsPage({
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'processing' | 'completed'
   const [selectedTrxDetail, setSelectedTrxDetail] = useState(null);
   const [selectedTrxRating, setSelectedTrxRating] = useState(null);
+  const [selectedTrxChat, setSelectedTrxChat] = useState(null);
 
   const loadData = () => {
     const list = getTransactions();
@@ -106,26 +108,34 @@ export default function TransactionsPage({
               Pantau status pesanan Anda secara realtime. Setelah Admin memproses pesanan, kredensial akun (email, password, PIN, profil) akan langsung tampil di sini dan Anda dapat memberikan ulasan bintang 5.
             </p>
 
-            <div className="topup-hero-stats">
-              <div className="topup-stat-item">
-                <i className="fa-solid fa-clock-rotate-left text-warning"></i>
-                <div>
-                  <strong>{processingCount} Pesanan</strong>
-                  <small>Sedang Diproses Admin</small>
+            <div className="trx-hero-stats-aligned">
+              <div className="trx-stat-card-aligned card-stat-processing">
+                <div className="stat-card-icon-box text-warning">
+                  <i className="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div className="stat-card-text">
+                  <strong className="stat-number">{processingCount} Pesanan</strong>
+                  <span className="stat-label">Sedang Diproses Admin</span>
                 </div>
               </div>
-              <div className="topup-stat-item">
-                <i className="fa-solid fa-circle-check text-emerald"></i>
-                <div>
-                  <strong>{completedCount} Pesanan</strong>
-                  <small>Berhasil Selesai</small>
+
+              <div className="trx-stat-card-aligned card-stat-completed">
+                <div className="stat-card-icon-box text-emerald">
+                  <i className="fa-solid fa-circle-check"></i>
+                </div>
+                <div className="stat-card-text">
+                  <strong className="stat-number">{completedCount} Pesanan</strong>
+                  <span className="stat-label">Berhasil Selesai</span>
                 </div>
               </div>
-              <div className="topup-stat-item">
-                <i className="fa-solid fa-shield-halved text-cyan"></i>
-                <div>
-                  <strong>100% Garansi</strong>
-                  <small>Full Support Garansi</small>
+
+              <div className="trx-stat-card-aligned card-stat-warranty">
+                <div className="stat-card-icon-box text-cyan">
+                  <i className="fa-solid fa-shield-halved"></i>
+                </div>
+                <div className="stat-card-text">
+                  <strong className="stat-number">100% Garansi</strong>
+                  <span className="stat-label">Full Support Garansi</span>
                 </div>
               </div>
             </div>
@@ -196,6 +206,15 @@ export default function TransactionsPage({
                           <i className={`fa-solid ${isCompleted ? 'fa-circle-check' : 'fa-spinner fa-spin'}`}></i>
                           {isCompleted ? 'Pesanan Berhasil / Terkirim' : 'Sedang Diproses Admin'}
                         </span>
+                        <button
+                          type="button"
+                          className="btn-trx-quick-chat"
+                          onClick={() => setSelectedTrxChat(trx)}
+                          title="Buka Chat dengan Admin"
+                        >
+                          <i className="fa-solid fa-comments"></i>
+                          <span>Chat Admin</span>
+                        </button>
                       </div>
                     </div>
 
@@ -233,8 +252,9 @@ export default function TransactionsPage({
                     )}
 
                     {/* Action Buttons: 
-                        - Jika diproses: HANYA 1 tombol (Lihat)
-                        - Jika berhasil terkirim: BERUBAH JADI 2 tombol (Lihat & Rating) */}
+                        - Tombol 1: Lihat Detail
+                        - Tombol 2: Chat Admin
+                        - Tombol 3: Beri Rating (jika berhasil terkirim) */}
                     <div className="trx-card-actions">
                       {/* Tombol 1: Lihat Detail */}
                       <button
@@ -245,7 +265,17 @@ export default function TransactionsPage({
                         <i className="fa-solid fa-eye"></i> Lihat Detail Akun
                       </button>
 
-                      {/* Tombol 2: Rating (HANYA MUNCUL JIKA STATUS SELESAI / BERHASIL TERKIRIM) */}
+                      {/* Tombol 2: Chat Admin */}
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-trx-chat-action"
+                        onClick={() => setSelectedTrxChat(trx)}
+                      >
+                        <i className="fa-solid fa-comments text-cyan"></i>
+                        <span>Chat Admin</span>
+                      </button>
+
+                      {/* Tombol 3: Rating (HANYA MUNCUL JIKA STATUS SELESAI / BERHASIL TERKIRIM) */}
                       {isCompleted && (
                         <button
                           type="button"
@@ -307,6 +337,15 @@ export default function TransactionsPage({
             setSelectedTrxDetail(updated);
           }
         }}
+        onShowToast={onShowToast}
+      />
+
+      {/* Modal Live Chat Pesanan Pelanggan <-> Admin */}
+      <OrderChatModal
+        isOpen={!!selectedTrxChat}
+        onClose={() => setSelectedTrxChat(null)}
+        order={selectedTrxChat}
+        role="customer"
         onShowToast={onShowToast}
       />
     </div>

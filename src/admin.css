@@ -4048,3 +4048,50 @@ body.admin-body {
   font-size: 12px;
   color: var(--admin-text-muted);
 }
+
+/* =========================================================================
+   ADMIN ORDERS TABLE: ACTION CELL GROUP & CHAT BUTTON
+   ========================================================================= */
+
+.order-actions-cell-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-action-order-chat {
+  background: rgba(6, 182, 212, 0.12) !important;
+  border: 1px solid rgba(6, 182, 212, 0.35) !important;
+  color: #22d3ee !important;
+}
+
+.btn-action-order-chat:hover {
+  background: #06b6d4 !important;
+  color: #042f2e !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+}
+
+.btn-chat-internal-quick {
+  background: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  color: #22d3ee;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-chat-internal-quick:hover {
+  background: #06b6d4;
+  color: #042f2e;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
+}
+
