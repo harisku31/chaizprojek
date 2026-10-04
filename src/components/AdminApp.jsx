@@ -86,6 +86,7 @@ export default function AdminApp() {
   const [proofImgError, setProofImgError] = useState(false);
   const [fulfillMode, setFulfillMode] = useState('account'); // 'account' | 'steam'
   const [isFulfilling, setIsFulfilling] = useState(false);
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
 
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -520,6 +521,24 @@ export default function AdminApp() {
       showToast('Gagal memproses pesanan: ' + err.message, 'fa-circle-xmark', 'error');
     } finally {
       setIsFulfilling(false);
+    }
+  };
+
+  // Segarkan Data Pesanan Langsung dari Cloud
+  const handleRefreshOrders = async () => {
+    setIsRefreshingOrders(true);
+    try {
+      const fresh = await syncTransactionsFromCloud();
+      if (fresh) {
+        setOrdersList(fresh);
+      } else {
+        setOrdersList(getTransactions());
+      }
+      showToast('Daftar pesanan berhasil disegarkan langsung dari Cloud Database!', 'fa-arrows-rotate text-cyan');
+    } catch (err) {
+      showToast('Gagal menyegarkan pesanan: ' + err.message, 'fa-triangle-exclamation', 'warning');
+    } finally {
+      setTimeout(() => setIsRefreshingOrders(false), 450);
     }
   };
 
@@ -2179,24 +2198,35 @@ export default function AdminApp() {
                 </p>
               </div>
 
-              <div className="admin-quick-actions">
+              <div className="admin-quick-actions orders-quick-actions-bar">
+                <div className="orders-live-status-pill">
+                  <span className="live-status-pulse"></span>
+                  <span>Cloud Sync Aktif</span>
+                </div>
+
                 <button
                   type="button"
-                  className="btn-quick-action btn-refresh"
-                  onClick={reloadAllData}
-                  title="Segarkan daftar pesanan"
+                  className="admin-action-btn action-refresh-orders"
+                  onClick={handleRefreshOrders}
+                  disabled={isRefreshingOrders}
+                  title="Segarkan daftar pesanan langsung dari Firebase Cloud"
                 >
-                  <i className="fa-solid fa-arrows-rotate"></i>
-                  <span>Refresh Pesanan</span>
+                  <i className={`fa-solid fa-arrows-rotate ${isRefreshingOrders ? 'fa-spin' : ''}`}></i>
+                  <span>{isRefreshingOrders ? 'Menyegarkan...' : 'Refresh Pesanan'}</span>
                 </button>
+
                 <button
                   type="button"
-                  className="btn-quick-action btn-danger-action btn-clear-history"
+                  className="admin-action-btn action-clear-orders"
                   onClick={handleClearOrdersHistory}
-                  title="Bersihkan semua riwayat pesanan & foto bukti kiriman"
+                  disabled={ordersList.length === 0}
+                  title={ordersList.length === 0 ? 'Riwayat pesanan sudah kosong' : 'Bersihkan semua riwayat pesanan & foto bukti kiriman'}
                 >
                   <i className="fa-solid fa-trash-can"></i>
                   <span>Bersihkan Riwayat</span>
+                  {ordersList.length > 0 && (
+                    <span className="orders-badge-count">{ordersList.length}</span>
+                  )}
                 </button>
               </div>
             </section>
