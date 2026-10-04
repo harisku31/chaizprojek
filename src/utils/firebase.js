@@ -1,7 +1,7 @@
 // ===================================================================
 // CHAIZSTORE CLOUD SYNC ENGINE (Firebase Realtime Database)
-// Native zero-dependency implementation using Web Fetch + EventSource (SSE)
-// Fast, robust, and 100% compatible with all mobile browsers & laptops!
+// Ultra-lightweight native Web Standards (Fetch + EventSource SSE)
+// Optimized for zero mobile lag & 60fps performance
 // ===================================================================
 
 export const FIREBASE_DB_URL = 'https://chaizstore-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -69,7 +69,7 @@ export async function deleteFromFirebase(path) {
   }
 }
 
-// 5. Langganan Realtime Real-Time Listener (SSE EventSource + Smart Polling Heartbeat)
+// 5. Langganan Realtime Listener (SSE EventSource + Smart Debounced Polling)
 export function listenToFirebase(path, callback) {
   if (typeof window === 'undefined') return () => {};
 
@@ -78,13 +78,24 @@ export function listenToFirebase(path, callback) {
 
   let eventSource = null;
   let isClosed = false;
+  let lastDataString = '';
 
-  // Initial immediate fetch
-  readFromFirebase(cleanPath).then((data) => {
-    if (!isClosed && data !== undefined) {
+  // Hanya invoke callback jika data benar-benar berubah, untuk mencegah lag di HP!
+  const deliverIfChanged = (data) => {
+    if (isClosed || data === undefined) return;
+    try {
+      const serialized = JSON.stringify(data);
+      if (serialized !== lastDataString) {
+        lastDataString = serialized;
+        callback(data);
+      }
+    } catch {
       callback(data);
     }
-  });
+  };
+
+  // Initial immediate fetch
+  readFromFirebase(cleanPath).then(deliverIfChanged);
 
   // A. Realtime Streaming via Native Browser EventSource (Server-Sent Events)
   try {
@@ -96,44 +107,35 @@ export function listenToFirebase(path, callback) {
         try {
           const parsed = JSON.parse(e.data);
           if (parsed.path === '/' || parsed.path === '') {
-            callback(parsed.data);
+            deliverIfChanged(parsed.data);
           } else {
-            // Child modified, refresh entire collection
-            readFromFirebase(cleanPath).then((fresh) => {
-              if (!isClosed) callback(fresh);
-            });
+            readFromFirebase(cleanPath).then(deliverIfChanged);
           }
-        } catch (err) {
-          // ignore parse errors
+        } catch {
+          // ignore
         }
       });
 
       eventSource.addEventListener('patch', () => {
         if (isClosed) return;
-        readFromFirebase(cleanPath).then((fresh) => {
-          if (!isClosed) callback(fresh);
-        });
+        readFromFirebase(cleanPath).then(deliverIfChanged);
       });
 
       eventSource.onerror = () => {
-        // EventSource will automatically retry in background
+        // Otomatis reconnect oleh browser
       };
     }
   } catch (esErr) {
     console.warn(`[EventSource init error for ${cleanPath}]:`, esErr);
   }
 
-  // B. Fallback / Heartbeat Polling: setiap 2.5 detik saat tab browser aktif (supaya di HP tidak putus)
+  // B. Fallback Heartbeat setiap 8 detik (hanya saat layar HP aktif, sangat hemat memori)
   const pollInterval = setInterval(() => {
     if (isClosed) return;
-    if (typeof document !== 'undefined' && document.hidden) return; // hemat baterai jika tab di-minimize
+    if (typeof document !== 'undefined' && document.hidden) return;
 
-    readFromFirebase(cleanPath).then((data) => {
-      if (!isClosed && data !== undefined) {
-        callback(data);
-      }
-    });
-  }, 2500);
+    readFromFirebase(cleanPath).then(deliverIfChanged);
+  }, 8000);
 
   // Return unsubscribe cleaner
   return () => {

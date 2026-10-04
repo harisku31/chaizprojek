@@ -6,7 +6,6 @@ import {
 } from '../utils/transactions';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
-import OrderChatModal from './OrderChatModal';
 
 export default function TransactionsPage({
   onBackToStore,
@@ -18,7 +17,6 @@ export default function TransactionsPage({
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'processing' | 'completed'
   const [selectedTrxDetail, setSelectedTrxDetail] = useState(null);
   const [selectedTrxRating, setSelectedTrxRating] = useState(null);
-  const [selectedTrxChat, setSelectedTrxChat] = useState(null);
 
   const loadData = () => {
     const list = getTransactions();
@@ -219,15 +217,6 @@ export default function TransactionsPage({
                           <i className={`fa-solid ${isCompleted ? 'fa-circle-check' : 'fa-spinner fa-spin'}`}></i>
                           {isCompleted ? 'Pesanan Berhasil / Terkirim' : 'Sedang Diproses Admin'}
                         </span>
-                        <button
-                          type="button"
-                          className="btn-trx-quick-chat"
-                          onClick={() => setSelectedTrxChat(trx)}
-                          title="Buka Chat dengan Admin"
-                        >
-                          <i className="fa-solid fa-comments"></i>
-                          <span>Chat Admin</span>
-                        </button>
                       </div>
                     </div>
 
@@ -278,17 +267,7 @@ export default function TransactionsPage({
                         <i className="fa-solid fa-eye"></i> Lihat Detail Akun
                       </button>
 
-                      {/* Tombol 2: Chat Admin */}
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-trx-chat-action"
-                        onClick={() => setSelectedTrxChat(trx)}
-                      >
-                        <i className="fa-solid fa-comments text-cyan"></i>
-                        <span>Chat Admin</span>
-                      </button>
-
-                      {/* Tombol 3: Rating (HANYA MUNCUL JIKA STATUS SELESAI / BERHASIL TERKIRIM) */}
+                      {/* Tombol 2: Rating (HANYA MUNCUL JIKA STATUS SELESAI / BERHASIL TERKIRIM) */}
                       {isCompleted && (
                         <button
                           type="button"
@@ -350,15 +329,6 @@ export default function TransactionsPage({
             setSelectedTrxDetail(updated);
           }
         }}
-        onShowToast={onShowToast}
-      />
-
-      {/* Modal Live Chat Pesanan Pelanggan <-> Admin */}
-      <OrderChatModal
-        isOpen={!!selectedTrxChat}
-        onClose={() => setSelectedTrxChat(null)}
-        order={selectedTrxChat}
-        role="customer"
         onShowToast={onShowToast}
       />
     </div>

@@ -35,7 +35,6 @@ import {
   getProofTimeRemaining,
   clearAllTransactions
 } from '../utils/transactions';
-import OrderChatModal from './OrderChatModal';
 
 export default function AdminApp() {
   // Admin Auth State
@@ -85,7 +84,6 @@ export default function AdminApp() {
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
   const [proofImgError, setProofImgError] = useState(false);
   const [fulfillMode, setFulfillMode] = useState('account'); // 'account' | 'steam'
-  const [activeChatOrder, setActiveChatOrder] = useState(null);
 
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -188,16 +186,7 @@ export default function AdminApp() {
       }
     };
 
-    const handleCustomChat = (e) => {
-      // Refresh order list if chat changed unread status
-      setOrdersList(getTransactions());
-      if (e.detail?.eventType === 'NEW_MESSAGE' && e.detail?.from === 'customer') {
-        showToast(`Pesan chat baru masuk untuk pesanan #${e.detail?.orderId || ''}!`, 'fa-comments', 'info');
-      }
-    };
-
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
-    window.addEventListener('chaiz_chat_event', handleCustomChat);
 
     // Auto poll every 3 seconds for live online/offline heartbeat detection & countdown
     const interval = setInterval(() => {
@@ -208,7 +197,6 @@ export default function AdminApp() {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
-      window.removeEventListener('chaiz_chat_event', handleCustomChat);
       if (bc) bc.close();
       clearInterval(interval);
     };
@@ -2509,15 +2497,6 @@ export default function AdminApp() {
                                   <i className={isProcessing ? 'fa-solid fa-paper-plane' : 'fa-solid fa-pen-to-square'}></i>
                                   <span>{isProcessing ? 'Proses & Kirim Akun' : 'Lihat / Ubah Data'}</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  className="btn-admin-order-action btn-action-order-chat"
-                                  onClick={() => setActiveChatOrder(order)}
-                                  title={`Buka Ruang Chat WhatsApp-Style dengan ${order.customerName || 'Pelanggan'}`}
-                                >
-                                  <i className="fa-solid fa-comments"></i>
-                                  <span>Chat Pelanggan</span>
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -3556,14 +3535,6 @@ export default function AdminApp() {
                           )}
                           <button
                             type="button"
-                            className="btn-chat-internal-quick"
-                            onClick={() => setActiveChatOrder(selectedOrderForFulfill)}
-                            title="Buka Ruang Chat Web dengan Pelanggan"
-                          >
-                            <i className="fa-solid fa-comments"></i> Chat Web
-                          </button>
-                          <button
-                            type="button"
                             className="btn-customer-tile-action"
                             onClick={() => {
                               navigator.clipboard.writeText(selectedOrderForFulfill.customerPhone || '');
@@ -4159,16 +4130,6 @@ export default function AdminApp() {
           </div>
         </div>
       )}
-
-      {/* Modal Live Chat Pesanan Pelanggan (Admin Side) */}
-      <OrderChatModal
-        isOpen={!!activeChatOrder}
-        onClose={() => setActiveChatOrder(null)}
-        order={activeChatOrder}
-        role="admin"
-        onShowToast={showToast}
-        adminSession={adminSession}
-      />
 
       {/* Toast Notification Container */}
       <div className="admin-toast-container">
