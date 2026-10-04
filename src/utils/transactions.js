@@ -160,8 +160,16 @@ export function getTransactions() {
 export function saveTransactions(transactions) {
   try {
     localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(transactions));
-    broadcastSync('TRANSACTIONS_UPDATED', transactions);
-  } catch (e) {}
+  } catch (e) {
+    try {
+      const stripped = transactions.map((t) => ({
+        ...t,
+        proofUrl: t.proofUrl && t.proofUrl.length > 500 ? null : t.proofUrl
+      }));
+      localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(stripped));
+    } catch (inner) {}
+  }
+  broadcastSync('TRANSACTIONS_UPDATED', transactions);
 }
 
 // 3. Tarik Data Transaksi Paling Segar dari Firebase Cloud
@@ -174,7 +182,19 @@ export async function syncTransactionsFromCloud() {
         : Object.values(cloudData).filter(Boolean);
 
       list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(list));
+      try {
+        localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(list));
+      } catch (storageErr) {
+        try {
+          const stripped = list.map((t) => ({
+            ...t,
+            proofUrl: t.proofUrl && t.proofUrl.length > 500 ? null : t.proofUrl
+          }));
+          localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(stripped));
+        } catch (innerErr) {
+          console.warn('LocalStorage quota exceeded in syncTransactionsFromCloud:', innerErr);
+        }
+      }
       broadcastSync('TRANSACTIONS_UPDATED', list);
       return list;
     }
@@ -339,38 +359,72 @@ export function getProofTimeRemaining(trx) {
 }
 
 // 5. Update Status Pesanan oleh Admin (Kirim Akun & Catatan Khusus)
-export function fulfillTransaction(id, credentials, adminNote) {
+export async function fulfillTransaction(id, credentials = {}, adminNote = '', fallbackOrder = null) {
   const transactions = getTransactions();
-  let updatedTrx = null;
+  let existing = transactions.find((trx) => trx.id === id) || fallbackOrder;
 
-  const updated = transactions.map((trx) => {
+  // Jika tidak ditemukan di localStorage maupun fallback, ambil dari cloud
+  if (!existing) {
+    try {
+      const fromCloud = await readFromFirebase(`${FIREBASE_PATH_TRX}/${id}`);
+      if (fromCloud) existing = fromCloud;
+    } catch (e) {}
+  }
+
+  const updatedTrx = {
+    ...(existing || {}),
+    id,
+    status: 'completed',
+    credentials: {
+      account: credentials?.account || existing?.credentials?.account || '',
+      password: credentials?.password || existing?.credentials?.password || '',
+      username: credentials?.username || existing?.credentials?.username || '',
+      pin: credentials?.pin || existing?.credentials?.pin || '',
+      profile: credentials?.profile || existing?.credentials?.profile || '',
+      code: credentials?.code || existing?.credentials?.code || ''
+    },
+    adminNote:
+      adminNote ||
+      existing?.adminNote ||
+      'Pesanan Anda telah berhasil diproses oleh Admin ChaizStore. Selamat menikmati layanan kami!',
+    processedAt: new Date().toISOString(),
+    isRead: false
+  };
+
+  let foundInList = false;
+  const updatedList = transactions.map((trx) => {
     if (trx.id === id) {
-      updatedTrx = {
-        ...trx,
-        status: 'completed',
-        credentials: {
-          account: credentials.account || '',
-          password: credentials.password || '',
-          username: credentials.username || '',
-          pin: credentials.pin || '',
-          profile: credentials.profile || '',
-          code: credentials.code || ''
-        },
-        adminNote: adminNote || 'Pesanan Anda telah berhasil diproses oleh Admin ChaizStore. Selamat menikmati layanan kami!',
-        processedAt: new Date().toISOString(),
-        isRead: false
-      };
+      foundInList = true;
       return updatedTrx;
     }
     return trx;
   });
 
-  saveTransactions(updated);
-
-  if (updatedTrx) {
-    // Sinkronisasi realtime ke Firebase Cloud: Pembeli di HP langsung menerima akun & status selesai!
-    writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
+  if (!foundInList) {
+    updatedList.unshift(updatedTrx);
   }
+
+  saveTransactions(updatedList);
+
+  // CRITICAL: Sinkronisasi atomic ke Firebase Realtime Database
+  // updateInFirebase (PATCH) memperbarui status & kredensial tanpa berisiko error ukuran file bukti!
+  try {
+    await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, {
+      status: 'completed',
+      credentials: updatedTrx.credentials,
+      adminNote: updatedTrx.adminNote,
+      processedAt: updatedTrx.processedAt,
+      isRead: false
+    });
+  } catch (patchErr) {
+    console.warn('Update in Firebase patch fallback to put:', patchErr);
+    try {
+      await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
+    } catch (writeErr) {
+      console.error('Gagal menulis ke Firebase:', writeErr);
+    }
+  }
+
   broadcastSync('TRANSACTION_FULFILLED', updatedTrx);
   return updatedTrx;
 }

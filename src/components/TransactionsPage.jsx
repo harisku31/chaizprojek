@@ -5,6 +5,7 @@ import {
   markTransactionsAsRead,
   syncTransactionsFromCloud
 } from '../utils/transactions';
+import { listenToFirebase } from '../utils/firebase';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
 
@@ -28,11 +29,20 @@ export default function TransactionsPage({
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    const fresh = await syncTransactionsFromCloud();
-    setTransactions(fresh);
-    markTransactionsAsRead();
-    setIsRefreshing(false);
-    onShowToast?.('Status pesanan berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
+    try {
+      const fresh = await syncTransactionsFromCloud();
+      if (fresh && fresh.length > 0) {
+        setTransactions(fresh);
+      } else {
+        loadData();
+      }
+      markTransactionsAsRead();
+      onShowToast?.('Status pesanan berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
+    } catch {
+      onShowToast?.('Gagal menyegarkan status', 'fa-triangle-exclamation', 'warning');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -44,7 +54,28 @@ export default function TransactionsPage({
       }
     });
 
-    // Listen realtime update dari BroadcastChannel (saat Admin klik proses berhasil)
+    // 1. Realtime Cloud Listener dari Firebase: Begitu Admin di Laptop proses pesanan, HP pembeli update seketika!
+    const unsubscribeCloud = listenToFirebase('transactions', (cloudData) => {
+      if (cloudData) {
+        const list = Array.isArray(cloudData)
+          ? cloudData.filter(Boolean)
+          : Object.values(cloudData).filter(Boolean);
+        list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setTransactions(list);
+      }
+    });
+
+    // 2. Fallback smart polling setiap 4 detik saat halaman aktif
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      syncTransactionsFromCloud().then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setTransactions(fresh);
+        }
+      });
+    }, 4000);
+
+    // 3. Listen realtime update dari BroadcastChannel (saat Admin klik proses berhasil di perangkat yang sama)
     let bc = null;
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -88,11 +119,33 @@ export default function TransactionsPage({
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
 
     return () => {
+      if (unsubscribeCloud) unsubscribeCloud();
+      clearInterval(pollInterval);
       if (bc) bc.close();
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
     };
   }, []);
+
+  // Sinkronkan selectedTrxDetail jika modal sedang dibuka pelanggan dan status berubah dari cloud
+  useEffect(() => {
+    if (selectedTrxDetail) {
+      const updated = transactions.find((t) => t.id === selectedTrxDetail.id);
+      if (
+        updated &&
+        (updated.status !== selectedTrxDetail.status ||
+          JSON.stringify(updated.credentials) !== JSON.stringify(selectedTrxDetail.credentials))
+      ) {
+        setSelectedTrxDetail(updated);
+        if (updated.status === 'completed' && selectedTrxDetail.status !== 'completed') {
+          onShowToast?.(
+            '🎉 Pesanan Anda telah selesai diproses Admin! Akun & kredensial telah siap di bawah.',
+            'fa-circle-check text-success'
+          );
+        }
+      }
+    }
+  }, [transactions, selectedTrxDetail]);
 
   const processingCount = transactions.filter((t) => t.status === 'processing').length;
   const completedCount = transactions.filter((t) => t.status === 'completed').length;

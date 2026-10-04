@@ -85,6 +85,7 @@ export default function AdminApp() {
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
   const [proofImgError, setProofImgError] = useState(false);
   const [fulfillMode, setFulfillMode] = useState('account'); // 'account' | 'steam'
+  const [isFulfilling, setIsFulfilling] = useState(false);
 
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -448,9 +449,9 @@ export default function AdminApp() {
     setShowFulfillPassword(false);
   };
 
-  const handleFulfillSubmit = (e) => {
+  const handleFulfillSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedOrderForFulfill) return;
+    if (!selectedOrderForFulfill || isFulfilling) return;
 
     if (fulfillMode === 'steam') {
       if (!fulfillCode.trim()) {
@@ -464,8 +465,9 @@ export default function AdminApp() {
       }
     }
 
+    setIsFulfilling(true);
     try {
-      fulfillTransaction(
+      const fulfilled = await fulfillTransaction(
         selectedOrderForFulfill.id,
         {
           account: fulfillMode === 'steam' ? '' : fulfillAccount.trim(),
@@ -475,7 +477,8 @@ export default function AdminApp() {
           profile: fulfillMode === 'steam' ? '' : fulfillProfile.trim(),
           code: fulfillCode.trim()
         },
-        fulfillAdminNote.trim()
+        fulfillAdminNote.trim(),
+        selectedOrderForFulfill
       );
 
       // Kurangi stok produk secara realtime di database saat admin memproses selesai & kirim akun
@@ -497,7 +500,10 @@ export default function AdminApp() {
         `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - ${fulfillMode === 'steam' ? 'Code Key Steam terkirim' : 'Kredensial akun terkirim'} (Stok otomatis terpotong)`
       );
 
-      setOrdersList(getTransactions());
+      // Perbarui tampilan ordersList secara instan
+      setOrdersList((prev) =>
+        prev.map((o) => (o.id === selectedOrderForFulfill.id ? { ...o, ...(fulfilled || {}), status: 'completed' } : o))
+      );
       setProductsList(getDatabaseProducts());
 
       const stockNote = stockResult
@@ -505,13 +511,15 @@ export default function AdminApp() {
         : '';
 
       showToast(
-        `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & dikirim! Sisa stok otomatis berkurang${stockNote}`,
+        `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & dikirim ke Cloud! Pembeli dapat langsung melihat akun.${stockNote}`,
         'fa-circle-check',
         'success'
       );
       setSelectedOrderForFulfill(null);
     } catch (err) {
       showToast('Gagal memproses pesanan: ' + err.message, 'fa-circle-xmark', 'error');
+    } finally {
+      setIsFulfilling(false);
     }
   };
 
@@ -3965,9 +3973,10 @@ export default function AdminApp() {
                 <button
                   type="submit"
                   className="btn-modal-save btn-fulfill-submit"
+                  disabled={isFulfilling}
                 >
-                  <i className="fa-solid fa-paper-plane"></i>
-                  <span>Proses Berhasil & Kirim ke Pelanggan</span>
+                  <i className={`fa-solid ${isFulfilling ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+                  <span>{isFulfilling ? 'Mengirim ke Cloud...' : 'Proses Berhasil & Kirim ke Pelanggan'}</span>
                 </button>
               </div>
             </form>
