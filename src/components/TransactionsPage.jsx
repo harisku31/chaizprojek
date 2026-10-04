@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { formatRupiah } from '../utils/format';
 import {
   getTransactions,
-  markTransactionsAsRead
+  markTransactionsAsRead,
+  syncTransactionsFromCloud
 } from '../utils/transactions';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
@@ -17,6 +18,7 @@ export default function TransactionsPage({
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'processing' | 'completed'
   const [selectedTrxDetail, setSelectedTrxDetail] = useState(null);
   const [selectedTrxRating, setSelectedTrxRating] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = () => {
     const list = getTransactions();
@@ -24,8 +26,23 @@ export default function TransactionsPage({
     markTransactionsAsRead();
   };
 
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    const fresh = await syncTransactionsFromCloud();
+    setTransactions(fresh);
+    markTransactionsAsRead();
+    setIsRefreshing(false);
+    onShowToast?.('Status pesanan berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
+  };
+
   useEffect(() => {
     loadData();
+    // Tarik data paling baru dari cloud seketika saat halaman dibuka
+    syncTransactionsFromCloud().then((fresh) => {
+      if (fresh && fresh.length > 0) {
+        setTransactions(fresh);
+      }
+    });
 
     // Listen realtime update dari BroadcastChannel (saat Admin klik proses berhasil)
     let bc = null;
@@ -104,8 +121,31 @@ export default function TransactionsPage({
 
             <div className="topup-page-status-pill">
               <span className="live-status-dot"></span>
-              <span>Sinkronisasi Pesanan Realtime Aktif</span>
+              <span>Sinkronisasi Realtime Aktif</span>
             </div>
+
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              title="Segarkan status pesanan langsung dari Cloud Database"
+              style={{
+                background: 'rgba(6, 182, 212, 0.12)',
+                border: '1px solid rgba(6, 182, 212, 0.35)',
+                color: '#22d3ee',
+                borderRadius: '999px',
+                padding: '6px 14px',
+                fontSize: '13px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: isRefreshing ? 'wait' : 'pointer'
+              }}
+            >
+              <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`}></i>
+              <span>{isRefreshing ? 'Memperbarui...' : 'Segarkan Status'}</span>
+            </button>
           </div>
 
           <div className="topup-hero-content">

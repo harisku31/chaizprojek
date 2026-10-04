@@ -33,7 +33,8 @@ import {
   fulfillTransaction,
   deleteTransactionProof,
   getProofTimeRemaining,
-  clearAllTransactions
+  clearAllTransactions,
+  syncTransactionsFromCloud
 } from '../utils/transactions';
 
 export default function AdminApp() {
@@ -131,6 +132,11 @@ export default function AdminApp() {
     setRegisteredUsers(getRegisteredUsers());
     setActivityLogs(getActivityLogs());
     setOrdersList(getTransactions());
+    syncTransactionsFromCloud().then((fresh) => {
+      if (fresh && fresh.length > 0) {
+        setOrdersList(fresh);
+      }
+    });
   };
 
   // Seed demo data if totally empty
