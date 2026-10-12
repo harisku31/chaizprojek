@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { formatRupiah } from '../utils/format';
 import {
-  getTransactions,
+  getUserTransactions,
   markTransactionsAsRead,
-  syncTransactionsFromCloud
+  syncUserTransactionsFromCloud,
+  listenToUserTransactions,
+  getUserKey
 } from '../utils/transactions';
-import { listenToFirebase } from '../utils/firebase';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
 
@@ -22,73 +23,76 @@ export default function TransactionsPage({
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = () => {
-    const list = getTransactions();
+    if (!authUser) {
+      setTransactions([]);
+      return;
+    }
+    const list = getUserTransactions(authUser);
     setTransactions(list);
-    markTransactionsAsRead();
+    markTransactionsAsRead(authUser);
   };
 
   const handleManualRefresh = async () => {
+    if (!authUser) return;
     setIsRefreshing(true);
     try {
-      const fresh = await syncTransactionsFromCloud();
-      if (fresh && fresh.length > 0) {
-        setTransactions(fresh);
-      } else {
-        loadData();
-      }
-      markTransactionsAsRead();
-      onShowToast?.('Status pesanan berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
+      const fresh = await syncUserTransactionsFromCloud(authUser);
+      setTransactions(fresh || []);
+      markTransactionsAsRead(authUser);
+      onShowToast?.('Status riwayat pesanan privat berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
     } catch {
-      onShowToast?.('Gagal menyegarkan status', 'fa-triangle-exclamation', 'warning');
+      onShowToast?.('Gagal menyegarkan status riwayat', 'fa-triangle-exclamation', 'warning');
     } finally {
       setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
+    if (!authUser) {
+      setTransactions([]);
+      return;
+    }
+
+    // 1. Muat data privat awal (kosong jika akun baru)
     loadData();
-    // Tarik data paling baru dari cloud seketika saat halaman dibuka
-    syncTransactionsFromCloud().then((fresh) => {
-      if (fresh && fresh.length > 0) {
+
+    // 2. Tarik data paling baru dari node privat Firebase
+    syncUserTransactionsFromCloud(authUser).then((fresh) => {
+      if (Array.isArray(fresh)) {
         setTransactions(fresh);
       }
     });
 
-    // 1. Realtime Cloud Listener dari Firebase: Begitu Admin di Laptop proses pesanan, HP pembeli update seketika!
-    const unsubscribeCloud = listenToFirebase('transactions', (cloudData) => {
-      if (cloudData) {
-        const list = Array.isArray(cloudData)
-          ? cloudData.filter(Boolean)
-          : Object.values(cloudData).filter(Boolean);
-        list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-        setTransactions(list);
+    // 3. Realtime Cloud Listener khusus node privat user ini di Firebase
+    const unsubscribeCloud = listenToUserTransactions(authUser, (cloudList) => {
+      if (Array.isArray(cloudList)) {
+        setTransactions(cloudList);
       }
     });
 
-    // 2. Fallback smart polling setiap 4 detik saat halaman aktif
+    // 4. Fallback polling setiap 6 detik saat layar aktif
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
-      syncTransactionsFromCloud().then((fresh) => {
-        if (fresh && fresh.length > 0) {
+      syncUserTransactionsFromCloud(authUser).then((fresh) => {
+        if (Array.isArray(fresh)) {
           setTransactions(fresh);
         }
       });
-    }, 4000);
+    }, 6000);
 
-    // 3. Listen realtime update dari BroadcastChannel (saat Admin klik proses berhasil di perangkat yang sama)
+    // 5. Listen realtime update dari BroadcastChannel
     let bc = null;
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
         bc = new BroadcastChannel('chaiz_admin_sync');
         bc.onmessage = (ev) => {
-          if (
-            ev.data?.type === 'TRANSACTIONS_UPDATED' ||
-            ev.data?.type === 'TRANSACTION_FULFILLED' ||
-            ev.data?.type === 'NEW_TRANSACTION' ||
-            ev.data?.type === 'TRANSACTION_RATED'
-          ) {
+          const type = ev.data?.type;
+          const userKey = ev.data?.userKey || ev.data?.data?.userKey;
+          const myKey = authUser?.id || getUserKey(authUser);
+
+          if (!userKey || userKey === myKey) {
             loadData();
-            if (ev.data?.type === 'TRANSACTION_FULFILLED') {
+            if (type === 'TRANSACTION_FULFILLED') {
               onShowToast?.(
                 '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
                 'fa-circle-check text-success'
@@ -99,33 +103,29 @@ export default function TransactionsPage({
       }
     } catch (e) {}
 
-    const handleStorage = (e) => {
-      if (e.key === 'chaiz_transactions') {
-        loadData();
-      }
-    };
-
     const handleCustomTrx = (e) => {
-      loadData();
-      if (e.detail?.type === 'TRANSACTION_FULFILLED') {
-        onShowToast?.(
-          '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
-          'fa-circle-check text-success'
-        );
+      const userKey = e.detail?.data?.userKey || e.detail?.userKey;
+      const myKey = authUser?.id || getUserKey(authUser);
+      if (!userKey || userKey === myKey) {
+        loadData();
+        if (e.detail?.type === 'TRANSACTION_FULFILLED') {
+          onShowToast?.(
+            '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
+            'fa-circle-check text-success'
+          );
+        }
       }
     };
 
-    window.addEventListener('storage', handleStorage);
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
 
     return () => {
       if (unsubscribeCloud) unsubscribeCloud();
       clearInterval(pollInterval);
       if (bc) bc.close();
-      window.removeEventListener('storage', handleStorage);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
     };
-  }, []);
+  }, [authUser?.id, authUser?.email]);
 
   // Sinkronkan selectedTrxDetail jika modal sedang dibuka pelanggan dan status berubah dari cloud
   useEffect(() => {
@@ -146,6 +146,137 @@ export default function TransactionsPage({
       }
     }
   }, [transactions, selectedTrxDetail]);
+
+  // Jika Pengguna Belum Login, tampilkan perlindungan status riwayat privat database
+  if (!authUser) {
+    return (
+      <div className="transactions-page-container">
+        {/* Header Hero Khusus Tamu / Belum Login */}
+        <section className="topup-page-hero trx-page-hero">
+          <div className="container">
+            <div className="topup-breadcrumb-bar">
+              <button
+                type="button"
+                className="topup-back-btn"
+                onClick={onBackToStore}
+                title="Kembali ke Beranda Toko"
+              >
+                <i className="fa-solid fa-arrow-left"></i>
+                <span>Kembali ke Toko</span>
+              </button>
+
+              <div
+                className="topup-page-status-pill"
+                style={{
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  borderColor: 'rgba(6, 182, 212, 0.35)',
+                  color: '#22d3ee'
+                }}
+              >
+                <i className="fa-solid fa-lock" style={{ fontSize: '11px' }}></i>
+                <span>Riwayat Privat Terenkripsi</span>
+              </div>
+            </div>
+
+            <div className="topup-hero-content">
+              <span className="topup-hero-badge">
+                <i className="fa-solid fa-shield-halved text-cyan"></i> PRIVAT DATABASE FIREBASE
+              </span>
+              <h1 className="topup-hero-title">
+                Riwayat Pesanan <span>Privat Akun</span>
+              </h1>
+              <p className="topup-hero-sub">
+                Di ChaizStore, setiap akun memiliki database riwayat pesanan dan kredensial akun yang bersifat privat dan aman di Firebase Cloud Database. 1 user hanya dapat melihat riwayat milik sendiri.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Kotak Gate Login Privat */}
+        <section className="trx-main-section">
+          <div className="container">
+            <div
+              className="empty-state"
+              style={{
+                maxWidth: '540px',
+                margin: '30px auto 60px',
+                padding: '44px 28px',
+                background: 'rgba(15, 23, 42, 0.85)',
+                borderRadius: '24px',
+                border: '1px solid rgba(6, 182, 212, 0.25)',
+                boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.5)'
+              }}
+            >
+              <div
+                style={{
+                  width: '74px',
+                  height: '74px',
+                  borderRadius: '50%',
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px',
+                  color: '#22d3ee',
+                  fontSize: '32px'
+                }}
+              >
+                <i className="fa-solid fa-user-lock"></i>
+              </div>
+              <h3 style={{ fontSize: '1.35rem', marginBottom: '12px', color: '#ffffff', fontWeight: '700' }}>
+                Login untuk Membuka Riwayat Privat
+              </h3>
+              <p
+                style={{
+                  color: '#94a3b8',
+                  fontSize: '0.92rem',
+                  lineHeight: '1.65',
+                  marginBottom: '28px',
+                  maxWidth: '440px',
+                  margin: '0 auto 28px'
+                }}
+              >
+                Kredensial email, password, PIN, dan garansi akun Anda tersimpan khusus di database privat akun Anda. Silakan login dengan akun Google Anda untuk mengakses pesanan Anda.
+              </p>
+              <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={onOpenLogin}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '12px 24px',
+                    borderRadius: '999px',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  <i className="fa-brands fa-google text-danger"></i>
+                  <span>Masuk dengan Google</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={onBackToStore}
+                  style={{
+                    padding: '12px 22px',
+                    borderRadius: '999px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <i className="fa-solid fa-layer-group"></i>
+                  <span>Katalog Akun</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   const processingCount = transactions.filter((t) => t.status === 'processing').length;
   const completedCount = transactions.filter((t) => t.status === 'completed').length;
@@ -172,9 +303,20 @@ export default function TransactionsPage({
               <span>Kembali ke Toko</span>
             </button>
 
-            <div className="topup-page-status-pill">
-              <span className="live-status-dot"></span>
-              <span>Sinkronisasi Realtime Aktif</span>
+            {/* Status Privat Database Firebase dengan Identitas Akun Aktif */}
+            <div
+              className="topup-page-status-pill"
+              style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+                color: '#34d399',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span className="live-status-dot" style={{ background: '#10b981' }}></span>
+              <span>Privat Database: {authUser.name || authUser.email}</span>
             </div>
 
             <button
@@ -182,7 +324,7 @@ export default function TransactionsPage({
               className="btn btn-outline"
               onClick={handleManualRefresh}
               disabled={isRefreshing}
-              title="Segarkan status pesanan langsung dari Cloud Database"
+              title="Segarkan status pesanan langsung dari Cloud Database Firebase"
               style={{
                 background: 'rgba(6, 182, 212, 0.12)',
                 border: '1px solid rgba(6, 182, 212, 0.35)',
@@ -203,13 +345,13 @@ export default function TransactionsPage({
 
           <div className="topup-hero-content">
             <span className="topup-hero-badge">
-              <i className="fa-solid fa-receipt text-warning"></i> RIWAYAT PESANAN & TRANSAKSI
+              <i className="fa-solid fa-lock text-cyan"></i> RIWAYAT PRIVAT DATABASE FIREBASE
             </span>
             <h1 className="topup-hero-title">
               Daftar Transaksi <span>& Akun Anda</span>
             </h1>
             <p className="topup-hero-sub">
-              Pantau status pesanan Anda secara realtime. Setelah Admin memproses pesanan, kredensial akun (email, password, PIN, profil) akan langsung tampil di sini dan Anda dapat memberikan ulasan bintang 5.
+              Riwayat transaksi Anda tersimpan aman dan terenkripsi secara privat di Firebase. Hanya akun Anda ({authUser.email}) yang dapat mengakses pesanan dan kredensial akun di bawah ini.
             </p>
 
             <div className="trx-hero-stats-aligned">
@@ -238,8 +380,8 @@ export default function TransactionsPage({
                   <i className="fa-solid fa-shield-halved"></i>
                 </div>
                 <div className="stat-card-text">
-                  <strong className="stat-number">100% Garansi</strong>
-                  <span className="stat-label">Full Support Garansi</span>
+                  <strong className="stat-number">100% Privat</strong>
+                  <span className="stat-label">Database Khusus Akun</span>
                 </div>
               </div>
             </div>
@@ -348,8 +490,7 @@ export default function TransactionsPage({
 
                     {/* Action Buttons: 
                         - Tombol 1: Lihat Detail
-                        - Tombol 2: Chat Admin
-                        - Tombol 3: Beri Rating (jika berhasil terkirim) */}
+                        - Tombol 2: Rating (jika berhasil terkirim) */}
                     <div className="trx-card-actions">
                       {/* Tombol 1: Lihat Detail */}
                       <button
@@ -388,10 +529,10 @@ export default function TransactionsPage({
           ) : (
             <div className="empty-state">
               <i className="fa-solid fa-receipt"></i>
-              <h3>Belum Ada Transaksi</h3>
+              <h3>Belum Ada Riwayat Pesanan</h3>
               <p>
                 {activeFilter === 'all'
-                  ? 'Anda belum memiliki riwayat pembelian. Pesanan akun atau key Anda akan otomatis dicatat di sini.'
+                  ? `Halo ${authUser.name || 'Pengguna'}! Akun Anda (${authUser.email}) belum memiliki riwayat pesanan. Semua pembelian baru Anda akan otomatis tercatat secara privat di sini.`
                   : 'Tidak ada transaksi dengan status yang dipilih.'}
               </p>
               <button className="btn btn-primary" onClick={onBackToStore}>
@@ -416,6 +557,7 @@ export default function TransactionsPage({
         isOpen={!!selectedTrxRating}
         onClose={() => setSelectedTrxRating(null)}
         transaction={selectedTrxRating}
+        authUser={authUser}
         onRatingSubmitted={(updated) => {
           loadData();
           if (selectedTrxDetail && selectedTrxDetail.id === updated.id) {

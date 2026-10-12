@@ -3,76 +3,7 @@ import { PRODUCTS } from '../src/data/products.js';
 
 const FIREBASE_DB_URL = 'https://chaizstore-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-const INITIAL_TRANSACTIONS = {
-  'TRX-20261003-CANVA1': {
-    id: 'TRX-20261003-CANVA1',
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    customerName: 'Siti Rahmawati',
-    customerEmail: 'siti.rahma@gmail.com',
-    customerPhone: '081234567890',
-    productName: 'Canva Pro',
-    productDuration: '1 Tahun',
-    productCategory: 'Produktivitas',
-    price: 25000,
-    qty: 1,
-    total: 25000,
-    paymentMethod: 'QRIS Instant',
-    proofUrl: null,
-    warrantyPeriod: 'Garansi 1 Tahun Penuh (365 Hari)',
-    status: 'completed',
-    credentials: {
-      account: 'siti.canva.pro@gmail.com',
-      password: 'CanvaUser2026!',
-      username: 'SitiDesignPro',
-      pin: '',
-      profile: 'Team Member 1',
-      code: 'INV-CANVA-TEAM-8921'
-    },
-    adminNote: 'Akun Canva Pro 1 Tahun sudah aktif full garansi. Silakan login di canva.com dengan akun di atas. Selamat berkarya kak!',
-    processedAt: new Date(Date.now() - 3600000 * 1.8).toISOString(),
-    rating: {
-      stars: 5,
-      comment: 'Cepat banget pelayanannya, akun Canva Pro langsung bisa dipakai buat kerjaan freelance!',
-      ratedAt: new Date(Date.now() - 3600000 * 1.5).toISOString()
-    },
-    isRead: true
-  },
-  'TRX-20261003-NETFLIX2': {
-    id: 'TRX-20261003-NETFLIX2',
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-    customerName: 'Dimas Pratama',
-    customerEmail: 'dimas.pratama@gmail.com',
-    customerPhone: '085712349988',
-    productName: 'Netflix Premium 4K UHD',
-    productDuration: '1 Bulan',
-    productCategory: 'Streaming',
-    price: 35000,
-    qty: 1,
-    total: 35000,
-    paymentMethod: 'QRIS Instant',
-    proofUrl: '/Qris.png',
-    proofFileName: 'bukti_transfer_dimas.png',
-    proofSize: '142 KB',
-    proofUploadedAt: new Date(Date.now() - 1800000).toISOString(),
-    proofExpiresAt: new Date(Date.now() - 1800000 + 48 * 3600 * 1000).toISOString(),
-    proofExpired: false,
-    proofDeletedReason: null,
-    warrantyPeriod: 'Garansi 30 Hari Aktif',
-    status: 'processing',
-    credentials: {
-      account: '',
-      password: '',
-      username: '',
-      pin: '',
-      profile: '',
-      code: ''
-    },
-    adminNote: '',
-    processedAt: null,
-    rating: null,
-    isRead: false
-  }
-};
+const INITIAL_TRANSACTIONS = {};
 
 const INITIAL_REVIEWS = {
   'REV-1': {

@@ -647,6 +647,7 @@ export default function App() {
         activeTab={activeTab}
         onSwitchTab={handleSwitchTab}
         onOpenTopUp={() => handleSwitchTab('topup')}
+        authUser={authUser}
       />
 
       {/* Top Up Game & E-Wallet Modal */}

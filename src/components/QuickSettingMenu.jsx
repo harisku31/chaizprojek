@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 import { getActiveNotificationCount } from '../utils/transactions';
 
-export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab = 'store' }) {
+export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab = 'store', authUser = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLanggananOpen, setIsLanggananOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -13,7 +13,7 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
 
   useEffect(() => {
     const updateNotif = () => {
-      setNotificationCount(getActiveNotificationCount());
+      setNotificationCount(getActiveNotificationCount(authUser));
     };
     updateNotif();
 

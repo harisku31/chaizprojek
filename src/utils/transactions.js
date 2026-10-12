@@ -1,6 +1,7 @@
 // ===================================================================
 // CHAIZSTORE TRANSACTIONS & REVIEWS ENGINE
 // Realtime sync via Firebase Cloud Database + localStorage + BroadcastChannel
+// PRIVATE USER DATABASE ARCHITECTURE: 1 Akun = 1 Riwayat Privat di Firebase
 // ===================================================================
 
 import {
@@ -9,88 +10,82 @@ import {
   readFromFirebase,
   deleteFromFirebase,
   listenToFirebase
-} from './firebase';
+} from './firebase.js';
 
 const STORAGE_KEY_TRX = 'chaiz_transactions';
+const STORAGE_KEY_USER_PREFIX = 'chaiz_user_trx_';
 const STORAGE_KEY_REVIEWS = 'chaiz_customer_reviews';
 const CHANNEL_NAME = 'chaiz_admin_sync';
 const FIREBASE_PATH_TRX = 'transactions';
+const FIREBASE_PATH_USER_TRX = 'user_transactions';
 const FIREBASE_PATH_REVIEWS = 'customer_reviews';
 
-// Default Demo Transactions jika database awal masih kosong
-const INITIAL_TRANSACTIONS = [
-  {
-    id: 'TRX-20261003-CANVA1',
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    customerName: 'Siti Rahmawati',
-    customerEmail: 'siti.rahma@gmail.com',
-    customerPhone: '081234567890',
-    productName: 'Canva Pro',
-    productDuration: '1 Tahun',
-    productCategory: 'Produktivitas',
-    price: 25000,
-    qty: 1,
-    total: 25000,
-    paymentMethod: 'QRIS Instant',
-    proofUrl: null,
-    warrantyPeriod: 'Garansi 1 Tahun Penuh (365 Hari)',
-    status: 'completed',
-    credentials: {
-      account: 'siti.canva.pro@gmail.com',
-      password: 'CanvaUser2026!',
-      username: 'SitiDesignPro',
-      pin: '',
-      profile: 'Team Member 1',
-      code: 'INV-CANVA-TEAM-8921'
-    },
-    adminNote: 'Akun Canva Pro 1 Tahun sudah aktif full garansi. Silakan login di canva.com dengan akun di atas. Selamat berkarya kak!',
-    processedAt: new Date(Date.now() - 3600000 * 1.8).toISOString(),
-    rating: {
-      stars: 5,
-      comment: 'Cepat banget pelayanannya, akun Canva Pro langsung bisa dipakai buat kerjaan freelance!',
-      ratedAt: new Date(Date.now() - 3600000 * 1.5).toISOString()
-    },
-    isRead: true
-  },
-  {
-    id: 'TRX-20261003-NETFLIX2',
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-    customerName: 'Dimas Pratama',
-    customerEmail: 'dimas.pratama@gmail.com',
-    customerPhone: '085712349988',
-    productName: 'Netflix Premium 4K UHD',
-    productDuration: '1 Bulan',
-    productCategory: 'Streaming',
-    price: 35000,
-    qty: 1,
-    total: 35000,
-    paymentMethod: 'QRIS Instant',
-    proofUrl: '/Qris.png',
-    proofFileName: 'bukti_transfer_dimas.png',
-    proofSize: '142 KB',
-    proofUploadedAt: new Date(Date.now() - 1800000).toISOString(),
-    proofExpiresAt: new Date(Date.now() - 1800000 + 48 * 3600 * 1000).toISOString(),
-    proofExpired: false,
-    proofDeletedReason: null,
-    warrantyPeriod: 'Garansi 30 Hari Aktif',
-    status: 'processing',
-    credentials: {
-      account: '',
-      password: '',
-      username: '',
-      pin: '',
-      profile: '',
-      code: ''
-    },
-    adminNote: '',
-    processedAt: null,
-    rating: null,
-    isRead: false
-  }
-];
+// Database awal transaksi harus KOSONG (0 demo order) agar riwayat akun baru benar-benar bersih & privat
+const INITIAL_TRANSACTIONS = [];
 
 // Masa simpan bukti transfer: 2 Hari (48 Jam) dalam milidetik
 export const PROOF_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+
+// ===================================================================
+// USER IDENTITY & PRIVACY HELPERS
+// ===================================================================
+
+/**
+ * Generate atau ambil ID unik user yang konsisten berdasarkan email/ID
+ */
+export function getUniqueUserId(user) {
+  if (!user) return `usr_${Date.now()}`;
+  if (user.id && String(user.id).startsWith('usr_')) return user.id;
+  const rawKey = (user.email || user.name || 'guest').toLowerCase().trim();
+  let hash = 0;
+  for (let i = 0; i < rawKey.length; i++) {
+    hash = (hash << 5) - hash + rawKey.charCodeAt(i);
+    hash |= 0;
+  }
+  return `usr_${Math.abs(hash).toString(36)}`;
+}
+
+/**
+ * Mendapatkan User Key yang aman sebagai path node Firebase RTDB
+ */
+export function getUserKey(userOrEmail) {
+  if (!userOrEmail) return null;
+  if (typeof userOrEmail === 'string') {
+    if (userOrEmail.startsWith('usr_')) return userOrEmail;
+    return getUniqueUserId({ email: userOrEmail });
+  }
+  if (userOrEmail.id && String(userOrEmail.id).startsWith('usr_')) {
+    return userOrEmail.id;
+  }
+  return getUniqueUserId(userOrEmail);
+}
+
+/**
+ * Memeriksa apakah sebuah transaksi benar-benar milik user tertentu (Strict Isolation)
+ */
+export function isOrderOwnedByUser(trx, user) {
+  if (!trx || !user) return false;
+  const targetId = user.id || getUserKey(user);
+  const targetEmail = (user.email || '').toLowerCase().trim();
+  const targetUsername = (user.username || '').toLowerCase().trim();
+
+  // 1. Pencocokan langsung via userId atau userKey
+  if (trx.userId && (trx.userId === targetId || trx.userId === user.id)) return true;
+  if (trx.userKey && (trx.userKey === targetId || trx.userKey === user.id)) return true;
+
+  // 2. Pencocokan email terverifikasi (case-insensitive)
+  if (targetEmail) {
+    if (trx.userEmail && trx.userEmail.toLowerCase().trim() === targetEmail) return true;
+    if (trx.customerEmail && trx.customerEmail.toLowerCase().trim() === targetEmail) return true;
+  }
+
+  // 3. Pencocokan username
+  if (targetUsername && trx.customerUsername && trx.customerUsername.toLowerCase().trim() === targetUsername) {
+    return true;
+  }
+
+  return false;
+}
 
 // Helper: Broadcast Channel & Custom Event
 function broadcastSync(type, data) {
@@ -130,49 +125,218 @@ function purgeExpiredProofs(list) {
     return trx;
   });
 
-  if (hasExpired) {
-    try {
-      localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(sanitized));
-      broadcastSync('TRANSACTIONS_UPDATED', sanitized);
-    } catch (e) {}
-  }
-
   return sanitized;
 }
 
-// 1. Ambil Semua Transaksi Lokal (Cache Cepat)
+// ===================================================================
+// 1. TRANSAKSI PRIVAT PER USER (1 USER = 1 RIWAYAT PRIVAT)
+// ===================================================================
+
+/**
+ * Mengambil transaksi privat milik user yang sedang login
+ * Riwayat akun baru dipastikan KOSONG (0 pesanan)
+ */
+export function getUserTransactions(user) {
+  if (!user) return [];
+  const key = getUserKey(user);
+  if (!key) return [];
+
+  let list = [];
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${key}`);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        list = parsed;
+      }
+    }
+  } catch (e) {}
+
+  // Buang data demo lama yang mungkin tersisa di cache
+  list = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+
+  // Fallback: Jika storage privat kosong, periksa apakah ada pesanan milik user ini di cache umum
+  if (list.length === 0) {
+    const all = getTransactions();
+    const matched = all.filter((t) => isOrderOwnedByUser(t, user));
+    if (matched.length > 0) {
+      list = matched;
+      saveUserTransactions(user, list);
+    }
+  }
+
+  return purgeExpiredProofs(list);
+}
+
+/**
+ * Menyimpan transaksi privat user ke localStorage terisolasi
+ */
+export function saveUserTransactions(user, transactions) {
+  if (!user) return;
+  const key = getUserKey(user);
+  if (!key) return;
+
+  const sanitized = (transactions || []).filter(
+    (t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2'
+  );
+
+  try {
+    localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${key}`, JSON.stringify(sanitized));
+  } catch (e) {
+    try {
+      const stripped = sanitized.map((t) => ({
+        ...t,
+        proofUrl: t.proofUrl && t.proofUrl.length > 500 ? null : t.proofUrl
+      }));
+      localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${key}`, JSON.stringify(stripped));
+    } catch {}
+  }
+
+  broadcastSync('USER_TRANSACTIONS_UPDATED', { userKey: key, count: sanitized.length });
+}
+
+/**
+ * Tarik data transaksi privat user langsung dari Firebase Cloud Database
+ * Memastikan status riwayat privat database selalu sinkron
+ */
+export async function syncUserTransactionsFromCloud(user) {
+  if (!user) return [];
+  const key = getUserKey(user);
+  if (!key) return [];
+
+  let userList = [];
+
+  try {
+    // 1. Baca langsung dari node privat database user: user_transactions/{key}
+    const privateData = await readFromFirebase(`${FIREBASE_PATH_USER_TRX}/${key}`);
+    if (privateData) {
+      const rawList = Array.isArray(privateData)
+        ? privateData.filter(Boolean)
+        : Object.values(privateData).filter(Boolean);
+      userList = rawList.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+    }
+
+    // 2. Ambil juga dari transactions global jika ada transaksi milik user ini yang belum tercatat di private node
+    try {
+      const globalData = await readFromFirebase(FIREBASE_PATH_TRX);
+      if (globalData) {
+        const globalList = Array.isArray(globalData)
+          ? globalData.filter(Boolean)
+          : Object.values(globalData).filter(Boolean);
+
+        const matched = globalList.filter((t) => isOrderOwnedByUser(t, user));
+        matched.forEach((t) => {
+          if (!userList.some((u) => u.id === t.id)) {
+            userList.push(t);
+            // Sinkronkan ke node privat user di Firebase
+            writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}/${t.id}`, t);
+          }
+        });
+      }
+    } catch (globalErr) {
+      console.warn('Error fetching global trx in syncUser:', globalErr);
+    }
+
+    userList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    saveUserTransactions(user, userList);
+    return userList;
+  } catch (err) {
+    console.warn('Gagal sync transaksi user dari cloud:', err);
+  }
+
+  return getUserTransactions(user);
+}
+
+/**
+ * Langganan Realtime Firebase khusus untuk node privat user yang sedang aktif
+ */
+export function listenToUserTransactions(user, callback) {
+  if (!user || typeof window === 'undefined') return () => {};
+  const key = getUserKey(user);
+  if (!key) return () => {};
+
+  return listenToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}`, (cloudData) => {
+    if (cloudData === null || cloudData === undefined) {
+      // Periksa apakah ada pesanan di global list
+      readFromFirebase(FIREBASE_PATH_TRX).then((globalData) => {
+        if (globalData) {
+          const globalList = Array.isArray(globalData)
+            ? globalData.filter(Boolean)
+            : Object.values(globalData).filter(Boolean);
+          const matched = globalList.filter((t) => isOrderOwnedByUser(t, user));
+          if (matched.length > 0) {
+            matched.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+            saveUserTransactions(user, matched);
+            callback(matched);
+            return;
+          }
+        }
+        saveUserTransactions(user, []);
+        callback([]);
+      });
+      return;
+    }
+
+    try {
+      const list = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+      const filtered = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+      filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      saveUserTransactions(user, filtered);
+      callback(filtered);
+    } catch (err) {
+      console.warn('Error in listenToUserTransactions:', err);
+    }
+  });
+}
+
+// ===================================================================
+// 2. TRANSAKSI GLOBAL (UNTUK ADMIN DASHBOARD)
+// ===================================================================
+
+/**
+ * Ambil Semua Transaksi Global (Untuk Admin)
+ */
 export function getTransactions() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TRX);
     if (raw === null) {
-      localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(INITIAL_TRANSACTIONS));
-      return INITIAL_TRANSACTIONS;
+      return [];
     }
     const parsed = JSON.parse(raw);
     const validList = Array.isArray(parsed) ? parsed : [];
-    return purgeExpiredProofs(validList);
+    const filtered = validList.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+    return purgeExpiredProofs(filtered);
   } catch (e) {
     return [];
   }
 }
 
-// 2. Simpan Transaksi ke LocalStorage (TIDAK BOLEH menimpa seluruh cloud secara buta!)
+/**
+ * Simpan Transaksi Global ke LocalStorage Admin
+ */
 export function saveTransactions(transactions) {
+  const filtered = (transactions || []).filter(
+    (t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2'
+  );
   try {
-    localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(transactions));
+    localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(filtered));
   } catch (e) {
     try {
-      const stripped = transactions.map((t) => ({
+      const stripped = filtered.map((t) => ({
         ...t,
         proofUrl: t.proofUrl && t.proofUrl.length > 500 ? null : t.proofUrl
       }));
       localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(stripped));
     } catch (inner) {}
   }
-  broadcastSync('TRANSACTIONS_UPDATED', transactions);
+  broadcastSync('TRANSACTIONS_UPDATED', filtered);
 }
 
-// 3. Tarik Data Transaksi Paling Segar dari Firebase Cloud
+/**
+ * Tarik Data Transaksi Paling Segar dari Firebase Cloud (Admin)
+ */
 export async function syncTransactionsFromCloud() {
   try {
     const cloudData = await readFromFirebase(FIREBASE_PATH_TRX);
@@ -181,12 +345,13 @@ export async function syncTransactionsFromCloud() {
         ? cloudData.filter(Boolean)
         : Object.values(cloudData).filter(Boolean);
 
-      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      const filtered = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+      filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       try {
-        localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(list));
+        localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(filtered));
       } catch (storageErr) {
         try {
-          const stripped = list.map((t) => ({
+          const stripped = filtered.map((t) => ({
             ...t,
             proofUrl: t.proofUrl && t.proofUrl.length > 500 ? null : t.proofUrl
           }));
@@ -195,8 +360,8 @@ export async function syncTransactionsFromCloud() {
           console.warn('LocalStorage quota exceeded in syncTransactionsFromCloud:', innerErr);
         }
       }
-      broadcastSync('TRANSACTIONS_UPDATED', list);
-      return list;
+      broadcastSync('TRANSACTIONS_UPDATED', filtered);
+      return filtered;
     }
   } catch (err) {
     console.warn('Gagal sync transaksi dari cloud:', err);
@@ -204,7 +369,14 @@ export async function syncTransactionsFromCloud() {
   return getTransactions();
 }
 
-// 4. Buat Transaksi Baru (Dari Checkout Akun Premium / Steam Key)
+// ===================================================================
+// 3. PEMBUATAN & PENGELOLAAN TRANSAKSI
+// ===================================================================
+
+/**
+ * Buat Transaksi Baru (Dari Checkout Akun Premium / Steam Key)
+ * Menyimpan otomatis ke node global (Admin) dan node privat user (Firebase & local)
+ */
 export function createTransaction({
   productId = null,
   productName,
@@ -213,6 +385,8 @@ export function createTransaction({
   price = 0,
   qty = 1,
   total = 0,
+  userId = null,
+  userEmail = null,
   customerUsername = '',
   customerName = 'Pelanggan Chaiz',
   customerEmail = '-',
@@ -223,7 +397,11 @@ export function createTransaction({
   proofSize = null,
   warrantyPeriod = 'Garansi Penuh'
 }) {
-  const transactions = getTransactions();
+  const computedUserKey =
+    userId ||
+    (userEmail ? getUserKey({ email: userEmail }) : null) ||
+    (customerEmail && customerEmail !== '-' ? getUserKey({ email: customerEmail, name: customerName }) : null);
+
   const idSuffix = Math.floor(1000 + Math.random() * 9000);
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -235,6 +413,9 @@ export function createTransaction({
   const newTrx = {
     id: newId,
     productId: productId || null,
+    userId: computedUserKey || null,
+    userKey: computedUserKey || null,
+    userEmail: userEmail || (customerEmail !== '-' ? customerEmail : null),
     createdAt: now.toISOString(),
     customerUsername: customerUsername || '',
     customerName,
@@ -270,17 +451,33 @@ export function createTransaction({
     isRead: false
   };
 
-  const updated = [newTrx, ...transactions];
-  saveTransactions(updated);
-  broadcastSync('NEW_TRANSACTION', newTrx);
+  // 1. Simpan ke Global Transaksi (untuk Admin)
+  const allTransactions = getTransactions();
+  const updatedAll = [newTrx, ...allTransactions];
+  saveTransactions(updatedAll);
 
-  // Push pesanan baru HANYA untuk ID ini ke Firebase Realtime Database
+  // 2. Simpan ke Private User Storage
+  if (computedUserKey) {
+    const userTrxList = getUserTransactions({ id: computedUserKey, email: customerEmail });
+    const updatedUserList = [newTrx, ...userTrxList.filter((t) => t.id !== newTrx.id)];
+    saveUserTransactions({ id: computedUserKey }, updatedUserList);
+  }
+
+  // 3. Simpan ke Firebase Realtime Database
+  // A. Node Admin Global: transactions/{id}
   writeToFirebase(`${FIREBASE_PATH_TRX}/${newTrx.id}`, newTrx);
+  // B. Node Privat Database User: user_transactions/{userKey}/{id}
+  if (computedUserKey) {
+    writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${computedUserKey}/${newTrx.id}`, newTrx);
+  }
 
+  broadcastSync('NEW_TRANSACTION', { newTrx, userKey: computedUserKey });
   return newTrx;
 }
 
-// Helper: Hapus Bukti Transfer Langsung oleh Admin
+/**
+ * Hapus Bukti Transfer Langsung oleh Admin
+ */
 export function deleteTransactionProof(id, deletedBy = 'Admin') {
   const transactions = getTransactions();
   let targetTrx = null;
@@ -299,25 +496,60 @@ export function deleteTransactionProof(id, deletedBy = 'Admin') {
   });
 
   saveTransactions(updated);
+
   if (targetTrx) {
-    updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, {
+    const userKey =
+      targetTrx.userKey ||
+      targetTrx.userId ||
+      (targetTrx.customerEmail && targetTrx.customerEmail !== '-'
+        ? getUserKey({ email: targetTrx.customerEmail, name: targetTrx.customerName })
+        : null);
+
+    const patch = {
       proofUrl: null,
       proofExpired: true,
       proofDeletedReason: `Foto bukti dihapus langsung oleh ${deletedBy}`
-    });
+    };
+
+    updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patch);
+
+    if (userKey) {
+      const userList = getUserTransactions({ id: userKey, email: targetTrx.customerEmail });
+      saveUserTransactions({ id: userKey }, userList.map((t) => (t.id === id ? targetTrx : t)));
+      updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patch);
+    }
   }
   return targetTrx;
 }
 
-// Helper: Bersihkan Seluruh Riwayat Pesanan & Foto Kiriman Bukti Transfer oleh Admin
+/**
+ * Bersihkan Seluruh Riwayat Pesanan & Foto Bukti oleh Admin
+ */
 export function clearAllTransactions() {
   saveTransactions([]);
   deleteFromFirebase(FIREBASE_PATH_TRX);
+  deleteFromFirebase(FIREBASE_PATH_USER_TRX);
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith(STORAGE_KEY_USER_PREFIX) || k === STORAGE_KEY_TRX)) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    }
+  } catch {}
+
   broadcastSync('TRANSACTIONS_UPDATED', []);
   return [];
 }
 
-// Helper: Hitung Sisa Waktu Masa Aktif Foto Bukti (Maks 2 Hari / 48 Jam)
+/**
+ * Hitung Sisa Waktu Masa Aktif Foto Bukti (Maks 2 Hari / 48 Jam)
+ */
 export function getProofTimeRemaining(trx) {
   if (!trx) return { isExpired: true, text: 'Tidak ada bukti', hoursLeft: 0 };
   if (!trx.proofUrl) {
@@ -358,7 +590,10 @@ export function getProofTimeRemaining(trx) {
   };
 }
 
-// 5. Update Status Pesanan oleh Admin (Kirim Akun & Catatan Khusus)
+/**
+ * Update Status Pesanan oleh Admin (Kirim Akun & Catatan Khusus)
+ * Mengupdate data di node global dan node privat user di Firebase RTDB
+ */
 export async function fulfillTransaction(id, credentials = {}, adminNote = '', fallbackOrder = null) {
   const transactions = getTransactions();
   let existing = transactions.find((trx) => trx.id === id) || fallbackOrder;
@@ -371,9 +606,18 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     } catch (e) {}
   }
 
+  const userKey =
+    existing?.userKey ||
+    existing?.userId ||
+    (existing?.customerEmail && existing.customerEmail !== '-'
+      ? getUserKey({ email: existing.customerEmail, name: existing.customerName })
+      : null);
+
   const updatedTrx = {
     ...(existing || {}),
     id,
+    userId: userKey || existing?.userId || null,
+    userKey: userKey || existing?.userKey || null,
     status: 'completed',
     credentials: {
       account: credentials?.account || existing?.credentials?.account || '',
@@ -391,6 +635,7 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     isRead: false
   };
 
+  // 1. Simpan di Global Admin List
   let foundInList = false;
   const updatedList = transactions.map((trx) => {
     if (trx.id === id) {
@@ -406,31 +651,62 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
 
   saveTransactions(updatedList);
 
-  // CRITICAL: Sinkronisasi atomic ke Firebase Realtime Database
-  // updateInFirebase (PATCH) memperbarui status & kredensial tanpa berisiko error ukuran file bukti!
-  try {
-    await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, {
-      status: 'completed',
-      credentials: updatedTrx.credentials,
-      adminNote: updatedTrx.adminNote,
-      processedAt: updatedTrx.processedAt,
-      isRead: false
+  // 2. Simpan di Private User List
+  if (userKey) {
+    const userTrxList = getUserTransactions({ id: userKey, email: updatedTrx.customerEmail });
+    let foundInUser = false;
+    const updatedUserList = userTrxList.map((trx) => {
+      if (trx.id === id) {
+        foundInUser = true;
+        return updatedTrx;
+      }
+      return trx;
     });
+    if (!foundInUser) {
+      updatedUserList.unshift(updatedTrx);
+    }
+    saveUserTransactions({ id: userKey }, updatedUserList);
+  }
+
+  // 3. Sinkronisasi atomic ke Firebase Realtime Database
+  const patchData = {
+    status: 'completed',
+    credentials: updatedTrx.credentials,
+    adminNote: updatedTrx.adminNote,
+    processedAt: updatedTrx.processedAt,
+    isRead: false
+  };
+
+  try {
+    await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patchData);
   } catch (patchErr) {
     console.warn('Update in Firebase patch fallback to put:', patchErr);
     try {
       await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
     } catch (writeErr) {
-      console.error('Gagal menulis ke Firebase:', writeErr);
+      console.error('Gagal menulis ke Firebase global:', writeErr);
     }
   }
 
-  broadcastSync('TRANSACTION_FULFILLED', updatedTrx);
+  // Juga perbarui node privat database user di Firebase
+  if (userKey) {
+    try {
+      await updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patchData);
+    } catch (userPatchErr) {
+      try {
+        await writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, updatedTrx);
+      } catch (err) {}
+    }
+  }
+
+  broadcastSync('TRANSACTION_FULFILLED', { updatedTrx, userKey });
   return updatedTrx;
 }
 
-// 6. Beri Rating & Ulasan oleh Pelanggan (1 - 5 Bintang + Catatan)
-export function rateTransaction(id, stars, comment) {
+/**
+ * Beri Rating & Ulasan oleh Pelanggan (1 - 5 Bintang + Catatan)
+ */
+export function rateTransaction(id, stars, comment, authUser = null) {
   const transactions = getTransactions();
   let ratedTrx = null;
 
@@ -452,6 +728,21 @@ export function rateTransaction(id, stars, comment) {
   saveTransactions(updated);
 
   if (ratedTrx) {
+    const userKey =
+      (authUser && getUserKey(authUser)) ||
+      ratedTrx.userKey ||
+      ratedTrx.userId ||
+      (ratedTrx.customerEmail && ratedTrx.customerEmail !== '-'
+        ? getUserKey({ email: ratedTrx.customerEmail, name: ratedTrx.customerName })
+        : null);
+
+    if (userKey) {
+      const userList = getUserTransactions({ id: userKey, email: ratedTrx.customerEmail });
+      const updatedUserList = userList.map((t) => (t.id === id ? ratedTrx : t));
+      saveUserTransactions({ id: userKey }, updatedUserList);
+      updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, { rating: ratedTrx.rating });
+    }
+
     updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, { rating: ratedTrx.rating });
     addCustomerReview({
       id: `REV-${Date.now()}`,
@@ -463,28 +754,48 @@ export function rateTransaction(id, stars, comment) {
     });
   }
 
-  broadcastSync('TRANSACTION_RATED', ratedTrx);
+  broadcastSync('TRANSACTION_RATED', { ratedTrx, userKey: ratedTrx?.userKey });
   return ratedTrx;
 }
 
-// 7. Tandai Notifikasi Transaksi Sudah Dibaca (HANYA update lokal tanpa menimpa cloud!)
-export function markTransactionsAsRead() {
-  const transactions = getTransactions();
-  const updated = transactions.map((t) => ({ ...t, isRead: true }));
-  try {
-    localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(updated));
-  } catch (e) {}
+/**
+ * Tandai Notifikasi Transaksi Sudah Dibaca (Khusus untuk Akun User yang Sedang Login)
+ */
+export function markTransactionsAsRead(user = null) {
+  let targetUser = user;
+  if (!targetUser && typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('chaiz_auth_user');
+      if (raw) targetUser = JSON.parse(raw);
+    } catch {}
+  }
+  if (!targetUser) return;
+  const list = getUserTransactions(targetUser);
+  const updated = list.map((t) => ({ ...t, isRead: true }));
+  saveUserTransactions(targetUser, updated);
 }
 
-// 8. Ambil Hitungan Notifikasi Transaksi Aktif
-export function getActiveNotificationCount() {
-  const transactions = getTransactions();
-  return transactions.filter((t) => !t.isRead).length;
+/**
+ * Ambil Hitungan Notifikasi Transaksi Aktif untuk User yang Sedang Login
+ * Jika belum login, return 0
+ */
+export function getActiveNotificationCount(user = null) {
+  let targetUser = user;
+  if (!targetUser && typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('chaiz_auth_user');
+      if (raw) targetUser = JSON.parse(raw);
+    } catch {}
+  }
+  if (!targetUser) return 0;
+  const list = getUserTransactions(targetUser);
+  return list.filter((t) => !t.isRead).length;
 }
 
 // ===================================================================
-// PUBLIC CUSTOMER REVIEWS (TESTIMONI PUBLIK)
+// 4. TESTIMONI PUBLIK
 // ===================================================================
+
 const INITIAL_REVIEWS = [
   {
     id: 'REV-1',
@@ -540,34 +851,16 @@ export function addCustomerReview(review) {
 }
 
 // ===================================================================
-// AUTOMATIC FIREBASE REALTIME LISTENER INITIALIZER
+// 5. AUTOMATIC FIREBASE REALTIME LISTENER INITIALIZER
 // ===================================================================
+
 let isListenerActive = false;
 
 export function initTransactionsFirebaseSync() {
   if (isListenerActive || typeof window === 'undefined') return;
   isListenerActive = true;
 
-  // 1. Sinkronisasi Realtime Transaksi dari Cloud
-  listenToFirebase(FIREBASE_PATH_TRX, (cloudData) => {
-    if (cloudData === null) return;
-
-    try {
-      const list = Array.isArray(cloudData)
-        ? cloudData.filter(Boolean)
-        : Object.values(cloudData).filter(Boolean);
-
-      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(list));
-
-      // Beritahu seluruh komponen UI bahwa data transaksi telah terupdate dari cloud
-      broadcastSync('TRANSACTIONS_UPDATED', list);
-    } catch (err) {
-      console.warn('Error syncing cloud transactions to local:', err);
-    }
-  });
-
-  // 2. Sinkronisasi Realtime Ulasan Pelanggan dari Cloud
+  // Sinkronisasi Realtime Ulasan Pelanggan dari Cloud
   listenToFirebase(FIREBASE_PATH_REVIEWS, (cloudReviews) => {
     if (cloudReviews === null) return;
 

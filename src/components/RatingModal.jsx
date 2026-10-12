@@ -6,7 +6,8 @@ export default function RatingModal({
   onClose,
   transaction,
   onRatingSubmitted,
-  onShowToast
+  onShowToast,
+  authUser
 }) {
   const [stars, setStars] = useState(5);
   const [hoverStars, setHoverStars] = useState(0);
@@ -33,7 +34,7 @@ export default function RatingModal({
     }
 
     setIsSubmitting(true);
-    const updated = rateTransaction(transaction.id, stars, comment.trim());
+    const updated = rateTransaction(transaction.id, stars, comment.trim(), authUser);
 
     onShowToast?.(
       '🎉 Terima kasih! Rating dan ulasan Anda telah tercantum di halaman website.',
