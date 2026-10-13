@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/format';
 import { PAYMENT_INFO } from '../data/config';
-import { createTransaction } from '../utils/transactions';
+import { createTransaction, getUserKey } from '../utils/transactions';
 
 export const STEAM_KEY_PACKAGES = [
   {
@@ -231,6 +231,12 @@ export default function SteamKeyModal({
 
     // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
     try {
+      const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
+      const finalUserId =
+        authUser?.id ||
+        getUserKey(authUser) ||
+        (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
+
       createTransaction({
         productId: 'steam-' + currentKey.id,
         productName: `Steam Key (${currentKey.name})`,
@@ -239,11 +245,11 @@ export default function SteamKeyModal({
         price: currentKey.price,
         qty: quantity,
         total: totalPrice,
-        userId: authUser?.id || null,
-        userEmail: authUser?.email || (email !== '-' ? email : null),
+        userId: finalUserId,
+        userEmail: finalEmail !== '-' ? finalEmail : null,
         customerUsername: username || authUser?.username || '',
         customerName: name,
-        customerEmail: email,
+        customerEmail: finalEmail || email,
         customerPhone: wa,
         paymentMethod: paymentName,
         proofUrl: proofImg,

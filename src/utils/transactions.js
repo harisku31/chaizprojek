@@ -67,20 +67,30 @@ export function isOrderOwnedByUser(trx, user) {
   if (!trx || !user) return false;
   const targetId = user.id || getUserKey(user);
   const targetEmail = (user.email || '').toLowerCase().trim();
-  const targetUsername = (user.username || '').toLowerCase().trim();
+  const trxEmail = (trx.userEmail || trx.customerEmail || '').toLowerCase().trim();
 
-  // 1. Pencocokan langsung via userId atau userKey
-  if (trx.userId && (trx.userId === targetId || trx.userId === user.id)) return true;
-  if (trx.userKey && (trx.userKey === targetId || trx.userKey === user.id)) return true;
-
-  // 2. Pencocokan email terverifikasi (case-insensitive)
-  if (targetEmail) {
-    if (trx.userEmail && trx.userEmail.toLowerCase().trim() === targetEmail) return true;
-    if (trx.customerEmail && trx.customerEmail.toLowerCase().trim() === targetEmail) return true;
+  // ISOLASI KETAT PER AKUN:
+  // Jika kedua belah pihak memiliki email dan alamat emailnya BERBEDA,
+  // mutlak BUKAN milik akun ini (mencegah kebocoran riwayat antar akun Gmail).
+  if (targetEmail && trxEmail && trxEmail !== '-' && trxEmail !== targetEmail) {
+    return false;
   }
 
-  // 3. Pencocokan username
-  if (targetUsername && trx.customerUsername && trx.customerUsername.toLowerCase().trim() === targetUsername) {
+  // 1. Pencocokan email terverifikasi (prioritas utama untuk login Google)
+  if (targetEmail && trxEmail && targetEmail === trxEmail) {
+    return true;
+  }
+
+  // 2. Pencocokan langsung via userId atau userKey
+  if (targetId) {
+    if (trx.userId && (trx.userId === targetId || trx.userId === user.id)) return true;
+    if (trx.userKey && (trx.userKey === targetId || trx.userKey === user.id)) return true;
+  }
+
+  // 3. Pencocokan username (hanya berlaku jika tidak ada perbedaan email)
+  const targetUsername = (user.username || '').toLowerCase().trim();
+  const trxUsername = (trx.customerUsername || '').toLowerCase().trim();
+  if (targetUsername && trxUsername && targetUsername === trxUsername) {
     return true;
   }
 
@@ -154,6 +164,7 @@ export function getUserTransactions(user) {
 
   // Buang data demo lama yang mungkin tersisa di cache
   list = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+  list = list.filter((t) => isOrderOwnedByUser(t, user));
 
   // Fallback: Jika storage privat kosong, periksa apakah ada pesanan milik user ini di cache umum
   if (list.length === 0) {
@@ -237,6 +248,8 @@ export async function syncUserTransactionsFromCloud(user) {
       console.warn('Error fetching global trx in syncUser:', globalErr);
     }
 
+    // Filter ketat isolasi akun user aktif
+    userList = userList.filter((t) => isOrderOwnedByUser(t, user));
     userList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     saveUserTransactions(user, userList);
     return userList;
@@ -281,7 +294,8 @@ export function listenToUserTransactions(user, callback) {
       const list = Array.isArray(cloudData)
         ? cloudData.filter(Boolean)
         : Object.values(cloudData).filter(Boolean);
-      const filtered = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+      let filtered = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+      filtered = filtered.filter((t) => isOrderOwnedByUser(t, user));
       filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       saveUserTransactions(user, filtered);
       callback(filtered);
@@ -397,9 +411,10 @@ export function createTransaction({
   proofSize = null,
   warrantyPeriod = 'Garansi Penuh'
 }) {
+  const cleanEmail = (userEmail || (customerEmail && customerEmail !== '-' ? customerEmail : null) || '').toLowerCase().trim() || null;
   const computedUserKey =
     userId ||
-    (userEmail ? getUserKey({ email: userEmail }) : null) ||
+    (cleanEmail ? getUserKey({ email: cleanEmail }) : null) ||
     (customerEmail && customerEmail !== '-' ? getUserKey({ email: customerEmail, name: customerName }) : null);
 
   const idSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -415,11 +430,11 @@ export function createTransaction({
     productId: productId || null,
     userId: computedUserKey || null,
     userKey: computedUserKey || null,
-    userEmail: userEmail || (customerEmail !== '-' ? customerEmail : null),
+    userEmail: cleanEmail,
     createdAt: now.toISOString(),
     customerUsername: customerUsername || '',
     customerName,
-    customerEmail,
+    customerEmail: cleanEmail || customerEmail || '-',
     customerPhone,
     productName,
     productDuration,

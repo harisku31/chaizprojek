@@ -7,7 +7,7 @@ import {
   compressImageFile,
   copyImageBlobToClipboard
 } from '../utils/format';
-import { createTransaction } from '../utils/transactions';
+import { createTransaction, getUserKey } from '../utils/transactions';
 
 export default function CheckoutModal({
   isOpen,
@@ -46,20 +46,19 @@ export default function CheckoutModal({
 
   // Auto-fill dari akun login (Google / Member / Chaiz)
   React.useEffect(() => {
-    if (isOpen && authUser) {
-      if (authUser.username && !buyerUsername) {
-        setBuyerUsername(authUser.username);
-      } else if (authUser.name && !buyerUsername) {
-        setBuyerUsername(authUser.name.toLowerCase().replace(/\s+/g, '_'));
-      }
-      if (authUser.name && (!buyerName || buyerName === 'Chaiz')) {
-        setBuyerName(authUser.name);
-      }
-      if (authUser.email && !buyerEmail) {
-        setBuyerEmail(authUser.email);
-      }
-      if (authUser.phone && !buyerWa) {
-        setBuyerWa(authUser.phone);
+    if (isOpen) {
+      if (authUser) {
+        setBuyerUsername(authUser.username || (authUser.name ? authUser.name.toLowerCase().replace(/\s+/g, '_') : ''));
+        setBuyerName(authUser.name || '');
+        setBuyerEmail(authUser.email || '');
+        if (authUser.phone) {
+          setBuyerWa(authUser.phone);
+        }
+      } else {
+        setBuyerUsername('');
+        setBuyerName('');
+        setBuyerEmail('');
+        setBuyerWa('');
       }
     }
   }, [isOpen, authUser]);
@@ -321,6 +320,12 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
 
     // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
     try {
+      const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
+      const finalUserId =
+        authUser?.id ||
+        getUserKey(authUser) ||
+        (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
+
       items.forEach((item) => {
         createTransaction({
           productId: item.productId || null,
@@ -330,11 +335,11 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
           price: item.price || 0,
           qty: item.qty || 1,
           total: item.total || item.price || 0,
-          userId: authUser?.id || null,
-          userEmail: authUser?.email || (email !== '-' ? email : null),
+          userId: finalUserId,
+          userEmail: finalEmail !== '-' ? finalEmail : null,
           customerUsername: username || authUser?.username || '',
           customerName: name,
-          customerEmail: email,
+          customerEmail: finalEmail || email,
           customerPhone: wa,
           paymentMethod: methodTitle,
           proofUrl: proofImg,

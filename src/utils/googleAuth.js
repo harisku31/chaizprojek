@@ -3,6 +3,8 @@
  * Mendukung autentikasi resmi Google (Popup, GIS Token Client, dan Google Sign-In Button)
  */
 
+import { getUserKey } from './transactions';
+
 export const STORAGE_KEY_CLIENT_ID = 'chaiz_google_client_id';
 
 export const NEW_CLIENT_ID = '1996629502-0ces371120klqn6rgfhnvo1bhki54lsr.apps.googleusercontent.com';
@@ -74,11 +76,13 @@ export function isGoogleAvailable() {
  */
 export function formatGoogleUser(data) {
   const name = data.name || data.given_name || 'Pengguna Google';
+  const cleanEmail = (data.email || '').toLowerCase().trim();
   return {
+    id: getUserKey({ email: cleanEmail }),
     provider: 'google',
     role: 'google_user',
     name: name,
-    email: data.email || '',
+    email: cleanEmail,
     picture: data.picture || '',
     avatarLetter: name.charAt(0).toUpperCase(),
     isMember: false,

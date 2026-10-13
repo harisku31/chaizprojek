@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { formatRupiah } from '../utils/format';
 import {
   getUserTransactions,
   markTransactionsAsRead,
   syncUserTransactionsFromCloud,
   listenToUserTransactions,
-  getUserKey
+  getUserKey,
+  isOrderOwnedByUser
 } from '../utils/transactions';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
@@ -28,7 +29,7 @@ export default function TransactionsPage({
       return;
     }
     const list = getUserTransactions(authUser);
-    setTransactions(list);
+    setTransactions((list || []).filter((t) => isOrderOwnedByUser(t, authUser)));
     markTransactionsAsRead(authUser);
   };
 
@@ -37,7 +38,8 @@ export default function TransactionsPage({
     setIsRefreshing(true);
     try {
       const fresh = await syncUserTransactionsFromCloud(authUser);
-      setTransactions(fresh || []);
+      const filtered = (fresh || []).filter((t) => isOrderOwnedByUser(t, authUser));
+      setTransactions(filtered);
       markTransactionsAsRead(authUser);
       onShowToast?.('Status riwayat pesanan privat berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
     } catch {
@@ -53,20 +55,23 @@ export default function TransactionsPage({
       return;
     }
 
+    // Reset state transaksi awal untuk memastikan kebersihan riwayat
+    setTransactions([]);
+
     // 1. Muat data privat awal (kosong jika akun baru)
     loadData();
 
     // 2. Tarik data paling baru dari node privat Firebase
     syncUserTransactionsFromCloud(authUser).then((fresh) => {
       if (Array.isArray(fresh)) {
-        setTransactions(fresh);
+        setTransactions(fresh.filter((t) => isOrderOwnedByUser(t, authUser)));
       }
     });
 
     // 3. Realtime Cloud Listener khusus node privat user ini di Firebase
     const unsubscribeCloud = listenToUserTransactions(authUser, (cloudList) => {
       if (Array.isArray(cloudList)) {
-        setTransactions(cloudList);
+        setTransactions(cloudList.filter((t) => isOrderOwnedByUser(t, authUser)));
       }
     });
 
@@ -75,7 +80,7 @@ export default function TransactionsPage({
       if (typeof document !== 'undefined' && document.hidden) return;
       syncUserTransactionsFromCloud(authUser).then((fresh) => {
         if (Array.isArray(fresh)) {
-          setTransactions(fresh);
+          setTransactions(fresh.filter((t) => isOrderOwnedByUser(t, authUser)));
         }
       });
     }, 6000);
@@ -278,10 +283,17 @@ export default function TransactionsPage({
     );
   }
 
-  const processingCount = transactions.filter((t) => t.status === 'processing').length;
-  const completedCount = transactions.filter((t) => t.status === 'completed').length;
+  // STRICT USER ISOLATION FILTER (1 Akun = 1 Riwayat Privat):
+  // Filter ketat memastikan transaksi akun lain tidak akan pernah ditampilkan di akun ini
+  const myTransactions = useMemo(() => {
+    if (!authUser) return [];
+    return transactions.filter((t) => isOrderOwnedByUser(t, authUser));
+  }, [transactions, authUser]);
 
-  const filteredTransactions = transactions.filter((t) => {
+  const processingCount = myTransactions.filter((t) => t.status === 'processing').length;
+  const completedCount = myTransactions.filter((t) => t.status === 'completed').length;
+
+  const filteredTransactions = myTransactions.filter((t) => {
     if (activeFilter === 'processing') return t.status === 'processing';
     if (activeFilter === 'completed') return t.status === 'completed';
     return true;

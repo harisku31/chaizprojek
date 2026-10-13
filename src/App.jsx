@@ -33,6 +33,7 @@ import {
   getDatabaseProducts,
   subscribeToProductChanges
 } from './utils/productDatabase';
+import { getUserKey } from './utils/transactions';
 
 export default function App() {
   // Product Database & Realtime Stock State
@@ -325,7 +326,12 @@ export default function App() {
     // Login normal & TIDAK di-banned
     setBannedInfo(null);
     setIsBannedModalOpen(false);
-    const cleanUser = { ...user, isBanned: false, banStatus: null };
+    const cleanUser = {
+      ...user,
+      id: user.id || getUserKey(user),
+      isBanned: false,
+      banStatus: null
+    };
     setAuthUser(cleanUser);
     try {
       localStorage.setItem('chaiz_auth_user', JSON.stringify(cleanUser));
@@ -567,6 +573,7 @@ export default function App() {
           />
         ) : activeTab === 'transaksi' ? (
           <TransactionsPage
+            key={authUser?.email || authUser?.id || 'guest'}
             onBackToStore={() => handleSwitchTab('store')}
             onShowToast={showToast}
             authUser={authUser}
