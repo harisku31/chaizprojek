@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 620" width="100%" height="100%">
+  <defs>
+    <!-- Filter Glow Efek Neon -->
+    <filter id="guide-glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="guide-glow-gold" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="guide-glow-purple" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="11" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Gradients -->
+    <linearGradient id="guide-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050811" />
+      <stop offset="50%" stop-color="#0a0f1d" />
+      <stop offset="100%" stop-color="#04060d" />
+    </linearGradient>
+    <radialGradient id="guide-nebula-left" cx="18%" cy="45%" r="42%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="guide-nebula-right" cx="82%" cy="45%" r="42%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="guide-nebula-center" cx="50%" cy="30%" r="35%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Cyber Hex Grid Pattern -->
+    <pattern id="guide-grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(34, 211, 238, 0.04)" stroke-width="1" />
+      <circle cx="0" cy="0" r="1.5" fill="rgba(34, 211, 238, 0.2)" />
+    </pattern>
+
+    <!-- Glass Card Gradient -->
+    <linearGradient id="guide-card-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.12)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0.02)" />
+    </linearGradient>
+    <linearGradient id="cyan-blue-metal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Background Layers -->
+  <rect width="1920" height="620" fill="url(#guide-bg)" />
+  <rect width="1920" height="620" fill="url(#guide-nebula-left)" />
+  <rect width="1920" height="620" fill="url(#guide-nebula-right)" />
+  <rect width="1920" height="620" fill="url(#guide-nebula-center)" />
+  <rect width="1920" height="620" fill="url(#guide-grid)" />
+
+  <!-- 2. Cyber Circuit Lines & Tech Nodes -->
+  <g stroke="rgba(6, 182, 212, 0.18)" stroke-width="1.5" fill="none">
+    <path d="M 0 140 L 220 140 L 290 200 L 480 200" />
+    <circle cx="480" cy="200" r="3.5" fill="#22d3ee" />
+    <path d="M 0 460 L 180 460 L 250 400 L 440 400" />
+    <circle cx="440" cy="400" r="3.5" fill="#22d3ee" />
+    
+    <path d="M 1920 140 L 1700 140 L 1630 200 L 1440 200" stroke="rgba(59, 130, 246, 0.22)" />
+    <circle cx="1440" cy="200" r="3.5" fill="#60a5fa" />
+    <path d="M 1920 460 L 1740 460 L 1670 400 L 1480 400" stroke="rgba(59, 130, 246, 0.22)" />
+    <circle cx="1480" cy="400" r="3.5" fill="#60a5fa" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- 3. SISI KIRI: STEAM REDEEM CLIENT & PC GAMER INTERFACE      -->
+  <!-- ========================================================= -->
+  <!-- Holographic Steam Window Card (X: 90, Y: 100) -->
+  <g transform="translate(90, 90) rotate(-4)" filter="url(#guide-glow-cyan)">
+    <rect width="250" height="155" rx="20" fill="url(#guide-card-grad)" stroke="rgba(34, 211, 238, 0.45)" stroke-width="1.5" />
+    <rect x="15" y="14" width="220" height="24" rx="8" fill="rgba(15, 23, 42, 0.75)" stroke="rgba(34, 211, 238, 0.3)" stroke-width="1" />
+    <circle cx="30" cy="26" r="4" fill="#ef4444" />
+    <circle cx="42" cy="26" r="4" fill="#f59e0b" />
+    <circle cx="54" cy="26" r="4" fill="#10b981" />
+    <text x="135" y="30" font-family="sans-serif" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="bold">Steam Client • Product Activation</text>
+
+    <!-- Steam Big Logo Inside Card -->
+    <circle cx="65" cy="85" r="28" fill="#171a21" stroke="#22d3ee" stroke-width="2" />
+    <path d="M 65 67 C 56 67 48 74 46 82 L 54 85 C 55 82 58 80 62 80 C 67 80 71 84 71 89 C 71 94 67 98 62 98 L 57 98 C 57 95 54 94 52 94 C 49 94 47 96 47 99 C 47 101 49 104 52 104 C 54 104 57 102 57 100 L 62 100 C 68 100 73 95 73 89 C 73 77 65 67 65 67 Z" fill="#ffffff" />
+    <circle cx="76" cy="74" r="5" fill="#22d3ee" />
+
+    <!-- Text Interface Inside Card -->
+    <text x="110" y="74" font-family="sans-serif" font-size="11" fill="#ffffff" font-weight="bold">Product Code</text>
+    <rect x="110" y="82" width="125" height="22" rx="6" fill="#0f172a" stroke="rgba(34, 211, 238, 0.5)" stroke-width="1" />
+    <text x="172" y="97" font-family="monospace" font-size="10" fill="#22d3ee" text-anchor="middle" font-weight="bold">STEAM-XXXXX-KEY</text>
+
+    <!-- Status Pill -->
+    <rect x="110" y="114" width="70" height="18" rx="9" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="1" />
+    <text x="145" y="126" font-family="sans-serif" font-size="8.5" fill="#34d399" text-anchor="middle" font-weight="bold">VALID KEY</text>
+  </g>
+
+  <!-- Glowing Game Controller Icon Card (X: 180, Y: 330) -->
+  <g transform="translate(180, 320) rotate(6)" filter="url(#guide-glow-purple)">
+    <rect width="180" height="130" rx="22" fill="url(#guide-card-grad)" stroke="rgba(168, 85, 247, 0.45)" stroke-width="1.5" />
+    <!-- Gamepad Path -->
+    <path d="M 68 45 C 57 45 48 56 48 68 C 48 81 54 92 63 95 C 68 96 73 90 77 84 L 83 78 L 97 78 L 103 84 C 107 90 112 96 117 95 C 126 92 132 81 132 68 C 132 56 123 45 112 45 Z" fill="#1e1b4b" stroke="#a855f7" stroke-width="2.5" />
+    <circle cx="73" cy="63" r="5" fill="#22d3ee" />
+    <circle cx="112" cy="58" r="3.5" fill="#ec4899" />
+    <circle cx="120" cy="65" r="3.5" fill="#10b981" />
+    <circle cx="104" cy="65" r="3.5" fill="#f59e0b" />
+    <circle cx="112" cy="72" r="3.5" fill="#38bdf8" />
+    <text x="90" y="118" font-family="sans-serif" font-size="9.5" fill="#c084fc" text-anchor="middle" font-weight="bold">READY TO PLAY</text>
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- 4. SISI KANAN: UNLOCK GAME LIBRARY & DIGITAL VOUCHER CARDS -->
+  <!-- ========================================================= -->
+  <!-- Holographic Unlocked Game Card (X: 1570, Y: 90) -->
+  <g transform="translate(1570, 90) rotate(5)" filter="url(#guide-glow-gold)">
+    <rect width="250" height="155" rx="20" fill="url(#guide-card-grad)" stroke="rgba(245, 158, 11, 0.45)" stroke-width="1.5" />
+    <rect x="15" y="14" width="220" height="24" rx="8" fill="rgba(15, 23, 42, 0.75)" stroke="rgba(245, 158, 11, 0.3)" stroke-width="1" />
+    <circle cx="30" cy="26" r="4" fill="#10b981" />
+    <text x="135" y="30" font-family="sans-serif" font-size="9.5" fill="#fbbf24" text-anchor="middle" font-weight="bold">Library Activation Success</text>
+
+    <!-- Glowing Trophy Icon -->
+    <circle cx="65" cy="88" r="28" fill="#1e1b4b" stroke="#f59e0b" stroke-width="2" />
+    <path d="M 55 74 L 75 74 L 72 90 C 71 96 67 99 65 99 C 63 99 59 96 58 90 Z" fill="#fbbf24" />
+    <path d="M 55 77 L 48 77 C 46 77 45 82 48 85 L 56 87 Z" fill="#fbbf24" />
+    <path d="M 75 77 L 82 77 C 84 77 85 82 82 85 L 74 87 Z" fill="#fbbf24" />
+    <rect x="62" y="99" width="6" height="8" fill="#d97706" />
+    <rect x="56" y="106" width="18" height="5" rx="2" fill="#fbbf24" />
+
+    <text x="108" y="76" font-family="sans-serif" font-size="11" fill="#ffffff" font-weight="bold">Game Terbuka!</text>
+    <text x="108" y="94" font-family="sans-serif" font-size="9.5" fill="#94a3b8">Masuk ke Library Steam</text>
+    <rect x="108" y="104" width="105" height="22" rx="7" fill="rgba(16, 185, 129, 0.25)" stroke="#10b981" stroke-width="1.5" />
+    <text x="160" y="119" font-family="sans-serif" font-size="9.5" fill="#34d399" text-anchor="middle" font-weight="bold">✓ 100% Permanen</text>
+  </g>
+
+  <!-- Glowing Download Badge Card (X: 1530, Y: 320) -->
+  <g transform="translate(1530, 320) rotate(-6)" filter="url(#guide-glow-cyan)">
+    <rect width="200" height="135" rx="22" fill="url(#guide-card-grad)" stroke="rgba(34, 211, 238, 0.45)" stroke-width="1.5" />
+    <!-- Download Arrow Icon -->
+    <circle cx="100" cy="56" r="26" fill="#0f172a" stroke="#22d3ee" stroke-width="2" />
+    <path d="M 100 42 L 100 66 M 92 58 L 100 66 L 108 58" stroke="#22d3ee" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 88 72 L 112 72" stroke="#22d3ee" stroke-width="3" stroke-linecap="round" />
+    <text x="100" y="104" font-family="sans-serif" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="bold">Install Game</text>
+    <text x="100" y="120" font-family="sans-serif" font-size="9" fill="#22d3ee" text-anchor="middle">Server Resmi Valve</text>
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- 5. FLOATING GOLD COINS & SPARKLE ACCENTS                   -->
+  <!-- ========================================================= -->
+  <g transform="translate(370, 150)" filter="url(#guide-glow-gold)">
+    <circle cx="16" cy="16" r="14" fill="#fbbf24" stroke="#fef08a" stroke-width="2" />
+    <text x="16" y="21" font-size="14" font-weight="bold" fill="#78350f" text-anchor="middle">★</text>
+  </g>
+  <g transform="translate(390, 410)" filter="url(#guide-glow-gold)">
+    <circle cx="14" cy="14" r="12" fill="#fbbf24" stroke="#fef08a" stroke-width="1.5" />
+    <text x="14" y="18" font-size="12" font-weight="bold" fill="#78350f" text-anchor="middle">★</text>
+  </g>
+  <g transform="translate(1480, 160)" filter="url(#guide-glow-gold)">
+    <circle cx="16" cy="16" r="14" fill="#fbbf24" stroke="#fef08a" stroke-width="2" />
+    <text x="16" y="21" font-size="14" font-weight="bold" fill="#78350f" text-anchor="middle">★</text>
+  </g>
+  <g transform="translate(1460, 420)" filter="url(#guide-glow-gold)">
+    <circle cx="14" cy="14" r="12" fill="#fbbf24" stroke="#fef08a" stroke-width="1.5" />
+    <text x="14" y="18" font-size="12" font-weight="bold" fill="#78350f" text-anchor="middle">★</text>
+  </g>
+
+  <!-- Star Sparkles -->
+  <g fill="#22d3ee" opacity="0.8">
+    <path d="M 430 280 Q 430 292 442 292 Q 430 292 430 304 Q 430 292 418 292 Q 430 292 430 280 Z" />
+    <path d="M 1440 280 Q 1440 292 1452 292 Q 1440 292 1440 304 Q 1440 292 1428 292 Q 1440 292 1440 280 Z" fill="#c084fc" />
+    <circle cx="320" cy="140" r="2.5" />
+    <circle cx="1520" cy="240" r="2.5" fill="#fbbf24" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- 6. CENTER VIGNETTE GRADIENT (KONTUR GELAP UNTUK TEKS)     -->
+  <!-- ========================================================= -->
+  <radialGradient id="guide-center-dark" cx="50%" cy="45%" r="42%">
+    <stop offset="0%" stop-color="#050811" stop-opacity="0.68" />
+    <stop offset="60%" stop-color="#050811" stop-opacity="0.48" />
+    <stop offset="100%" stop-color="#050811" stop-opacity="0" />
+  </radialGradient>
+  <rect width="1920" height="620" fill="url(#guide-center-dark)" />
+</svg>

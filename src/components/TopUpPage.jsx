@@ -248,18 +248,35 @@ export default function TopUpPage({
         </div>
       </section>
 
-      {/* 3. Panduan Cara Redeem Steam Key */}
-      <section className="topup-faq-section" style={{ background: 'var(--bg-surface)', padding: '50px 0', borderTop: '1px solid var(--border-subtle)' }}>
-        <div className="container">
+      {/* 3. Panduan Cara Redeem Steam Key dengan Background Banner AI */}
+      <section className="topup-faq-section topup-guide-hero-banner">
+        <div className="topup-guide-bg-wrap">
+          <img
+            src="/guide-banner.svg"
+            alt="Panduan Aktivasi Steam Key ChaizStore"
+            className="topup-guide-bg-banner"
+            loading="lazy"
+            onError={(e) => {
+              if (!e.currentTarget.src.endsWith('.jpg')) {
+                e.currentTarget.src = '/guide-banner.jpg';
+              }
+            }}
+          />
+          <div className="topup-guide-overlay"></div>
+        </div>
+
+        <div className="container" style={{ position: 'relative', zIndex: 2 }}>
           <div className="section-title text-center">
             <span className="subheading">
               <i className="fa-solid fa-circle-question"></i> PANDUAN PENGGUNA
             </span>
-            <h2>Cara Aktivasi Steam Key di PC / Laptop</h2>
-            <p>Panduan mudah dan cepat untuk me-redeem kode game Steam yang Anda beli.</p>
+            <h2>
+              Cara Aktivasi Steam Key <span>di PC / Laptop</span>
+            </h2>
+            <p>Panduan mudah dan cepat untuk me-redeem kode game Steam resmi yang Anda beli di ChaizStore.</p>
           </div>
 
-          <div className="topup-steps-grid" style={{ marginTop: '30px' }}>
+          <div className="topup-steps-grid" style={{ marginTop: '32px' }}>
             <div className="step-card">
               <span className="step-num">1</span>
               <div>
