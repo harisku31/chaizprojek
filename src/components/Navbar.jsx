@@ -123,9 +123,9 @@ export default function Navbar({
               if (onSwitchTab) onSwitchTab('topup');
               else if (onOpenTopUp) onOpenTopUp();
             }}
-            title="Pindah ke Halaman Khusus Top Up"
+            title="Pindah ke Halaman Khusus Top Up Akun & Games"
           >
-            <i className="fa-brands fa-steam text-warning"></i> Top Up
+            Top Up Akun & Games
             <span className="nav-tab-badge">KILAT</span>
           </a>
           <a

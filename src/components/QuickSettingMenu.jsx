@@ -219,14 +219,14 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
               }}
             >
               <div className="option-icon-wrap icon-cyan">
-                <i className="fa-brands fa-steam"></i>
+                <i className="fa-solid fa-gamepad"></i>
               </div>
               <div className="option-text-wrap">
                 <div className="option-title-row">
-                  <strong>Top Up</strong>
-                  <span className="option-mini-badge badge-hot">RESMI</span>
+                  <strong>Top Up Akun & Games</strong>
+                  <span className="option-mini-badge badge-hot">KILAT</span>
                 </div>
-                <small>Voucher Steam Wallet Code (IDR) Resmi Valve</small>
+                <small>Top up akun premium, voucher game & Steam Key resmi</small>
               </div>
               <i className="fa-solid fa-chevron-right option-chevron"></i>
             </button>

@@ -8319,13 +8319,14 @@ body.auth-locked {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.3);
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   color: #34d399;
   font-weight: 600;
+  line-height: 1;
 }
 
 .live-status-dot {

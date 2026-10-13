@@ -16,8 +16,8 @@ export default function TopUpPage({
   const [modalKeyId, setModalKeyId] = useState('original');
 
   const categories = [
-    { id: 'all', label: 'Semua Steam Key', icon: 'fa-border-all' },
-    { id: 'original', label: 'Original (Rp 1.500)', icon: 'fa-brands fa-steam' },
+    { id: 'all', label: 'Semua Varian Top Up', icon: 'fa-border-all' },
+    { id: 'original', label: 'Original Key (Rp 1.500)', icon: 'fa-brands fa-steam' },
     { id: 'epic', label: 'Epic Tier (Rp 3.500)', icon: 'fa-trophy' },
     { id: 'nsfw', label: 'NSFW 18+ (Rp 3.500)', icon: 'fa-heart' },
     { id: 'hanimentai', label: 'Hanimetai (Rp 3.500)', icon: 'fa-wand-magic-sparkles' }
@@ -67,34 +67,24 @@ export default function TopUpPage({
               title="Kembali ke halaman Akun Premium"
             >
               <i className="fa-solid fa-arrow-left"></i>
-              <span>Kembali ke Akun Premium</span>
+              <span>Kembali ke Toko</span>
             </button>
 
             <div className="topup-page-status-pill">
               <span className="live-status-dot"></span>
-              <span>Layanan Steam Key Online 24 Jam</span>
+              <span>Layanan Online 24 Jam</span>
             </div>
-
-            <button
-              type="button"
-              className="topup-newtab-btn"
-              onClick={() => window.open(window.location.origin + '/#topup', '_blank')}
-              title="Buka Halaman Top Up di Tab Browser Baru"
-            >
-              <i className="fa-solid fa-arrow-up-right-from-square"></i>
-              <span>Buka di Tab Baru</span>
-            </button>
           </div>
 
           <div className="topup-hero-content">
             <span className="topup-hero-badge">
-              <i className="fa-brands fa-steam text-cyan"></i> CHAIZSTORE STEAM TOP UP CENTER
+              <i className="fa-solid fa-bolt text-cyan"></i> CHAIZSTORE TOP UP CENTER
             </span>
             <h1 className="topup-hero-title">
-              Pusat Steam Key <span>Resmi & Termurah</span>
+              Top Up Akun <span>& Games</span>
             </h1>
             <p className="topup-hero-sub">
-              Dapatkan Steam Key game resmi Valve mulai dari <strong>Rp 1.500/key</strong>. Proses kilat 1-3 menit langsung dikirimkan ke WhatsApp & Email Anda dengan aktivasi permanen di library Steam.
+              Pusat layanan top up resmi dan instan untuk berbagai akun premium, Steam Key game resmi, voucher game, dan langganan digital terpercaya. Proses kilat otomatis 1-3 menit langsung aktif dengan garansi penuh 100%.
             </p>
 
             <div className="topup-hero-stats">
@@ -109,7 +99,7 @@ export default function TopUpPage({
                 <i className="fa-solid fa-shield-halved text-cyan"></i>
                 <div>
                   <strong>100% Legal</strong>
-                  <small>Garansi Resmi Valve</small>
+                  <small>Garansi Resmi</small>
                 </div>
               </div>
               <div className="topup-stat-item">
@@ -131,15 +121,17 @@ export default function TopUpPage({
         </div>
       </section>
 
-      {/* 2. Katalog Steam Key (Tata Letak Mirip Akun Premium) */}
+      {/* 2. Katalog Top Up & Steam Key */}
       <section className="katalog-section" style={{ paddingTop: '20px' }}>
         <div className="container">
           <div className="section-title text-center">
             <span className="subheading">
-              <i className="fa-brands fa-steam"></i> KATALOG STEAM KEY
+              <i className="fa-solid fa-layer-group"></i> KATALOG TOP UP AKUN & GAMES
             </span>
-            <h2>Pilih Varian Steam Key Favoritmu</h2>
-            <p>Tersedia Steam Key Original, Epic Tier, NSFW 18+, hingga Hanimetai dengan harga terjangkau.</p>
+            <h2>Pilih Varian Top Up Favoritmu</h2>
+            <p>
+              Tersedia berbagai pilihan top up akun premium, Steam Key game resmi Valve (Original, Epic Tier, NSFW 18+, Hanimetai), voucher game, dan produk digital favorit dengan harga termurah & proses kilat otomatis.
+            </p>
           </div>
 
           {/* Filter Categories Bar */}
@@ -240,11 +232,11 @@ export default function TopUpPage({
 
           {filteredKeys.length === 0 && (
             <div className="empty-state">
-              <i className="fa-brands fa-steam"></i>
-              <h3>Paket Steam Key Tidak Ditemukan</h3>
-              <p>Coba pilih kategori lain atau tampilkan semua paket Steam Key.</p>
+              <i className="fa-solid fa-gamepad"></i>
+              <h3>Paket Top Up Tidak Ditemukan</h3>
+              <p>Coba pilih kategori lain atau tampilkan semua varian top up.</p>
               <button className="btn btn-outline" onClick={() => setActiveCategory('all')}>
-                Tampilkan Semua Key
+                Tampilkan Semua Varian
               </button>
             </div>
           )}
