@@ -56,30 +56,35 @@ export default function TopUpPage({
 
   return (
     <div className="topup-page-container">
-      {/* 1. Header Banner & Navigasi Halaman */}
+      {/* 1. Header Hero Banner dengan Foto Background AI Top Up & Games */}
       <section className="topup-page-hero">
+        <div className="topup-hero-bg-wrap">
+          <img
+            src="/topup-banner.svg"
+            alt="ChaizStore Top Up Akun & Games Banner"
+            className="topup-hero-bg-banner"
+            loading="eager"
+            onError={(e) => {
+              if (!e.currentTarget.src.endsWith('.jpg')) {
+                e.currentTarget.src = '/topup-banner.jpg';
+              }
+            }}
+          />
+          <div className="topup-hero-overlay"></div>
+        </div>
+
         <div className="container">
-          <div className="topup-breadcrumb-bar">
-            <button
-              type="button"
-              className="topup-back-btn"
-              onClick={onBackToStore}
-              title="Kembali ke halaman Akun Premium"
-            >
-              <i className="fa-solid fa-arrow-left"></i>
-              <span>Kembali ke Toko</span>
-            </button>
-
-            <div className="topup-page-status-pill">
-              <span className="live-status-dot"></span>
-              <span>Layanan Online 24 Jam</span>
-            </div>
-          </div>
-
           <div className="topup-hero-content">
-            <span className="topup-hero-badge">
-              <i className="fa-solid fa-bolt text-cyan"></i> CHAIZSTORE TOP UP CENTER
-            </span>
+            <div className="topup-hero-badge-row">
+              <span className="topup-hero-badge">
+                <i className="fa-solid fa-bolt text-cyan"></i> CHAIZSTORE TOP UP CENTER
+              </span>
+              <div className="topup-page-status-pill">
+                <span className="live-status-dot"></span>
+                <span>Layanan Online 24 Jam</span>
+              </div>
+            </div>
+
             <h1 className="topup-hero-title">
               Top Up Akun <span>& Games</span>
             </h1>
