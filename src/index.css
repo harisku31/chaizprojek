@@ -8301,15 +8301,16 @@ body.auth-locked {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  filter: brightness(0.68) saturate(1.18);
+  filter: brightness(0.92) contrast(1.08) saturate(1.25);
+  opacity: 0.95;
   transform: scale(1.01);
 }
 
 .topup-hero-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(9, 13, 22, 0.45) 0%, rgba(9, 13, 22, 0.8) 90%),
-              linear-gradient(180deg, rgba(9, 13, 22, 0.25) 0%, rgba(9, 13, 22, 0.9) 100%);
+  background: radial-gradient(circle at 50% 50%, rgba(9, 13, 22, 0.18) 0%, rgba(9, 13, 22, 0.58) 95%),
+              linear-gradient(180deg, rgba(9, 13, 22, 0.12) 0%, rgba(9, 13, 22, 0.62) 100%);
 }
 
 .topup-page-hero .container {
@@ -8571,15 +8572,16 @@ body.auth-locked {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  filter: brightness(0.68) saturate(1.18);
+  filter: brightness(0.92) contrast(1.08) saturate(1.25);
+  opacity: 0.95;
   transform: scale(1.01);
 }
 
 .topup-guide-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(9, 13, 22, 0.45) 0%, rgba(9, 13, 22, 0.85) 90%),
-              linear-gradient(180deg, rgba(9, 13, 22, 0.35) 0%, rgba(9, 13, 22, 0.95) 100%);
+  background: radial-gradient(circle at 50% 50%, rgba(9, 13, 22, 0.18) 0%, rgba(9, 13, 22, 0.58) 95%),
+              linear-gradient(180deg, rgba(9, 13, 22, 0.12) 0%, rgba(9, 13, 22, 0.62) 100%);
 }
 
 .topup-guide-hero-banner .section-title h2 {
