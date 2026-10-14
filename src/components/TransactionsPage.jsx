@@ -419,7 +419,7 @@ export default function TransactionsPage({
                 className={`trx-tab-btn ${activeFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setActiveFilter('all')}
               >
-                <i className="fa-solid fa-border-all"></i> Semua Transaksi ({transactions.length})
+                <i className="fa-solid fa-border-all"></i> Semua Transaksi ({myTransactions.length})
               </button>
               <button
                 type="button"

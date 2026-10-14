@@ -363,6 +363,7 @@ export default function App() {
     setIsBannedModalOpen(false);
     try {
       localStorage.removeItem('chaiz_auth_user');
+      localStorage.removeItem('chaiz_transactions');
     } catch (e) {
       console.error(e);
     }

@@ -65,32 +65,28 @@ export function getUserKey(userOrEmail) {
  */
 export function isOrderOwnedByUser(trx, user) {
   if (!trx || !user) return false;
-  const targetId = user.id || getUserKey(user);
   const targetEmail = (user.email || '').toLowerCase().trim();
   const trxEmail = (trx.userEmail || trx.customerEmail || '').toLowerCase().trim();
 
-  // ISOLASI KETAT PER AKUN:
-  // Jika kedua belah pihak memiliki email dan alamat emailnya BERBEDA,
-  // mutlak BUKAN milik akun ini (mencegah kebocoran riwayat antar akun Gmail).
-  if (targetEmail && trxEmail && trxEmail !== '-' && trxEmail !== targetEmail) {
+  // ISOLASI KETAT PER AKUN (PRIORITAS EMAIL UTAMA):
+  // Jika user yang login memiliki email (login Google / terdaftar):
+  // HANYA pesanan dengan email yang sama persis yang diizinkan!
+  if (targetEmail) {
+    if (trxEmail && trxEmail !== '-' && trxEmail === targetEmail) {
+      return true;
+    }
+    const targetId = user.id || getUserKey(user);
+    if (targetId && (trx.userId === targetId || trx.userKey === targetId)) {
+      if (!trxEmail || trxEmail === '-' || trxEmail === targetEmail) {
+        return true;
+      }
+    }
     return false;
   }
 
-  // 1. Pencocokan email terverifikasi (prioritas utama untuk login Google)
-  if (targetEmail && trxEmail && targetEmail === trxEmail) {
-    return true;
-  }
-
-  // 2. Pencocokan langsung via userId atau userKey
-  if (targetId) {
-    if (trx.userId && (trx.userId === targetId || trx.userId === user.id)) return true;
-    if (trx.userKey && (trx.userKey === targetId || trx.userKey === user.id)) return true;
-  }
-
-  // 3. Pencocokan username (hanya berlaku jika tidak ada perbedaan email)
-  const targetUsername = (user.username || '').toLowerCase().trim();
-  const trxUsername = (trx.customerUsername || '').toLowerCase().trim();
-  if (targetUsername && trxUsername && targetUsername === trxUsername) {
+  // Fallback hanya untuk akun non-email (member username)
+  const targetId = user.id || getUserKey(user);
+  if (targetId && (trx.userId === targetId || trx.userKey === targetId)) {
     return true;
   }
 
