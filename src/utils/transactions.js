@@ -11,6 +11,13 @@ import {
   deleteFromFirebase,
   listenToFirebase
 } from './firebase.js';
+import {
+  fetchUserTransactionsFromSql,
+  fetchAllTransactionsFromSql,
+  createTransactionInSql,
+  updateTransactionInSql,
+  deleteTransactionProofInSql
+} from './sqlApi';
 
 const STORAGE_KEY_TRX = 'chaiz_transactions';
 const STORAGE_KEY_USER_PREFIX = 'chaiz_user_trx_';
@@ -219,6 +226,22 @@ export async function syncUserTransactionsFromCloud(user) {
   const key = getUserKey(user);
   if (!key) return [];
 
+  // PRIORITAS 1: Tarik dari Database SQL (PHP + MySQL Backend) jika aktif
+  // Server SQL menyaring dengan WHERE LOWER(user_email) = :email (100% isolasi per akun)
+  if (user?.email) {
+    try {
+      const sqlList = await fetchUserTransactionsFromSql(user.email);
+      if (Array.isArray(sqlList)) {
+        const filteredSql = sqlList.filter((t) => isOrderOwnedByUser(t, user));
+        filteredSql.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        saveUserTransactions(user, filteredSql, { broadcast: false });
+        return purgeExpiredProofs(filteredSql);
+      }
+    } catch (sqlErr) {
+      // Backend PHP offline, lanjut ke Firebase fallback
+    }
+  }
+
   let userList = [];
 
   try {
@@ -343,6 +366,19 @@ export function saveTransactions(transactions) {
  * Tarik Data Transaksi Paling Segar dari Firebase Cloud (Admin)
  */
 export async function syncTransactionsFromCloud() {
+  // PRIORITAS 1: Tarik seluruh data dari database SQL jika aktif
+  try {
+    const sqlAll = await fetchAllTransactionsFromSql();
+    if (Array.isArray(sqlAll) && sqlAll.length > 0) {
+      const filtered = sqlAll.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+      filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      saveTransactions(filtered);
+      return purgeExpiredProofs(filtered);
+    }
+  } catch (sqlErr) {
+    // Fallback ke Firebase
+  }
+
   try {
     const cloudData = await readFromFirebase(FIREBASE_PATH_TRX);
     if (cloudData) {
@@ -477,6 +513,9 @@ export function createTransaction({
     writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${computedUserKey}/${newTrx.id}`, newTrx);
   }
 
+  // 4. Simpan ke Database SQL (PHP + MySQL Backend) secara aman & privat
+  createTransactionInSql(newTrx).catch(() => {});
+
   broadcastSync('NEW_TRANSACTION', { newTrx, userKey: computedUserKey });
   return newTrx;
 }
@@ -524,6 +563,9 @@ export function deleteTransactionProof(id, deletedBy = 'Admin') {
       saveUserTransactions({ id: userKey }, userList.map((t) => (t.id === id ? targetTrx : t)));
       updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patch);
     }
+
+    // Hapus foto bukti di Database SQL jika aktif
+    deleteTransactionProofInSql(id).catch(() => {});
   }
   return targetTrx;
 }
@@ -705,6 +747,16 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     }
   }
 
+  // 4. Sinkronisasi ke Database SQL (PHP + MySQL Backend) jika aktif
+  updateTransactionInSql({
+    id,
+    status: 'completed',
+    credentials: updatedTrx.credentials,
+    adminNote: updatedTrx.adminNote,
+    processedAt: updatedTrx.processedAt,
+    isRead: false
+  }).catch(() => {});
+
   broadcastSync('TRANSACTION_FULFILLED', { updatedTrx, userKey });
   return updatedTrx;
 }
@@ -750,6 +802,13 @@ export function rateTransaction(id, stars, comment, authUser = null) {
     }
 
     updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, { rating: ratedTrx.rating });
+
+    // Sinkronkan ulasan rating ke SQL database jika aktif
+    updateTransactionInSql({
+      id,
+      rating: ratedTrx.rating
+    }).catch(() => {});
+
     addCustomerReview({
       id: `REV-${Date.now()}`,
       name: ratedTrx.customerName || 'Pelanggan Setia',

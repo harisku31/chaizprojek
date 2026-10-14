@@ -34,6 +34,7 @@ import {
   subscribeToProductChanges
 } from './utils/productDatabase';
 import { getUserKey } from './utils/transactions';
+import { syncUserToSql } from './utils/sqlApi';
 
 export default function App() {
   // Product Database & Realtime Stock State
@@ -339,6 +340,7 @@ export default function App() {
       console.error(e);
     }
     recordUserLogin(cleanUser);
+    syncUserToSql(cleanUser).catch(() => {});
 
     // Cek jika akun ini baru saja di-unban, tampilkan jendela pemberitahuan!
     try {
