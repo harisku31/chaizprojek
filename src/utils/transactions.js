@@ -103,9 +103,13 @@ function broadcastSync(type, data) {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('chaiz_trx_updated', { detail: { type, data } }));
       if ('BroadcastChannel' in window) {
-        const bc = new BroadcastChannel(CHANNEL_NAME);
-        bc.postMessage({ type, data, timestamp: Date.now() });
-        setTimeout(() => bc.close(), 100);
+        try {
+          const bc = new BroadcastChannel(CHANNEL_NAME);
+          bc.postMessage({ type, data, timestamp: Date.now() });
+          setTimeout(() => {
+            try { bc.close(); } catch {}
+          }, 200);
+        } catch {}
       }
     }
   } catch (e) {
@@ -172,7 +176,7 @@ export function getUserTransactions(user) {
     const matched = all.filter((t) => isOrderOwnedByUser(t, user));
     if (matched.length > 0) {
       list = matched;
-      saveUserTransactions(user, list);
+      saveUserTransactions(user, list, { broadcast: false });
     }
   }
 
@@ -181,8 +185,9 @@ export function getUserTransactions(user) {
 
 /**
  * Menyimpan transaksi privat user ke localStorage terisolasi
+ * Mendukung options.broadcast = false untuk penyimpanan tenang tanpa memicu loop reload
  */
-export function saveUserTransactions(user, transactions) {
+export function saveUserTransactions(user, transactions, options = { broadcast: true }) {
   if (!user) return;
   const key = getUserKey(user);
   if (!key) return;
@@ -203,12 +208,15 @@ export function saveUserTransactions(user, transactions) {
     } catch {}
   }
 
-  broadcastSync('USER_TRANSACTIONS_UPDATED', { userKey: key, count: sanitized.length });
+  const shouldBroadcast = options !== false && (typeof options !== 'object' || options.broadcast !== false);
+  if (shouldBroadcast) {
+    broadcastSync('USER_TRANSACTIONS_UPDATED', { userKey: key, count: sanitized.length });
+  }
 }
 
 /**
  * Tarik data transaksi privat user langsung dari Firebase Cloud Database
- * Memastikan status riwayat privat database selalu sinkron
+ * Memastikan status riwayat privat database selalu sinkron tanpa lag
  */
 export async function syncUserTransactionsFromCloud(user) {
   if (!user) return [];
@@ -227,31 +235,33 @@ export async function syncUserTransactionsFromCloud(user) {
       userList = rawList.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
     }
 
-    // 2. Ambil juga dari transactions global jika ada transaksi milik user ini yang belum tercatat di private node
-    try {
-      const globalData = await readFromFirebase(FIREBASE_PATH_TRX);
-      if (globalData) {
-        const globalList = Array.isArray(globalData)
-          ? globalData.filter(Boolean)
-          : Object.values(globalData).filter(Boolean);
+    // 2. Fallback HANYA jika node privat user kosong: periksa transactions global satu kali
+    if (userList.length === 0) {
+      try {
+        const globalData = await readFromFirebase(FIREBASE_PATH_TRX);
+        if (globalData) {
+          const globalList = Array.isArray(globalData)
+            ? globalData.filter(Boolean)
+            : Object.values(globalData).filter(Boolean);
 
-        const matched = globalList.filter((t) => isOrderOwnedByUser(t, user));
-        matched.forEach((t) => {
-          if (!userList.some((u) => u.id === t.id)) {
-            userList.push(t);
-            // Sinkronkan ke node privat user di Firebase
-            writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}/${t.id}`, t);
-          }
-        });
+          const matched = globalList.filter((t) => isOrderOwnedByUser(t, user));
+          matched.forEach((t) => {
+            if (!userList.some((u) => u.id === t.id)) {
+              userList.push(t);
+              // Sinkronkan ke node privat user di Firebase
+              writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}/${t.id}`, t);
+            }
+          });
+        }
+      } catch (globalErr) {
+        console.warn('Error fetching global trx in syncUser fallback:', globalErr);
       }
-    } catch (globalErr) {
-      console.warn('Error fetching global trx in syncUser:', globalErr);
     }
 
     // Filter ketat isolasi akun user aktif
     userList = userList.filter((t) => isOrderOwnedByUser(t, user));
     userList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    saveUserTransactions(user, userList);
+    saveUserTransactions(user, userList, { broadcast: false });
     return userList;
   } catch (err) {
     console.warn('Gagal sync transaksi user dari cloud:', err);
@@ -270,23 +280,8 @@ export function listenToUserTransactions(user, callback) {
 
   return listenToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}`, (cloudData) => {
     if (cloudData === null || cloudData === undefined) {
-      // Periksa apakah ada pesanan di global list
-      readFromFirebase(FIREBASE_PATH_TRX).then((globalData) => {
-        if (globalData) {
-          const globalList = Array.isArray(globalData)
-            ? globalData.filter(Boolean)
-            : Object.values(globalData).filter(Boolean);
-          const matched = globalList.filter((t) => isOrderOwnedByUser(t, user));
-          if (matched.length > 0) {
-            matched.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-            saveUserTransactions(user, matched);
-            callback(matched);
-            return;
-          }
-        }
-        saveUserTransactions(user, []);
-        callback([]);
-      });
+      saveUserTransactions(user, [], { broadcast: false });
+      callback([]);
       return;
     }
 
@@ -297,7 +292,7 @@ export function listenToUserTransactions(user, callback) {
       let filtered = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
       filtered = filtered.filter((t) => isOrderOwnedByUser(t, user));
       filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      saveUserTransactions(user, filtered);
+      saveUserTransactions(user, filtered, { broadcast: false });
       callback(filtered);
     } catch (err) {
       console.warn('Error in listenToUserTransactions:', err);
@@ -786,8 +781,16 @@ export function markTransactionsAsRead(user = null) {
   }
   if (!targetUser) return;
   const list = getUserTransactions(targetUser);
-  const updated = list.map((t) => ({ ...t, isRead: true }));
-  saveUserTransactions(targetUser, updated);
+  const hasUnread = list.some((t) => !t.isRead);
+  if (!hasUnread) return;
+
+  const updated = list.map((t) => (t.isRead ? t : { ...t, isRead: true }));
+  saveUserTransactions(targetUser, updated, { broadcast: false });
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('chaiz_notifications_read', { detail: { userKey: getUserKey(targetUser) } }));
+    }
+  } catch {}
 }
 
 /**

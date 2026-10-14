@@ -28,17 +28,21 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
     } catch (e) {}
 
     const handleStorage = (e) => {
-      if (e.key === 'chaiz_transactions') updateNotif();
+      if (e.key === 'chaiz_transactions' || (e.key && e.key.startsWith('chaiz_user_trx_'))) {
+        updateNotif();
+      }
     };
     window.addEventListener('storage', handleStorage);
     window.addEventListener('chaiz_trx_updated', updateNotif);
+    window.addEventListener('chaiz_notifications_read', updateNotif);
 
     return () => {
       if (bc) bc.close();
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('chaiz_trx_updated', updateNotif);
+      window.removeEventListener('chaiz_notifications_read', updateNotif);
     };
-  }, []);
+  }, [authUser]);
 
   // Close when clicking outside
   useEffect(() => {

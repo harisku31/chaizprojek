@@ -30,7 +30,6 @@ export default function TransactionsPage({
     }
     const list = getUserTransactions(authUser);
     setTransactions((list || []).filter((t) => isOrderOwnedByUser(t, authUser)));
-    markTransactionsAsRead(authUser);
   };
 
   const handleManualRefresh = async () => {
@@ -55,16 +54,15 @@ export default function TransactionsPage({
       return;
     }
 
-    // Reset state transaksi awal untuk memastikan kebersihan riwayat
-    setTransactions([]);
-
-    // 1. Muat data privat awal (kosong jika akun baru)
+    // 1. Muat data privat awal secara instan (zero lag)
     loadData();
+    markTransactionsAsRead(authUser);
 
     // 2. Tarik data paling baru dari node privat Firebase
     syncUserTransactionsFromCloud(authUser).then((fresh) => {
       if (Array.isArray(fresh)) {
         setTransactions(fresh.filter((t) => isOrderOwnedByUser(t, authUser)));
+        markTransactionsAsRead(authUser);
       }
     });
 
@@ -75,7 +73,7 @@ export default function TransactionsPage({
       }
     });
 
-    // 4. Fallback polling setiap 6 detik saat layar aktif
+    // 4. Polling berkala (fallback) setiap 15 detik saat tab aktif
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       syncUserTransactionsFromCloud(authUser).then((fresh) => {
@@ -83,7 +81,7 @@ export default function TransactionsPage({
           setTransactions(fresh.filter((t) => isOrderOwnedByUser(t, authUser)));
         }
       });
-    }, 6000);
+    }, 15000);
 
     // 5. Listen realtime update dari BroadcastChannel
     let bc = null;
@@ -92,6 +90,10 @@ export default function TransactionsPage({
         bc = new BroadcastChannel('chaiz_admin_sync');
         bc.onmessage = (ev) => {
           const type = ev.data?.type;
+          // Filter: Abaikan event internal penyimpanan cache user atau read status
+          if (type === 'USER_TRANSACTIONS_UPDATED' || type === 'NOTIFICATIONS_READ') {
+            return;
+          }
           const userKey = ev.data?.userKey || ev.data?.data?.userKey;
           const myKey = authUser?.id || getUserKey(authUser);
 
@@ -109,6 +111,11 @@ export default function TransactionsPage({
     } catch (e) {}
 
     const handleCustomTrx = (e) => {
+      const type = e.detail?.type;
+      // Filter: Abaikan event internal penyimpanan cache user atau read status
+      if (type === 'USER_TRANSACTIONS_UPDATED' || type === 'NOTIFICATIONS_READ') {
+        return;
+      }
       const userKey = e.detail?.data?.userKey || e.detail?.userKey;
       const myKey = authUser?.id || getUserKey(authUser);
       if (!userKey || userKey === myKey) {
