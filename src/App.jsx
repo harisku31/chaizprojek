@@ -123,6 +123,7 @@ export default function App() {
   const [modalProduct, setModalProduct] = useState(null);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [unbannedNoticeData, setUnbannedNoticeData] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
   const [checkoutData, setCheckoutData] = useState({
     isOpen: false,
     source: 'single', // 'single' | 'cart'
@@ -133,7 +134,7 @@ export default function App() {
   // Check banned strictly via real-time validator (never trapped by stale state)
   const isCurrentBanned = Boolean(authUser && isUserBanned(authUser).isBanned);
 
-  // Check initial auth - show login gate if not logged in & verify banned / unbanned status
+  // Check initial auth & verify banned / unbanned status (TIDAK memaksa login di awal agar pengunjung bebas explore katalog)
   useEffect(() => {
     // 1. Cek jika ada catatan pemulihan akun (unbanned notice) dari admin
     try {
@@ -153,9 +154,8 @@ export default function App() {
       }
     } catch (e) {}
 
-    if (!authUser) {
-      setIsLoginOpen(true);
-    } else {
+    // Pengunjung baru dibiarkan masuk & menjelajahi katalog bebas. Login hanya diminta saat memilih/checkout produk.
+    if (authUser) {
       const banCheck = isUserBanned(authUser);
       if (banCheck.isBanned) {
         const bannedUser = { ...authUser, isBanned: true, banStatus: banCheck };
@@ -342,6 +342,42 @@ export default function App() {
     recordUserLogin(cleanUser);
     syncUserToSql(cleanUser).catch(() => {});
 
+    // Jika ada tindakan tertunda saat memilih produk sebelum login, lanjutkan otomatis!
+    if (pendingAction) {
+      if (pendingAction.type === 'checkout_single') {
+        const item = pendingAction.item;
+        const voucher = pendingAction.voucher;
+        setCheckoutData({
+          isOpen: true,
+          source: 'single',
+          items: [item],
+          initialVoucher: voucher
+        });
+        showToast(`Melanjutkan pembelian ${item.productName || item.name || 'produk'}...`, 'fa-bag-shopping text-cyan');
+      } else if (pendingAction.type === 'add_to_cart') {
+        const item = pendingAction.item;
+        const updated = [...cartItems, item];
+        saveCart(updated);
+        showToast(`${item.productName} (${item.durationName}) dimasukkan ke keranjang!`, 'fa-cart-plus text-success');
+      } else if (pendingAction.type === 'checkout_cart') {
+        const formatted = cartItems.map((it) => ({
+          name: it.productName,
+          duration: it.durationName,
+          via: it.viaType,
+          price: it.price,
+          qty: 1,
+          total: it.price
+        }));
+        setIsCartOpen(false);
+        setCheckoutData({
+          isOpen: true,
+          source: 'cart',
+          items: formatted
+        });
+      }
+      setPendingAction(null);
+    }
+
     // Cek jika akun ini baru saja di-unban, tampilkan jendela pemberitahuan!
     try {
       const rawNotice = localStorage.getItem('chaiz_last_unbanned_notice');
@@ -390,10 +426,14 @@ export default function App() {
       return;
     }
 
-    // 2. Cek jika belum login: Munculkan modal login!
+    // 2. Cek jika belum login: Simpan pilihan produk lalu buka modal login
     if (!authUser) {
+      setPendingAction({
+        type: 'add_to_cart',
+        item: item
+      });
       setIsLoginOpen(true);
-      showToast('Silakan login terlebih dahulu untuk memasukkan produk ke keranjang!', 'fa-right-to-bracket');
+      showToast('Silakan login terlebih dahulu untuk memasukkan produk ke keranjang!', 'fa-right-to-bracket text-warning');
       return;
     }
 
@@ -474,10 +514,15 @@ export default function App() {
       return;
     }
 
-    // 2. Cek jika belum login: Harus login dahulu!
+    // 2. Cek jika belum login: Simpan pilihan produk lalu buka modal login
     if (!authUser) {
+      setPendingAction({
+        type: 'checkout_single',
+        item: singleItem,
+        voucher: initialVoucher || singleItem.appliedVoucher || null
+      });
       setIsLoginOpen(true);
-      showToast('Silakan login terlebih dahulu untuk melakukan pembelian!', 'fa-right-to-bracket');
+      showToast('Silakan login terlebih dahulu untuk melanjutkan pembelian!', 'fa-right-to-bracket text-warning');
       return;
     }
 
@@ -498,10 +543,13 @@ export default function App() {
       return;
     }
 
-    // 2. Cek jika belum login: Harus login dahulu!
+    // 2. Cek jika belum login: Simpan intent checkout lalu buka modal login
     if (!authUser) {
+      setPendingAction({
+        type: 'checkout_cart'
+      });
       setIsLoginOpen(true);
-      showToast('Silakan login terlebih dahulu untuk melakukan checkout pesanan!', 'fa-right-to-bracket');
+      showToast('Silakan login terlebih dahulu untuk melakukan checkout pesanan!', 'fa-right-to-bracket text-warning');
       return;
     }
 

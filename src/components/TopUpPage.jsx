@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatRupiah } from '../utils/format';
 import SteamKeyModal, { STEAM_KEY_PACKAGES } from './SteamKeyModal';
 
@@ -14,6 +14,16 @@ export default function TopUpPage({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSteamModalOpen, setIsSteamModalOpen] = useState(false);
   const [modalKeyId, setModalKeyId] = useState('original');
+  const [pendingKeyId, setPendingKeyId] = useState(null);
+
+  // Jika user baru saja login dan sebelumnya sedang memilih paket Steam Key
+  useEffect(() => {
+    if (authUser && pendingKeyId) {
+      setModalKeyId(pendingKeyId);
+      setIsSteamModalOpen(true);
+      setPendingKeyId(null);
+    }
+  }, [authUser, pendingKeyId]);
 
   const categories = [
     { id: 'all', label: 'Semua Varian Top Up', icon: 'fa-border-all' },
@@ -45,6 +55,7 @@ export default function TopUpPage({
 
     // 2. Cek jika belum login
     if (!authUser) {
+      setPendingKeyId(keyId);
       onOpenLogin?.();
       onShowToast?.('Silakan login terlebih dahulu untuk membeli Steam Key!', 'fa-right-to-bracket text-warning');
       return;
