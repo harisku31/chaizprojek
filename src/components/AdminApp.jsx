@@ -37,6 +37,74 @@ import {
   syncTransactionsFromCloud
 } from '../utils/transactions';
 
+// Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
+const cleanPhoneNumber = (phone) => {
+  if (!phone) return '';
+  let cleaned = String(phone).replace(/[^0-9]/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.slice(1);
+  } else if (cleaned.startsWith('8')) {
+    cleaned = '62' + cleaned;
+  }
+  return cleaned;
+};
+
+// Helper: Format pesan WhatsApp kredensial pesanan
+// Hanya menyertakan field yang diisi (jika kosong, otomatis dilewati)
+const formatWhatsAppFulfillMessage = (order, credentials = {}, adminNote = '') => {
+  if (!order) return '';
+  const customerName = order.customerName || 'Kak';
+  const orderId = order.id || '-';
+  const productName = order.productName || 'Produk';
+  const duration = order.productDuration || order.duration ? ` (${order.productDuration || order.duration})` : '';
+
+  const lines = [
+    `Halo kak *${customerName}*! Salam dari *ChaizStore* ✨`,
+    `Pesanan Anda telah selesai diproses oleh Admin. Berikut adalah detail pesanan & kredensial akun Anda:`,
+    ``,
+    `📦 *DETAIL PESANAN:*`,
+    `• ID Pesanan: #${orderId}`,
+    `• Produk: *${productName}*${duration}`,
+    ``
+  ];
+
+  const credLines = [];
+  if (credentials.account && credentials.account.trim()) {
+    credLines.push(`• *Nama Gmail Pengguna:* ${credentials.account.trim()}`);
+  }
+  if (credentials.password && credentials.password.trim()) {
+    credLines.push(`• *Password:* ${credentials.password.trim()}`);
+  }
+  if (credentials.profile && credentials.profile.trim()) {
+    credLines.push(`• *Profil:* ${credentials.profile.trim()}`);
+  }
+  if (credentials.pin && credentials.pin.trim()) {
+    credLines.push(`• *Code PIN:* ${credentials.pin.trim()}`);
+  }
+  if (credentials.code && credentials.code.trim()) {
+    credLines.push(`• *Voucer / Code Key:* ${credentials.code.trim()}`);
+  }
+
+  if (credLines.length > 0) {
+    lines.push(`🔐 *DATA KREDENSIAL AKUN:*`);
+    credLines.forEach((cl) => lines.push(cl));
+    lines.push(``);
+  }
+
+  if (adminNote && adminNote.trim()) {
+    lines.push(`📝 *CATATAN / PANDUAN PENGGUNA:*`);
+    lines.push(adminNote.trim());
+    lines.push(``);
+  }
+
+  lines.push(`🛡️ *GARANSI RESMI CHAIZSTORE:*`);
+  lines.push(`Pesanan ini bergaransi penuh 100%. Jika ada pertanyaan atau kendala login/aktivasi, silakan langsung balas chat WhatsApp ini ya kak!`);
+  lines.push(``);
+  lines.push(`Terima kasih telah berbelanja di ChaizStore! Selamat menikmati layanannya 🙏✨`);
+
+  return lines.join('\n');
+};
+
 export default function AdminApp() {
   // Admin Auth State
   const [adminSession, setAdminSession] = useState(() => getAdminSession());
@@ -80,6 +148,8 @@ export default function AdminApp() {
   const [fulfillProfile, setFulfillProfile] = useState('');
   const [fulfillCode, setFulfillCode] = useState('');
   const [fulfillAdminNote, setFulfillAdminNote] = useState('');
+  const [fulfillCustomerPhone, setFulfillCustomerPhone] = useState('');
+  const [copyWaSuccess, setCopyWaSuccess] = useState(false);
   const [showFulfillPassword, setShowFulfillPassword] = useState(false);
   const [showExtraFields, setShowExtraFields] = useState(false);
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
@@ -434,6 +504,8 @@ export default function AdminApp() {
     setFulfillPin(order.credentials?.pin || '');
     setFulfillProfile(order.credentials?.profile || '');
     setFulfillCode(order.credentials?.code || '');
+    setFulfillCustomerPhone(order.customerPhone || '');
+    setCopyWaSuccess(false);
     setShowExtraFields(
       Boolean(
         order.credentials?.password ||
@@ -450,8 +522,8 @@ export default function AdminApp() {
     setShowFulfillPassword(false);
   };
 
-  const handleFulfillSubmit = async (e) => {
-    e.preventDefault();
+  const handleFulfillSubmit = async (e, sendViaWhatsApp = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!selectedOrderForFulfill || isFulfilling) return;
 
     if (fulfillMode === 'steam') {
@@ -460,9 +532,48 @@ export default function AdminApp() {
         return;
       }
     } else {
-      if (!fulfillAccount.trim() && !fulfillCode.trim()) {
-        showToast('Harap isi Akun / Gmail Pelanggan terlebih dahulu!', 'fa-triangle-exclamation', 'warning');
+      if (
+        !fulfillAccount.trim() &&
+        !fulfillCode.trim() &&
+        !fulfillPassword.trim() &&
+        !fulfillProfile.trim() &&
+        !fulfillPin.trim()
+      ) {
+        showToast('Harap isi minimal salah satu kredensial akun!', 'fa-triangle-exclamation', 'warning');
         return;
+      }
+    }
+
+    let cleanPhone = '';
+    let waUrl = '';
+    let waWindow = null;
+
+    if (sendViaWhatsApp) {
+      cleanPhone = cleanPhoneNumber(fulfillCustomerPhone || selectedOrderForFulfill.customerPhone);
+      if (!cleanPhone || cleanPhone.length < 7) {
+        showToast('Nomor WhatsApp pelanggan belum valid atau kosong. Harap periksa nomor HP.', 'fa-triangle-exclamation', 'warning');
+        return;
+      }
+
+      const waMessage = formatWhatsAppFulfillMessage(
+        selectedOrderForFulfill,
+        {
+          account: fulfillAccount,
+          password: fulfillPassword,
+          profile: fulfillProfile,
+          pin: fulfillPin,
+          code: fulfillCode
+        },
+        fulfillAdminNote
+      );
+
+      waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
+
+      // Buka window WhatsApp segera pada klik user agar tidak terblokir popup blocker browser
+      try {
+        waWindow = window.open(waUrl, '_blank');
+      } catch (eWa) {
+        console.warn('Popup WhatsApp diblokir atau gagal dibuka:', eWa);
       }
     }
 
@@ -471,11 +582,11 @@ export default function AdminApp() {
       const fulfilled = await fulfillTransaction(
         selectedOrderForFulfill.id,
         {
-          account: fulfillMode === 'steam' ? '' : fulfillAccount.trim(),
-          password: fulfillMode === 'steam' ? '' : fulfillPassword.trim(),
-          username: fulfillMode === 'steam' ? '' : fulfillUsername.trim(),
-          pin: fulfillMode === 'steam' ? '' : fulfillPin.trim(),
-          profile: fulfillMode === 'steam' ? '' : fulfillProfile.trim(),
+          account: fulfillAccount.trim(),
+          password: fulfillPassword.trim(),
+          username: fulfillUsername.trim(),
+          pin: fulfillPin.trim(),
+          profile: fulfillProfile.trim(),
           code: fulfillCode.trim()
         },
         fulfillAdminNote.trim(),
@@ -489,7 +600,7 @@ export default function AdminApp() {
           selectedOrderForFulfill.productId ||
           selectedOrderForFulfill.productName;
         const qtyToDeduct = selectedOrderForFulfill.qty || 1;
-        const sentEmail = fulfillMode === 'account' ? fulfillAccount.trim() : null;
+        const sentEmail = fulfillAccount.trim() || null;
         stockResult = deductProductStock(prodIdentifier, qtyToDeduct, sentEmail);
       } catch (errStock) {
         console.warn('Gagal memotong stok saat fulfillment:', errStock);
@@ -498,7 +609,7 @@ export default function AdminApp() {
       recordUserActivity(
         adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
         'ORDER_FULFILLED',
-        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - ${fulfillMode === 'steam' ? 'Code Key Steam terkirim' : 'Kredensial akun terkirim'} (Stok otomatis terpotong)`
+        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - ${sendViaWhatsApp ? 'Terkirim via WhatsApp & Web' : 'Kredensial akun terkirim di Web'} (Stok otomatis terpotong)`
       );
 
       // Perbarui tampilan ordersList secara instan
@@ -511,17 +622,50 @@ export default function AdminApp() {
         ? ` • Sisa stok ${stockResult.product?.name || 'produk'}: ${stockResult.newStock} akun`
         : '';
 
-      showToast(
-        `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & dikirim ke Cloud! Pembeli dapat langsung melihat akun.${stockNote}`,
-        'fa-circle-check',
-        'success'
-      );
+      if (sendViaWhatsApp) {
+        if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+          window.open(waUrl, '_blank');
+        }
+        showToast(
+          `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & WhatsApp pelanggan dibuka!${stockNote}`,
+          'fa-brands fa-whatsapp text-success',
+          'success'
+        );
+      } else {
+        showToast(
+          `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & disimpan di Web!${stockNote}`,
+          'fa-circle-check',
+          'success'
+        );
+      }
       setSelectedOrderForFulfill(null);
     } catch (err) {
+      if (waWindow && !waWindow.closed) {
+        waWindow.close();
+      }
       showToast('Gagal memproses pesanan: ' + err.message, 'fa-circle-xmark', 'error');
     } finally {
       setIsFulfilling(false);
     }
+  };
+
+  const handleCopyWaText = () => {
+    if (!selectedOrderForFulfill) return;
+    const msg = formatWhatsAppFulfillMessage(
+      selectedOrderForFulfill,
+      {
+        account: fulfillAccount,
+        password: fulfillPassword,
+        profile: fulfillProfile,
+        pin: fulfillPin,
+        code: fulfillCode
+      },
+      fulfillAdminNote
+    );
+    navigator.clipboard.writeText(msg);
+    setCopyWaSuccess(true);
+    showToast('Teks pesan WhatsApp berhasil disalin ke clipboard!', 'fa-copy', 'success');
+    setTimeout(() => setCopyWaSuccess(false), 2500);
   };
 
   // Segarkan Data Pesanan Langsung dari Cloud
@@ -3777,22 +3921,24 @@ export default function AdminApp() {
                       <div className="account-banner-header">
                         <i className="fa-solid fa-circle-check text-success account-banner-icon"></i>
                         <div>
-                          <strong>Proses Cepat via Gmail Pelanggan</strong>
+                          <strong>Kirim Kredensial & Notifikasi WhatsApp</strong>
                           <p>
-                            Cukup masukkan <strong>Gmail Pelanggan</strong> dan <strong>Catatan Konfirmasi</strong>. Anda tidak perlu meminta password dari pembeli.
+                            Isi detail kredensial akun pelanggan di bawah. Kolom yang dibiarkan kosong otomatis tidak akan disertakan pada pesan WhatsApp.
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* 1. AKUN / GMAIL PELANGGAN */}
+                    {/* 1. NAMA GMAIL PENGGUNA (Auto-fill) */}
                     <div className="admin-form-group account-field-card primary-field-card">
                       <div className="field-card-header">
                         <label htmlFor="fulfillAccount" className="account-field-label">
                           <span className="account-num-badge">1</span>
                           <i className="fa-solid fa-envelope text-cyan"></i>
-                          <span>Akun / Gmail Pelanggan (Tujuan Layanan / Undangan)</span>
-                          <span className="field-required-pill">Wajib Diisi</span>
+                          <span>Nama Gmail Pengguna:</span>
+                          <span className="field-required-pill" style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.3)' }}>
+                            Keisi Otomatis
+                          </span>
                         </label>
                         {selectedOrderForFulfill.customerEmail && selectedOrderForFulfill.customerEmail !== '-' && (
                           <button
@@ -3802,8 +3948,9 @@ export default function AdminApp() {
                               setFulfillAccount(selectedOrderForFulfill.customerEmail);
                               showToast('Gmail pelanggan dimasukkan ke kolom akun!', 'fa-bolt', 'success');
                             }}
+                            title="Muat ulang email dari pesanan pembeli"
                           >
-                            <i className="fa-solid fa-arrow-turn-down"></i> Salin Dari Pelanggan
+                            <i className="fa-solid fa-arrow-turn-down"></i> Muat Ulang Gmail
                           </button>
                         )}
                       </div>
@@ -3814,26 +3961,97 @@ export default function AdminApp() {
                         placeholder="contoh: user.pelanggan@gmail.com"
                         value={fulfillAccount}
                         onChange={(e) => setFulfillAccount(e.target.value)}
-                        required
                         autoFocus
                       />
                       <span className="field-sub-hint">
-                        <i className="fa-solid fa-circle-info text-cyan"></i> Email ini yang akan menerima invite Canva Pro, Family Invite Spotify/YouTube, atau kredensial akun.
+                        <i className="fa-solid fa-circle-info text-cyan"></i> Terisi otomatis dari email akun pelanggan yang terdaftar. Boleh diedit jika perlu.
                       </span>
                     </div>
 
-                    {/* 2. CATATAN KHUSUS ADMIN */}
+                    {/* GRID 4 FIELD MANUAL: PASSWORD, PROFIL, CODE PIN, VOUCER */}
+                    <div className="fulfill-fields-grid" style={{ marginTop: '14px', marginBottom: '14px' }}>
+                      {/* Password */}
+                      <div className="admin-form-group">
+                        <label htmlFor="fulfillPassword">
+                          <i className="fa-solid fa-lock text-warning"></i> Password:
+                        </label>
+                        <div className="password-input-wrapper">
+                          <input
+                            id="fulfillPassword"
+                            type={showFulfillPassword ? 'text' : 'password'}
+                            className="admin-text-input"
+                            placeholder="Password akun (manual, kosongkan jika tidak ada)"
+                            value={fulfillPassword}
+                            onChange={(e) => setFulfillPassword(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="btn-toggle-eye"
+                            onClick={() => setShowFulfillPassword(!showFulfillPassword)}
+                            title={showFulfillPassword ? 'Sembunyikan password' : 'Lihat password'}
+                          >
+                            <i className={`fa-solid ${showFulfillPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Profil */}
+                      <div className="admin-form-group">
+                        <label htmlFor="fulfillProfile">
+                          <i className="fa-solid fa-tv text-cyan"></i> Profil:
+                        </label>
+                        <input
+                          id="fulfillProfile"
+                          type="text"
+                          className="admin-text-input"
+                          placeholder="contoh: Profil 1 / Layar A (manual)"
+                          value={fulfillProfile}
+                          onChange={(e) => setFulfillProfile(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Code PIN */}
+                      <div className="admin-form-group">
+                        <label htmlFor="fulfillPin">
+                          <i className="fa-solid fa-hashtag text-success"></i> Code PIN:
+                        </label>
+                        <input
+                          id="fulfillPin"
+                          type="text"
+                          className="admin-text-input"
+                          placeholder="contoh: 1234 (manual, kosongkan jika tidak ada)"
+                          value={fulfillPin}
+                          onChange={(e) => setFulfillPin(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Voucer / Code Key */}
+                      <div className="admin-form-group">
+                        <label htmlFor="fulfillCode">
+                          <i className="fa-solid fa-ticket text-warning"></i> Voucer / Code Key:
+                        </label>
+                        <input
+                          id="fulfillCode"
+                          type="text"
+                          className="admin-text-input"
+                          placeholder="contoh: CHAIZ-VOUCHER-XXXX (manual)"
+                          value={fulfillCode}
+                          onChange={(e) => setFulfillCode(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* CATATAN / PANDUAN PENGGUNA (OPSIONAL) */}
                     <div className="admin-form-group account-field-card primary-field-card">
                       <label htmlFor="fulfillAdminNote" className="account-field-label">
-                        <span className="account-num-badge">2</span>
                         <i className="fa-solid fa-comment-dots text-warning"></i>
-                        <span>Catatan Konfirmasi / Panduan Pelanggan (Tampil di Menu Transaksi)</span>
+                        <span>Catatan / Panduan Pelanggan (Opsional)</span>
                       </label>
                       <textarea
                         id="fulfillAdminNote"
                         className="admin-text-input fulfill-note-textarea"
                         rows="3"
-                        placeholder="Tuliskan catatan konfirmasi bahwa pesanan sudah diproses atau cara aktivasi akun..."
+                        placeholder="Tuliskan catatan panduan atau cara aktivasi akun..."
                         value={fulfillAdminNote}
                         onChange={(e) => setFulfillAdminNote(e.target.value)}
                       ></textarea>
@@ -3846,7 +4064,18 @@ export default function AdminApp() {
                           className="btn-preset-quick"
                           onClick={() =>
                             setFulfillAdminNote(
-                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, akun Canva Pro sudah aktif langsung di email ${fulfillAccount || selectedOrderForFulfill.customerEmail || 'Anda'}. Silakan buka Canva.com atau aplikasi Canva dan cek invite tim. Full garansi 100%! Selamat berkarya!`
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, akun Anda sudah aktif dan siap digunakan. Garansi penuh ChaizStore 100%! Selamat menikmati.`
+                            )
+                          }
+                        >
+                          + Template Standar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-preset-quick"
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, akun Canva Pro sudah aktif langsung di email ${fulfillAccount || selectedOrderForFulfill.customerEmail || 'Anda'}. Silakan buka Canva.com dan cek invite tim. Full garansi 100%! Selamat berkarya!`
                             )
                           }
                         >
@@ -3863,136 +4092,107 @@ export default function AdminApp() {
                         >
                           + Template YouTube / Spotify
                         </button>
-                        <button
-                          type="button"
-                          className="btn-preset-quick"
-                          onClick={() =>
-                            setFulfillAdminNote(
-                              `Pesanan ${selectedOrderForFulfill.productName} Anda telah berhasil diproses ke email Anda. Silakan dicek langsung. Terima kasih telah berbelanja di ChaizStore!`
-                            )
-                          }
-                        >
-                          + Template Selesai
-                        </button>
                       </div>
-                    </div>
-
-                    {/* OPTIONAL EXTRA FIELDS TOGGLE (PASSWORD, PIN, PROFIL, KODE) */}
-                    <div className="fulfill-extra-accordion-section">
-                      <button
-                        type="button"
-                        className={`btn-toggle-extra-accordion ${showExtraFields ? 'active' : ''}`}
-                        onClick={() => setShowExtraFields(!showExtraFields)}
-                      >
-                        <div className="extra-accordion-title">
-                          <i className={`fa-solid ${showExtraFields ? 'fa-circle-chevron-down text-cyan' : 'fa-circle-plus text-muted'}`}></i>
-                          <span>{showExtraFields ? 'Tutup Kredensial Tambahan' : 'Tambah Detail Tambahan (Password, PIN, Profil, Kode) - Opsional'}</span>
-                        </div>
-                        <span className="extra-accordion-badge">
-                          {showExtraFields ? 'Sedang Ditampilkan' : 'Tidak Wajib'}
-                        </span>
-                      </button>
-
-                      {showExtraFields && (
-                        <div className="extra-fields-collapsible-content">
-                          <p className="extra-fields-info-text">
-                            <i className="fa-solid fa-circle-info"></i> Bagian ini <strong>hanya jika</strong> jenis produk memerlukan password bersama (shared/Netflix), PIN profil, atau kode khusus:
-                          </p>
-
-                          <div className="fulfill-fields-grid">
-                            {/* Password */}
-                            <div className="admin-form-group">
-                              <label htmlFor="fulfillPassword">
-                                <i className="fa-solid fa-lock text-warning"></i> Password Akun (Opsional)
-                              </label>
-                              <div className="password-input-wrapper">
-                                <input
-                                  id="fulfillPassword"
-                                  type={showFulfillPassword ? 'text' : 'password'}
-                                  className="admin-text-input"
-                                  placeholder="contoh: SecretPass2026!"
-                                  value={fulfillPassword}
-                                  onChange={(e) => setFulfillPassword(e.target.value)}
-                                />
-                                <button
-                                  type="button"
-                                  className="btn-toggle-eye"
-                                  onClick={() => setShowFulfillPassword(!showFulfillPassword)}
-                                  title={showFulfillPassword ? 'Sembunyikan password' : 'Lihat password'}
-                                >
-                                  <i className={`fa-solid ${showFulfillPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Username */}
-                            <div className="admin-form-group">
-                              <label htmlFor="fulfillUsername">
-                                <i className="fa-solid fa-user-tag text-purple"></i> Username (Opsional)
-                              </label>
-                              <input
-                                id="fulfillUsername"
-                                type="text"
-                                className="admin-text-input"
-                                placeholder="contoh: chaiz_member1"
-                                value={fulfillUsername}
-                                onChange={(e) => setFulfillUsername(e.target.value)}
-                              />
-                            </div>
-
-                            {/* PIN */}
-                            <div className="admin-form-group">
-                              <label htmlFor="fulfillPin">
-                                <i className="fa-solid fa-hashtag text-success"></i> PIN Profile (Khusus Netflix/dll)
-                              </label>
-                              <input
-                                id="fulfillPin"
-                                type="text"
-                                className="admin-text-input"
-                                placeholder="contoh: 1234"
-                                value={fulfillPin}
-                                onChange={(e) => setFulfillPin(e.target.value)}
-                              />
-                            </div>
-
-                            {/* Profile / Screen */}
-                            <div className="admin-form-group">
-                              <label htmlFor="fulfillProfile">
-                                <i className="fa-solid fa-tv text-cyan"></i> Profile / Slot (Opsional)
-                              </label>
-                              <input
-                                id="fulfillProfile"
-                                type="text"
-                                className="admin-text-input"
-                                placeholder="contoh: Profile 2 / Layar 1"
-                                value={fulfillProfile}
-                                onChange={(e) => setFulfillProfile(e.target.value)}
-                              />
-                            </div>
-
-                            {/* Code / Key */}
-                            <div className="admin-form-group">
-                              <label htmlFor="fulfillCode">
-                                <i className="fa-solid fa-barcode text-warning"></i> Kode / Invitation Code (Opsional)
-                              </label>
-                              <input
-                                id="fulfillCode"
-                                type="text"
-                                className="admin-text-input"
-                                placeholder="contoh: INVITE-PRO-772"
-                                value={fulfillCode}
-                                onChange={(e) => setFulfillCode(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
+
+                {/* FITUR KIRIM LEWAT WHATSAPP (TAMPIL DI SEMUA MODE PENGIRIMAN) */}
+                <div className="fulfill-whatsapp-box">
+                  <div className="fulfill-wa-header">
+                    <div className="fulfill-wa-header-left">
+                      <div className="fulfill-wa-icon">
+                        <i className="fa-brands fa-whatsapp"></i>
+                      </div>
+                      <div>
+                        <div className="fulfill-wa-title">Fitur Kirim Lewat WhatsApp</div>
+                        <span className="fulfill-wa-badge">
+                          <i className="fa-solid fa-bolt"></i> Auto-Generate Format Chat
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-preset-quick"
+                      style={{ margin: 0, padding: '4px 10px', fontSize: '11px' }}
+                      onClick={handleCopyWaText}
+                      title="Salin isi pesan ke clipboard"
+                    >
+                      <i className={`fa-solid ${copyWaSuccess ? 'fa-check text-success' : 'fa-copy'}`}></i>
+                      <span>{copyWaSuccess ? 'Tersalin!' : 'Salin Teks WA'}</span>
+                    </button>
+                  </div>
+
+                  {/* Input Nomor WhatsApp Pelanggan */}
+                  <div className="fulfill-wa-phone-row">
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                        <i className="fa-brands fa-whatsapp text-success" style={{ marginRight: '6px' }}></i>
+                        Nomor WhatsApp Pelanggan (Tujuan Chat):
+                      </label>
+                      <div className="fulfill-wa-phone-input-wrap">
+                        <i className="fa-brands fa-whatsapp fulfill-wa-phone-icon"></i>
+                        <input
+                          type="tel"
+                          className="admin-text-input fulfill-wa-phone-input"
+                          placeholder="contoh: 08123456789 atau 628123456789"
+                          value={fulfillCustomerPhone}
+                          onChange={(e) => setFulfillCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ paddingTop: '18px' }}>
+                      {selectedOrderForFulfill.customerPhone && (
+                        <button
+                          type="button"
+                          className="btn-preset-quick"
+                          style={{ margin: 0, padding: '8px 12px', fontSize: '12px' }}
+                          onClick={() => {
+                            setFulfillCustomerPhone(selectedOrderForFulfill.customerPhone);
+                            showToast('Nomor HP dari pesanan dimuat ulang!', 'fa-phone', 'info');
+                          }}
+                          title="Gunakan nomor dari data pesanan"
+                        >
+                          <i className="fa-solid fa-rotate-left"></i> Reset Nomor
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Live Preview Box */}
+                  <div className="fulfill-wa-preview-card">
+                    <div className="fulfill-wa-preview-header">
+                      <span className="fulfill-wa-preview-badge">
+                        <i className="fa-solid fa-eye"></i> Live Preview Pesan WhatsApp Pelanggan
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        Field kosong otomatis tidak dimasukkan
+                      </span>
+                    </div>
+                    <div className="fulfill-wa-preview-bubble">
+                      {formatWhatsAppFulfillMessage(
+                        selectedOrderForFulfill,
+                        {
+                          account: fulfillAccount,
+                          password: fulfillPassword,
+                          profile: fulfillProfile,
+                          pin: fulfillPin,
+                          code: fulfillCode
+                        },
+                        fulfillAdminNote
+                      )}
+                    </div>
+                    <div className="fulfill-wa-rule-notice">
+                      <i className="fa-solid fa-circle-check" style={{ marginTop: '2px' }}></i>
+                      <span>
+                        <strong>Aturan Otomatis:</strong> Kolom yang kosong (Nama Gmail, Password, Profil, Code PIN, atau Voucer) secara otomatis <em>tidak akan disertakan</em> di pesan WhatsApp. Hanya bagian yang Anda isi yang akan dikirim ke chat WhatsApp pelanggan.
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="admin-modal-footer">
+              <div className="admin-modal-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn-modal-cancel"
@@ -4001,12 +4201,24 @@ export default function AdminApp() {
                   Batal
                 </button>
                 <button
-                  type="submit"
-                  className="btn-modal-save btn-fulfill-submit"
+                  type="button"
+                  className="btn-modal-save btn-fulfill-secondary-save"
                   disabled={isFulfilling}
+                  onClick={(e) => handleFulfillSubmit(e, false)}
+                  title="Simpan status pesanan selesai ke database saja tanpa membuka WhatsApp"
                 >
-                  <i className={`fa-solid ${isFulfilling ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
-                  <span>{isFulfilling ? 'Mengirim ke Cloud...' : 'Proses Berhasil & Kirim ke Pelanggan'}</span>
+                  <i className={`fa-solid ${isFulfilling ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
+                  <span>Proses di Web Saja</span>
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modal-save btn-fulfill-submit-whatsapp"
+                  disabled={isFulfilling}
+                  onClick={(e) => handleFulfillSubmit(e, true)}
+                  title="Simpan pesanan selesai dan langsung buka chat WhatsApp ke nomor pelanggan"
+                >
+                  <i className={`fa-brands ${isFulfilling ? 'fa-spinner fa-spin' : 'fa-whatsapp'}`}></i>
+                  <span>Kirim Pesanan Lewat WhatsApp</span>
                 </button>
               </div>
             </form>
