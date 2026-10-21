@@ -74,7 +74,21 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
   const profile = sTrim(data.profile);
   const pin = sTrim(data.pin);
   const code = sTrim(data.code);
-  const email = sTrim(data.email || order.customerEmail);
+
+  // Ambil Gmail & Nomor WhatsApp pelanggan secara komprehensif
+  const customerEmail = sTrim(
+    data.email ||
+    order.customerEmail ||
+    order.userEmail ||
+    order.email ||
+    (mode === 'premium_account' ? data.account : '')
+  );
+  const customerPhone = sTrim(
+    data.phone ||
+    order.customerPhone ||
+    order.phone ||
+    order.wa
+  );
   const note = sTrim(adminNote);
 
   const lines = [
@@ -86,6 +100,19 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
     `• Produk: *${productName}*${duration ? ` (${duration})` : ''}`
   ];
 
+  if (customerEmail && customerEmail !== '-') {
+    lines.push(`• Nama Gmail Pelanggan: *${customerEmail}*`);
+  }
+  if (customerPhone && customerPhone !== '-') {
+    lines.push(`• No. WhatsApp: *${customerPhone}*`);
+  }
+  if (duration) {
+    lines.push(`• Durasi Paket: ${duration}`);
+  }
+  if (warranty) {
+    lines.push(`• Garansi: ${warranty}`);
+  }
+
   if (mode === 'note_only') {
     lines.push(``);
     if (note) {
@@ -94,23 +121,17 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
       lines.push(``);
     }
   } else if (mode === 'premium_account') {
-    if (duration) {
-      lines.push(`• *Durasi:* ${duration}`);
-    }
-    if (warranty) {
-      lines.push(`• *Garansi:* ${warranty}`);
-    }
     lines.push(``);
 
     const credLines = [];
     if (account) {
-      credLines.push(`• *Nama Akun:* ${account}`);
+      credLines.push(`• *Nama Akun / Gmail:* ${account}`);
     }
     if (password) {
       credLines.push(`• *Password:* ${password}`);
     }
     if (profile) {
-      credLines.push(`• *Profile:* ${profile}`);
+      credLines.push(`• *Profile / Layar:* ${profile}`);
     }
     if (pin) {
       credLines.push(`• *PIN:* ${pin}`);
@@ -143,10 +164,10 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
     lines.push(``);
     const topupLines = [];
     if (account) {
-      topupLines.push(`• *Nama Akun / ID:* ${account}`);
+      topupLines.push(`• *Nama Akun / Game ID:* ${account}`);
     }
-    if (email && email !== '-') {
-      topupLines.push(`• *Nama Gmail:* ${email}`);
+    if (customerEmail && customerEmail !== '-') {
+      topupLines.push(`• *Nama Gmail Pelanggan:* ${customerEmail}`);
     }
     if (topupLines.length > 0) {
       lines.push(`⚡ *DETAIL AKUN TOP UP:*`);
@@ -586,7 +607,14 @@ export default function AdminApp() {
     setFulfillMode(initialMode);
 
     const customerMail =
-      order.customerEmail && order.customerEmail !== '-' ? order.customerEmail : '';
+      order.customerEmail && order.customerEmail !== '-'
+        ? order.customerEmail
+        : (order.userEmail && order.userEmail !== '-' ? order.userEmail : (order.email && order.email !== '-' ? order.email : ''));
+    const customerPhone =
+      order.customerPhone && order.customerPhone !== '-'
+        ? order.customerPhone
+        : (order.phone && order.phone !== '-' ? order.phone : (order.wa && order.wa !== '-' ? order.wa : ''));
+
     const initialAccount =
       order.credentials?.account || customerMail || order.customerUsername || '';
 
@@ -598,7 +626,7 @@ export default function AdminApp() {
     setFulfillDuration(String(order.productDuration || '1 Bulan'));
     setFulfillWarranty(String(order.warrantyPeriod || '30 Hari'));
     setFulfillCode(String(order.credentials?.code || ''));
-    setFulfillCustomerPhone(String(order.customerPhone || ''));
+    setFulfillCustomerPhone(String(customerPhone || ''));
     setCopyWaSuccess(false);
 
     setFulfillAdminNote(
@@ -772,7 +800,8 @@ export default function AdminApp() {
           duration: fulfillDuration,
           warranty: fulfillWarranty,
           code: fulfillCode,
-          email: selectedOrderForFulfill.customerEmail
+          email: fulfillAccount || selectedOrderForFulfill.customerEmail || selectedOrderForFulfill.userEmail || selectedOrderForFulfill.email,
+          phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa
         },
         fulfillAdminNote
       );
@@ -875,7 +904,8 @@ export default function AdminApp() {
         duration: fulfillDuration,
         warranty: fulfillWarranty,
         code: fulfillCode,
-        email: selectedOrderForFulfill.customerEmail
+        email: fulfillAccount || selectedOrderForFulfill.customerEmail || selectedOrderForFulfill.userEmail || selectedOrderForFulfill.email,
+        phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa
       },
       fulfillAdminNote
     );
@@ -2779,16 +2809,29 @@ export default function AdminApp() {
                                   <i className="fa-solid fa-at text-purple"></i> {order.customerUsername}
                                 </span>
                               )}
-                              {order.customerEmail && order.customerEmail !== '-' && (
-                                <span className="customer-sub-text">
-                                  <i className="fa-regular fa-envelope"></i> {order.customerEmail}
-                                </span>
-                              )}
-                              {order.customerPhone && order.customerPhone !== '-' && (
-                                <span className="customer-sub-text">
-                                  <i className="fa-brands fa-whatsapp text-success"></i> {order.customerPhone}
-                                </span>
-                              )}
+                              {(() => {
+                                const rowEmail = order.customerEmail && order.customerEmail !== '-'
+                                  ? order.customerEmail
+                                  : (order.userEmail && order.userEmail !== '-' ? order.userEmail : (order.email && order.email !== '-' ? order.email : ''));
+                                const rowPhone = order.customerPhone && order.customerPhone !== '-'
+                                  ? order.customerPhone
+                                  : (order.phone && order.phone !== '-' ? order.phone : (order.wa && order.wa !== '-' ? order.wa : ''));
+
+                                return (
+                                  <>
+                                    {rowEmail ? (
+                                      <span className="customer-sub-text">
+                                        <i className="fa-regular fa-envelope text-warning"></i> {rowEmail}
+                                      </span>
+                                    ) : null}
+                                    {rowPhone ? (
+                                      <span className="customer-sub-text">
+                                        <i className="fa-brands fa-whatsapp text-success"></i> {rowPhone}
+                                      </span>
+                                    ) : null}
+                                  </>
+                                );
+                              })()}
                             </td>
 
                             {/* Product */}
@@ -3893,121 +3936,158 @@ export default function AdminApp() {
                     </span>
                   </div>
 
-                  <div className="fulfill-customer-grid">
-                    {/* Nama Lengkap */}
-                    <div className="customer-tile">
-                      <span className="customer-tile-label">
-                        <i className="fa-solid fa-user text-cyan"></i> Nama Lengkap:
-                      </span>
-                      <div className="customer-tile-content">
-                        <strong className="customer-tile-val">{selectedOrderForFulfill.customerName || 'Pelanggan ChaizStore'}</strong>
-                        <button
-                          type="button"
-                          className="btn-customer-tile-action"
-                          onClick={() => {
-                            navigator.clipboard.writeText(selectedOrderForFulfill.customerName || '');
-                            showToast('Nama pembeli disalin!', 'fa-copy', 'info');
-                          }}
-                          title="Salin Nama"
-                        >
-                          <i className="fa-solid fa-copy"></i>
-                        </button>
-                      </div>
-                    </div>
+                  {(() => {
+                    const activeCustomerEmail =
+                      selectedOrderForFulfill.customerEmail && selectedOrderForFulfill.customerEmail !== '-'
+                        ? selectedOrderForFulfill.customerEmail
+                        : (selectedOrderForFulfill.userEmail && selectedOrderForFulfill.userEmail !== '-'
+                          ? selectedOrderForFulfill.userEmail
+                          : (selectedOrderForFulfill.email && selectedOrderForFulfill.email !== '-' ? selectedOrderForFulfill.email : ''));
 
-                    {/* Gmail / Email */}
-                    <div className="customer-tile tile-email-focus">
-                      <span className="customer-tile-label">
-                        <i className="fa-solid fa-envelope text-warning"></i> Gmail / Email Pelanggan:
-                      </span>
-                      <div className="customer-tile-content">
-                        <strong className="customer-tile-val email-val">{selectedOrderForFulfill.customerEmail || '-'}</strong>
-                        <div className="customer-tile-btns">
-                          {selectedOrderForFulfill.customerEmail && selectedOrderForFulfill.customerEmail !== '-' && (
+                    const activeCustomerPhone =
+                      selectedOrderForFulfill.customerPhone && selectedOrderForFulfill.customerPhone !== '-'
+                        ? selectedOrderForFulfill.customerPhone
+                        : (selectedOrderForFulfill.phone && selectedOrderForFulfill.phone !== '-'
+                          ? selectedOrderForFulfill.phone
+                          : (selectedOrderForFulfill.wa && selectedOrderForFulfill.wa !== '-' ? selectedOrderForFulfill.wa : ''));
+
+                    const displayEmail = activeCustomerEmail || fulfillAccount;
+                    const displayPhone = activeCustomerPhone || fulfillCustomerPhone;
+
+                    return (
+                      <div className="fulfill-customer-grid">
+                        {/* Nama Lengkap */}
+                        <div className="customer-tile">
+                          <span className="customer-tile-label">
+                            <i className="fa-solid fa-user text-cyan"></i> Nama Lengkap Pelanggan:
+                          </span>
+                          <div className="customer-tile-content">
+                            <strong className="customer-tile-val">{selectedOrderForFulfill.customerName || 'Pelanggan ChaizStore'}</strong>
                             <button
                               type="button"
-                              className="btn-use-gmail-quick"
+                              className="btn-customer-tile-action"
                               onClick={() => {
-                                setFulfillAccount(selectedOrderForFulfill.customerEmail);
-                                showToast('Gmail pelanggan dimasukkan ke kolom akun!', 'fa-bolt', 'success');
+                                navigator.clipboard.writeText(selectedOrderForFulfill.customerName || '');
+                                showToast('Nama pembeli disalin!', 'fa-copy', 'info');
                               }}
-                              title="Masukkan email ini ke kolom formulir Akun"
+                              title="Salin Nama"
                             >
-                              <i className="fa-solid fa-arrow-turn-down"></i> Pakai Gmail Ini
+                              <i className="fa-solid fa-copy"></i>
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            className="btn-customer-tile-action"
-                            onClick={() => {
-                              navigator.clipboard.writeText(selectedOrderForFulfill.customerEmail || '');
-                              showToast('Gmail pembeli disalin!', 'fa-copy', 'info');
-                            }}
-                            title="Salin Gmail"
-                          >
-                            <i className="fa-solid fa-copy"></i>
-                          </button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* WhatsApp */}
-                    <div className="customer-tile tile-wa-focus">
-                      <span className="customer-tile-label">
-                        <i className="fa-brands fa-whatsapp text-success"></i> WhatsApp / No. HP:
-                      </span>
-                      <div className="customer-tile-content">
-                        <strong className="customer-tile-val wa-val">{selectedOrderForFulfill.customerPhone || '-'}</strong>
-                        <div className="customer-tile-btns">
-                          {selectedOrderForFulfill.customerPhone && selectedOrderForFulfill.customerPhone !== '-' && (
-                            <a
-                              href={`https://wa.me/${cleanPhoneNumber(selectedOrderForFulfill.customerPhone)}?text=${encodeURIComponent(`Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan ${selectedOrderForFulfill.productName || ''} di ChaizStore sedang kami proses.`)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn-chat-wa-quick"
-                              title="Buka Chat WhatsApp ke nomor pembeli"
-                            >
-                              <i className="fa-brands fa-whatsapp"></i> Chat WA
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            className="btn-customer-tile-action"
-                            onClick={() => {
-                              navigator.clipboard.writeText(selectedOrderForFulfill.customerPhone || '');
-                              showToast('Nomor WhatsApp disalin!', 'fa-copy', 'info');
-                            }}
-                            title="Salin Nomor WhatsApp"
-                          >
-                            <i className="fa-solid fa-copy"></i>
-                          </button>
+                        {/* Gmail / Email */}
+                        <div className="customer-tile tile-email-focus">
+                          <span className="customer-tile-label">
+                            <i className="fa-solid fa-envelope text-warning"></i> Nama Gmail Pelanggan:
+                          </span>
+                          <div className="customer-tile-content">
+                            {displayEmail ? (
+                              <strong className="customer-tile-val email-val">{displayEmail}</strong>
+                            ) : (
+                              <span style={{ color: '#fbbf24', fontSize: '12px', fontStyle: 'italic' }}>
+                                Belum tertera (isi di form akun)
+                              </span>
+                            )}
+                            <div className="customer-tile-btns">
+                              {displayEmail && (
+                                <button
+                                  type="button"
+                                  className="btn-use-gmail-quick"
+                                  onClick={() => {
+                                    setFulfillAccount(displayEmail);
+                                    showToast('Gmail pelanggan dimasukkan ke kolom akun!', 'fa-bolt', 'success');
+                                  }}
+                                  title="Masukkan email ini ke kolom formulir Akun"
+                                >
+                                  <i className="fa-solid fa-arrow-turn-down"></i> Pakai Gmail Ini
+                                </button>
+                              )}
+                              {displayEmail && (
+                                <button
+                                  type="button"
+                                  className="btn-customer-tile-action"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(displayEmail);
+                                    showToast('Gmail pembeli disalin!', 'fa-copy', 'info');
+                                  }}
+                                  title="Salin Gmail"
+                                >
+                                  <i className="fa-solid fa-copy"></i>
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Username jika ada */}
-                    {selectedOrderForFulfill.customerUsername && selectedOrderForFulfill.customerUsername !== '-' && (
-                      <div className="customer-tile">
-                        <span className="customer-tile-label">
-                          <i className="fa-solid fa-id-badge text-purple"></i> Username:
-                        </span>
-                        <div className="customer-tile-content">
-                          <strong className="customer-tile-val">{selectedOrderForFulfill.customerUsername}</strong>
-                          <button
-                            type="button"
-                            className="btn-customer-tile-action"
-                            onClick={() => {
-                              navigator.clipboard.writeText(selectedOrderForFulfill.customerUsername);
-                              showToast('Username disalin!', 'fa-copy', 'info');
-                            }}
-                            title="Salin Username"
-                          >
-                            <i className="fa-solid fa-copy"></i>
-                          </button>
+                        {/* WhatsApp / Telepon */}
+                        <div className="customer-tile tile-wa-focus">
+                          <span className="customer-tile-label">
+                            <i className="fa-brands fa-whatsapp text-success"></i> Nomor Telepon / WA Pelanggan:
+                          </span>
+                          <div className="customer-tile-content">
+                            {displayPhone ? (
+                              <strong className="customer-tile-val wa-val">{displayPhone}</strong>
+                            ) : (
+                              <span style={{ color: '#f87171', fontSize: '12px', fontStyle: 'italic' }}>
+                                Belum tertera (isi di kolom WA bawah)
+                              </span>
+                            )}
+                            <div className="customer-tile-btns">
+                              {displayPhone && (
+                                <a
+                                  href={`https://wa.me/${cleanPhoneNumber(displayPhone)}?text=${encodeURIComponent(`Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan ${selectedOrderForFulfill.productName || ''} di ChaizStore sedang kami proses.`)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn-chat-wa-quick"
+                                  title="Buka Chat WhatsApp ke nomor pembeli"
+                                >
+                                  <i className="fa-brands fa-whatsapp"></i> Chat WA
+                                </a>
+                              )}
+                              {displayPhone && (
+                                <button
+                                  type="button"
+                                  className="btn-customer-tile-action"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(displayPhone);
+                                    showToast('Nomor WhatsApp disalin!', 'fa-copy', 'info');
+                                  }}
+                                  title="Salin Nomor WhatsApp"
+                                >
+                                  <i className="fa-solid fa-copy"></i>
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Username jika ada */}
+                        {selectedOrderForFulfill.customerUsername && selectedOrderForFulfill.customerUsername !== '-' && (
+                          <div className="customer-tile">
+                            <span className="customer-tile-label">
+                              <i className="fa-solid fa-id-badge text-purple"></i> Username:
+                            </span>
+                            <div className="customer-tile-content">
+                              <strong className="customer-tile-val">{selectedOrderForFulfill.customerUsername}</strong>
+                              <button
+                                type="button"
+                                className="btn-customer-tile-action"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedOrderForFulfill.customerUsername);
+                                  showToast('Username disalin!', 'fa-copy', 'info');
+                                }}
+                                title="Salin Username"
+                              >
+                                <i className="fa-solid fa-copy"></i>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Mode Selector Tabs: 4 Mode Pengiriman */}
@@ -4740,7 +4820,8 @@ export default function AdminApp() {
                           duration: fulfillDuration,
                           warranty: fulfillWarranty,
                           code: fulfillCode,
-                          email: selectedOrderForFulfill.customerEmail
+                          email: fulfillAccount || selectedOrderForFulfill.customerEmail || selectedOrderForFulfill.userEmail || selectedOrderForFulfill.email,
+                          phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa
                         },
                         fulfillAdminNote
                       )}
