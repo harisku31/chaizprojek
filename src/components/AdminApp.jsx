@@ -725,13 +725,26 @@ export default function AdminApp() {
 
     let cleanPhone = '';
     let waUrl = '';
-    let waWindow = null;
 
     if (sendViaWhatsApp) {
-      cleanPhone = cleanPhoneNumber(fulfillCustomerPhone || selectedOrderForFulfill.customerPhone);
+      let targetPhone = fulfillCustomerPhone || selectedOrderForFulfill.customerPhone;
+      cleanPhone = cleanPhoneNumber(targetPhone);
+
       if (!cleanPhone || cleanPhone.length < 7) {
-        showToast('Nomor WhatsApp pelanggan belum valid atau kosong. Harap periksa nomor HP.', 'fa-triangle-exclamation', 'warning');
-        return;
+        const manualPhone = window.prompt(
+          `Nomor WhatsApp untuk ${selectedOrderForFulfill.customerName || 'Pelanggan'} belum terisi atau kurang lengkap.\n\nSilakan masukkan nomor WhatsApp pelanggan (contoh: 08123456789):`,
+          ''
+        );
+        if (!manualPhone) {
+          showToast('Pengiriman WhatsApp dibatalkan karena nomor HP tidak diisi.', 'fa-triangle-exclamation', 'warning');
+          return;
+        }
+        cleanPhone = cleanPhoneNumber(manualPhone);
+        if (!cleanPhone || cleanPhone.length < 7) {
+          showToast('Nomor WhatsApp tidak valid. Pengiriman dibatalkan.', 'fa-circle-xmark', 'error');
+          return;
+        }
+        setFulfillCustomerPhone(manualPhone);
       }
 
       const waMessage = formatWhatsAppFulfillMessage(
@@ -752,10 +765,17 @@ export default function AdminApp() {
 
       waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
 
+      // Buka tab WhatsApp secara instan dengan link click helper agar tidak diblokir browser
       try {
-        waWindow = window.open(waUrl, '_blank');
+        const waLink = document.createElement('a');
+        waLink.href = waUrl;
+        waLink.target = '_blank';
+        waLink.rel = 'noopener noreferrer';
+        document.body.appendChild(waLink);
+        waLink.click();
+        document.body.removeChild(waLink);
       } catch (eWa) {
-        console.warn('Popup WhatsApp diblokir atau gagal dibuka:', eWa);
+        window.open(waUrl, '_blank');
       }
     }
 
@@ -808,11 +828,8 @@ export default function AdminApp() {
         : '';
 
       if (sendViaWhatsApp) {
-        if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
-          window.open(waUrl, '_blank');
-        }
         showToast(
-          `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & WhatsApp pelanggan dibuka!${stockNote}`,
+          `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & pesan WhatsApp dibuka!${stockNote}`,
           'fa-brands fa-whatsapp text-success',
           'success'
         );
@@ -825,9 +842,6 @@ export default function AdminApp() {
       }
       setSelectedOrderForFulfill(null);
     } catch (err) {
-      if (waWindow && !waWindow.closed) {
-        waWindow.close();
-      }
       showToast('Gagal memproses pesanan: ' + err.message, 'fa-circle-xmark', 'error');
     } finally {
       setIsFulfilling(false);
@@ -3797,7 +3811,7 @@ export default function AdminApp() {
               </button>
             </div>
 
-            <form onSubmit={handleFulfillSubmit}>
+            <form onSubmit={(e) => { e.preventDefault(); handleFulfillSubmit(e, true); }}>
               <div className="admin-modal-body">
                 {/* Order Summary Strip */}
                 <div className="fulfill-order-strip">
@@ -4595,6 +4609,30 @@ export default function AdminApp() {
                         <strong>Aturan Otomatis:</strong> Kolom yang kosong (Nama Gmail, Password, Profil, Code PIN, atau Voucer) secara otomatis <em>tidak akan disertakan</em> di pesan WhatsApp. Hanya bagian yang Anda isi yang akan dikirim ke chat WhatsApp pelanggan.
                       </span>
                     </div>
+
+                    {/* TOMBOL UTAMA: LANGSUNG KIRIM KE WA PELANGGAN */}
+                    <div className="fulfill-wa-direct-action-card">
+                      <button
+                        type="button"
+                        className="btn-fulfill-submit-whatsapp btn-fulfill-giant-wa"
+                        disabled={isFulfilling}
+                        onClick={(e) => handleFulfillSubmit(e, true)}
+                        title="Simpan pesanan selesai & langsung buka chat WhatsApp ke nomor pelanggan"
+                      >
+                        <i className={`fa-brands ${isFulfilling ? 'fa-spinner fa-spin' : 'fa-whatsapp'} giant-wa-icon`}></i>
+                        <div className="giant-wa-text-wrap">
+                          <span className="giant-wa-title">
+                            {isFulfilling ? 'Sedang Memproses...' : 'Kirim Pesanan ke WhatsApp Pelanggan'}
+                          </span>
+                          <span className="giant-wa-sub">
+                            {fulfillCustomerPhone || selectedOrderForFulfill.customerPhone
+                              ? `Tujuan Chat: ${cleanPhoneNumber(fulfillCustomerPhone || selectedOrderForFulfill.customerPhone)} • Kredensial & catatan otomatis masuk`
+                              : 'Klik untuk masukkan nomor WA & kirim langsung'}
+                          </span>
+                        </div>
+                        <i className="fa-solid fa-paper-plane giant-wa-arrow"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4618,7 +4656,7 @@ export default function AdminApp() {
                   <span>Proses di Web Saja</span>
                 </button>
                 <button
-                  type="submit"
+                  type="button"
                   className="btn-modal-save btn-fulfill-submit-whatsapp"
                   disabled={isFulfilling}
                   onClick={(e) => handleFulfillSubmit(e, true)}

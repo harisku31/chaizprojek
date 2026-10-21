@@ -3173,7 +3173,92 @@ body.admin-body {
   border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
-/* Actions in Table */
+/* =========================================================================
+   TABLE ACTION BUTTONS (3 TOMBOL: CEKLIS HIJAU, X MERAH, PESAWAT KERTAS)
+   ========================================================================= */
+.order-actions-cell-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-admin-order-action-check,
+.btn-admin-order-action-reject,
+.btn-admin-order-action-plane {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  outline: none;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+/* 1. Tombol Ceklis Hijau (Selesai Cepat & Notif WA) */
+.btn-admin-order-action-check {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.btn-admin-order-action-check:hover {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #34d399;
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.45);
+}
+
+.btn-admin-order-action-check:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 2. Tombol X Merah (Tolak Pesanan) */
+.btn-admin-order-action-reject {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+
+.btn-admin-order-action-reject:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: #f87171;
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+}
+
+.btn-admin-order-action-reject:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 3. Tombol Pesawat Kertas (Kirim Pesanan Modal 4 Pilihan) */
+.btn-admin-order-action-plane {
+  background: rgba(6, 182, 212, 0.18);
+  border-color: rgba(6, 182, 212, 0.45);
+  color: #22d3ee;
+}
+
+.btn-admin-order-action-plane:hover {
+  background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+  border-color: #22d3ee;
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.45);
+}
+
+.btn-admin-order-action-plane:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Actions in Table Legacy */
 .btn-admin-order-action {
   padding: 8px 14px;
   border-radius: var(--admin-radius-sm);
@@ -4472,6 +4557,77 @@ body.admin-body {
 .btn-fulfill-secondary-save:hover:not(:disabled) {
   background: rgba(6, 182, 212, 0.25) !important;
   color: #67e8f9 !important;
+}
+
+/* Direct WhatsApp Big Action Bar under Preview */
+.fulfill-wa-direct-action-card {
+  margin-top: 14px;
+}
+
+.btn-fulfill-giant-wa {
+  width: 100%;
+  padding: 13px 18px !important;
+  background: linear-gradient(135deg, #25d366 0%, #16a34a 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  box-shadow: 0 4px 18px rgba(37, 211, 102, 0.4) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-fulfill-giant-wa:hover:not(:disabled) {
+  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.55) !important;
+}
+
+.btn-fulfill-giant-wa:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+.giant-wa-icon {
+  font-size: 24px !important;
+  color: #ffffff !important;
+  flex-shrink: 0;
+}
+
+.giant-wa-text-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  flex-grow: 1;
+}
+
+.giant-wa-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.giant-wa-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.giant-wa-arrow {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-fulfill-giant-wa:hover .giant-wa-arrow {
+  transform: translate(2px, -2px);
 }
 
 
