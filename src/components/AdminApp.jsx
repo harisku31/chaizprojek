@@ -31,6 +31,7 @@ import {
 import {
   getTransactions,
   fulfillTransaction,
+  rejectTransaction,
   deleteTransactionProof,
   getProofTimeRemaining,
   clearAllTransactions,
@@ -49,56 +50,105 @@ const cleanPhoneNumber = (phone) => {
   return cleaned;
 };
 
-// Helper: Format pesan WhatsApp kredensial pesanan
-// Hanya menyertakan field yang diisi (jika kosong, otomatis dilewati)
-const formatWhatsAppFulfillMessage = (order, credentials = {}, adminNote = '') => {
+// Helper: Format pesan WhatsApp kredensial pesanan berdasarkan 4 Mode:
+// 1. note_only: Kirim Catatan Saja
+// 2. premium_account: Kirim Akun Premium (Nama Akun, Password, Profile, PIN, Durasi, Garansi)
+// 3. voucher: Kirim Voucer (Code Voucer, Catatan)
+// 4. topup: Kirim Top Up (Nama Akun, Nama Gmail Otomatis, Catatan)
+// Aturan: Hanya field yang diisi yang akan disertakan!
+const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}, adminNote = '') => {
   if (!order) return '';
   const customerName = order.customerName || 'Kak';
   const orderId = order.id || '-';
   const productName = order.productName || 'Produk';
-  const duration = order.productDuration || order.duration ? ` (${order.productDuration || order.duration})` : '';
+  const duration = data.duration || order.productDuration || '';
+  const warranty = data.warranty || order.warrantyPeriod || '';
 
   const lines = [
     `Halo kak *${customerName}*! Salam dari *ChaizStore* ✨`,
-    `Pesanan Anda telah selesai diproses oleh Admin. Berikut adalah detail pesanan & kredensial akun Anda:`,
+    `Pesanan Anda telah selesai diproses oleh Admin. Berikut adalah rincian pesanan Anda:`,
     ``,
     `📦 *DETAIL PESANAN:*`,
     `• ID Pesanan: #${orderId}`,
-    `• Produk: *${productName}*${duration}`,
-    ``
+    `• Produk: *${productName}*${duration ? ` (${duration})` : ''}`
   ];
 
-  const credLines = [];
-  if (credentials.account && credentials.account.trim()) {
-    credLines.push(`• *Nama Gmail Pengguna:* ${credentials.account.trim()}`);
-  }
-  if (credentials.password && credentials.password.trim()) {
-    credLines.push(`• *Password:* ${credentials.password.trim()}`);
-  }
-  if (credentials.profile && credentials.profile.trim()) {
-    credLines.push(`• *Profil:* ${credentials.profile.trim()}`);
-  }
-  if (credentials.pin && credentials.pin.trim()) {
-    credLines.push(`• *Code PIN:* ${credentials.pin.trim()}`);
-  }
-  if (credentials.code && credentials.code.trim()) {
-    credLines.push(`• *Voucer / Code Key:* ${credentials.code.trim()}`);
-  }
-
-  if (credLines.length > 0) {
-    lines.push(`🔐 *DATA KREDENSIAL AKUN:*`);
-    credLines.forEach((cl) => lines.push(cl));
+  if (mode === 'note_only') {
     lines.push(``);
-  }
-
-  if (adminNote && adminNote.trim()) {
-    lines.push(`📝 *CATATAN / PANDUAN PENGGUNA:*`);
-    lines.push(adminNote.trim());
+    if (adminNote && adminNote.trim()) {
+      lines.push(`📝 *CATATAN / PANDUAN ADMIN:*`);
+      lines.push(adminNote.trim());
+      lines.push(``);
+    }
+  } else if (mode === 'premium_account') {
+    if (duration && duration.trim()) {
+      lines.push(`• *Durasi:* ${duration.trim()}`);
+    }
+    if (warranty && warranty.trim()) {
+      lines.push(`• *Garansi:* ${warranty.trim()}`);
+    }
     lines.push(``);
+
+    const credLines = [];
+    if (data.account && data.account.trim()) {
+      credLines.push(`• *Nama Akun:* ${data.account.trim()}`);
+    }
+    if (data.password && data.password.trim()) {
+      credLines.push(`• *Password:* ${data.password.trim()}`);
+    }
+    if (data.profile && data.profile.trim()) {
+      credLines.push(`• *Profile:* ${data.profile.trim()}`);
+    }
+    if (data.pin && data.pin.trim()) {
+      credLines.push(`• *PIN:* ${data.pin.trim()}`);
+    }
+
+    if (credLines.length > 0) {
+      lines.push(`🔐 *DATA KREDENSIAL AKUN:*`);
+      credLines.forEach((cl) => lines.push(cl));
+      lines.push(``);
+    }
+
+    if (adminNote && adminNote.trim()) {
+      lines.push(`📝 *CATATAN / PANDUAN PENGGUNA:*`);
+      lines.push(adminNote.trim());
+      lines.push(``);
+    }
+  } else if (mode === 'voucher') {
+    lines.push(``);
+    if (data.code && data.code.trim()) {
+      lines.push(`🎟️ *KODE VOUCER:*`);
+      lines.push(`• *Code Voucer:* ${data.code.trim()}`);
+      lines.push(``);
+    }
+    if (adminNote && adminNote.trim()) {
+      lines.push(`📝 *PANDUAN / CATATAN:*`);
+      lines.push(adminNote.trim());
+      lines.push(``);
+    }
+  } else if (mode === 'topup') {
+    lines.push(``);
+    const topupLines = [];
+    if (data.account && data.account.trim()) {
+      topupLines.push(`• *Nama Akun:* ${data.account.trim()}`);
+    }
+    if (data.email && data.email.trim()) {
+      topupLines.push(`• *Nama Gmail:* ${data.email.trim()}`);
+    }
+    if (topupLines.length > 0) {
+      lines.push(`⚡ *DETAIL AKUN TOP UP:*`);
+      topupLines.forEach((tl) => lines.push(tl));
+      lines.push(``);
+    }
+    if (adminNote && adminNote.trim()) {
+      lines.push(`📝 *CATATAN:*`);
+      lines.push(adminNote.trim());
+      lines.push(``);
+    }
   }
 
   lines.push(`🛡️ *GARANSI RESMI CHAIZSTORE:*`);
-  lines.push(`Pesanan ini bergaransi penuh 100%. Jika ada pertanyaan atau kendala login/aktivasi, silakan langsung balas chat WhatsApp ini ya kak!`);
+  lines.push(`Pesanan ini bergaransi penuh 100%. Jika ada pertanyaan atau kendala aktivasi/login, silakan langsung balas chat WhatsApp ini ya kak!`);
   lines.push(``);
   lines.push(`Terima kasih telah berbelanja di ChaizStore! Selamat menikmati layanannya 🙏✨`);
 
@@ -138,14 +188,17 @@ export default function AdminApp() {
  
   // Orders / Transaksi Masuk State (Menu 4)
   const [ordersList, setOrdersList] = useState(() => getTransactions());
-  const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'processing' | 'completed'
+  const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'processing' | 'completed' | 'rejected'
   const [orderSearch, setOrderSearch] = useState('');
   const [selectedOrderForFulfill, setSelectedOrderForFulfill] = useState(null);
+  const [fulfillMode, setFulfillMode] = useState('premium_account'); // 'note_only' | 'premium_account' | 'voucher' | 'topup'
   const [fulfillAccount, setFulfillAccount] = useState('');
   const [fulfillPassword, setFulfillPassword] = useState('');
   const [fulfillUsername, setFulfillUsername] = useState('');
   const [fulfillPin, setFulfillPin] = useState('');
   const [fulfillProfile, setFulfillProfile] = useState('');
+  const [fulfillDuration, setFulfillDuration] = useState('1 Bulan');
+  const [fulfillWarranty, setFulfillWarranty] = useState('30 Hari');
   const [fulfillCode, setFulfillCode] = useState('');
   const [fulfillAdminNote, setFulfillAdminNote] = useState('');
   const [fulfillCustomerPhone, setFulfillCustomerPhone] = useState('');
@@ -154,7 +207,6 @@ export default function AdminApp() {
   const [showExtraFields, setShowExtraFields] = useState(false);
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
   const [proofImgError, setProofImgError] = useState(false);
-  const [fulfillMode, setFulfillMode] = useState('account'); // 'account' | 'steam'
   const [isFulfilling, setIsFulfilling] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
 
@@ -453,17 +505,20 @@ export default function AdminApp() {
     let totalRevenue = 0;
     let completedCount = 0;
     let processingCount = 0;
+    let rejectedCount = 0;
 
     ordersList.forEach((o) => {
       totalRevenue += Number(o.total) || 0;
       if (o.status === 'completed') completedCount++;
       if (o.status === 'processing') processingCount++;
+      if (o.status === 'rejected') rejectedCount++;
     });
 
     return {
       total: ordersList.length,
       processing: processingCount,
       completed: completedCount,
+      rejected: rejectedCount,
       totalRevenue
     };
   }, [ordersList]);
@@ -472,6 +527,7 @@ export default function AdminApp() {
     return ordersList.filter((order) => {
       if (orderFilter === 'processing' && order.status !== 'processing') return false;
       if (orderFilter === 'completed' && order.status !== 'completed') return false;
+      if (orderFilter === 'rejected' && order.status !== 'rejected') return false;
 
       if (!orderSearch.trim()) return true;
       const q = orderSearch.toLowerCase();
@@ -487,59 +543,182 @@ export default function AdminApp() {
 
   const handleOpenFulfillModal = (order) => {
     setSelectedOrderForFulfill(order);
-    const isSteam =
-      order.productCategory === 'Steam Key' ||
-      (order.productName || '').toLowerCase().includes('steam key') ||
-      (order.productName || '').toLowerCase().includes('steam');
-    setFulfillMode(isSteam ? 'steam' : 'account');
 
-    // Auto pre-fill with customer's email if fulfilling regular account
+    const prodName = (order.productName || '').toLowerCase();
+    const catName = (order.productCategory || '').toLowerCase();
+
+    // Auto-detect initial fulfillment mode based on product
+    let initialMode = 'premium_account';
+    if (
+      prodName.includes('top up') ||
+      prodName.includes('topup') ||
+      catName.includes('top up') ||
+      catName.includes('topup') ||
+      catName.includes('game')
+    ) {
+      initialMode = 'topup';
+    } else if (
+      prodName.includes('key') ||
+      prodName.includes('voucher') ||
+      prodName.includes('voucer') ||
+      prodName.includes('steam') ||
+      catName.includes('key') ||
+      catName.includes('voucher')
+    ) {
+      initialMode = 'voucher';
+    } else {
+      initialMode = 'premium_account';
+    }
+    setFulfillMode(initialMode);
+
     const customerMail =
       order.customerEmail && order.customerEmail !== '-' ? order.customerEmail : '';
-    const initialAccount = order.credentials?.account || (!isSteam ? customerMail : '');
+    const initialAccount =
+      order.credentials?.account || customerMail || order.customerUsername || '';
 
     setFulfillAccount(initialAccount);
     setFulfillPassword(order.credentials?.password || '');
-    setFulfillUsername(order.credentials?.username || '');
+    setFulfillUsername(order.credentials?.username || order.customerUsername || '');
     setFulfillPin(order.credentials?.pin || '');
     setFulfillProfile(order.credentials?.profile || '');
+    setFulfillDuration(order.productDuration || '1 Bulan');
+    setFulfillWarranty(order.warrantyPeriod || '30 Hari');
     setFulfillCode(order.credentials?.code || '');
     setFulfillCustomerPhone(order.customerPhone || '');
     setCopyWaSuccess(false);
-    setShowExtraFields(
-      Boolean(
-        order.credentials?.password ||
-          order.credentials?.pin ||
-          order.credentials?.profile
-      )
-    );
+
     setFulfillAdminNote(
       order.adminNote ||
-        (isSteam
-          ? 'Steam Key Original aktif & bergaransi resmi Valve. Cara Aktivasi: Buka aplikasi Steam di PC -> Klik menu "Games" -> Klik "Activate a Product on Steam" -> Masukkan Code Key di atas -> Klik Lanjut. Selamat bermain!'
-          : `Layanan Akun ${order.productName || 'Premium'} sudah berhasil diproses dan diaktifkan langsung ke email Anda (${customerMail || 'email terdaftar'}). Silakan periksa inbox atau undangan email Anda. Garansi penuh ChaizStore aktif!`)
+        (initialMode === 'voucher'
+          ? 'Kode Voucher / Key Original aktif & bergaransi resmi. Silakan segera aktivasi di akun Anda. Selamat menikmati!'
+          : initialMode === 'topup'
+          ? `Layanan Top Up untuk pesanan ${order.productName} telah berhasil diproses ke akun Anda. Selamat bermain!`
+          : `Layanan Akun ${order.productName || 'Premium'} sudah berhasil diproses dan diaktifkan. Garansi penuh ChaizStore aktif!`)
     );
     setShowFulfillPassword(false);
+  };
+
+  // Ceklis Hijau: Selesaikan pesanan langsung & kirim konfirmasi WhatsApp ke pelanggan
+  const handleQuickCompleteOrder = async (order) => {
+    if (!order) return;
+    const cleanPhone = cleanPhoneNumber(order.customerPhone);
+    const hasPhone = cleanPhone && cleanPhone.length >= 7;
+
+    const confirmed = window.confirm(
+      `Selesaikan Pesanan #${order.id} (${order.productName}) untuk ${order.customerName}?\n\n` +
+      (hasPhone
+        ? `WhatsApp konfirmasi selesai akan otomatis dibuka ke nomor pelanggan (${order.customerPhone}).`
+        : `Pesanan akan ditandai selesai di sistem.`)
+    );
+    if (!confirmed) return;
+
+    let waUrl = '';
+    let waWindow = null;
+    if (hasPhone) {
+      const waMsg = [
+        `Halo kak *${order.customerName || 'Pelanggan'}*! Salam dari *ChaizStore* ✨`,
+        `Pesanan Anda dengan ID *#${order.id}* (*${order.productName}*) telah selesai diproses oleh Admin.`,
+        ``,
+        `📦 *STATUS PESANAN:* Telah Dikirim / Selesai ✅`,
+        ``,
+        `Terima kasih telah berbelanja di ChaizStore! Selamat menikmati layanannya 🙏✨`
+      ].join('\n');
+      waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}`;
+      try {
+        waWindow = window.open(waUrl, '_blank');
+      } catch (e) {}
+    }
+
+    try {
+      const fulfilled = await fulfillTransaction(
+        order.id,
+        order.credentials || {},
+        order.adminNote || 'Pesanan Anda telah selesai diproses oleh Admin ChaizStore.',
+        order
+      );
+
+      try {
+        const prodIdentifier = order.productId || order.productName;
+        deductProductStock(prodIdentifier, order.qty || 1, order.customerEmail || null);
+      } catch (e) {}
+
+      recordUserActivity(
+        adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
+        'ORDER_FULFILLED',
+        `Menyelesaikan pesanan #${order.id} (${order.productName}) untuk ${order.customerName} (Ceklis cepat)`
+      );
+
+      setOrdersList((prev) =>
+        prev.map((o) => (o.id === order.id ? { ...o, ...(fulfilled || {}), status: 'completed' } : o))
+      );
+      setProductsList(getDatabaseProducts());
+
+      if (hasPhone) {
+        if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+          window.open(waUrl, '_blank');
+        }
+        showToast(`Pesanan #${order.id} selesai & WhatsApp pelanggan dibuka!`, 'fa-circle-check text-success', 'success');
+      } else {
+        showToast(`Pesanan #${order.id} berhasil ditandai selesai di sistem!`, 'fa-circle-check', 'success');
+      }
+    } catch (err) {
+      if (waWindow && !waWindow.closed) waWindow.close();
+      showToast('Gagal memproses pesanan: ' + err.message, 'fa-circle-xmark', 'error');
+    }
+  };
+
+  // X Merah: Proses ditolak
+  const handleQuickRejectOrder = async (order) => {
+    if (!order) return;
+    const reasonInput = window.prompt(
+      `Tolak Pesanan #${order.id} untuk ${order.customerName}?\n\nMasukkan alasan penolakan (akan ditampilkan kepada pembeli):`,
+      'Bukti transfer tidak valid atau stok produk sedang habis'
+    );
+    if (reasonInput === null) return;
+
+    try {
+      const rejected = await rejectTransaction(order.id, reasonInput.trim() || 'Pesanan ditolak oleh admin', order);
+
+      recordUserActivity(
+        adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
+        'ORDER_REJECTED',
+        `Menolak pesanan #${order.id} (${order.productName}) untuk ${order.customerName}. Alasan: ${reasonInput}`
+      );
+
+      setOrdersList((prev) =>
+        prev.map((o) => (o.id === order.id ? { ...o, ...(rejected || {}), status: 'rejected' } : o))
+      );
+
+      showToast(`Pesanan #${order.id} berhasil ditolak. Pembeli dapat menghubungi admin via WA 0818-0973-0331.`, 'fa-circle-xmark', 'warning');
+    } catch (err) {
+      showToast('Gagal menolak pesanan: ' + err.message, 'fa-circle-xmark', 'error');
+    }
   };
 
   const handleFulfillSubmit = async (e, sendViaWhatsApp = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!selectedOrderForFulfill || isFulfilling) return;
 
-    if (fulfillMode === 'steam') {
+    // Validation based on mode
+    if (fulfillMode === 'voucher') {
       if (!fulfillCode.trim()) {
-        showToast('Harap masukkan Code Key Steam yang akan dikirim!', 'fa-triangle-exclamation', 'warning');
+        showToast('Harap masukkan Code Voucer yang akan dikirim!', 'fa-triangle-exclamation', 'warning');
+        return;
+      }
+    } else if (fulfillMode === 'note_only') {
+      if (!fulfillAdminNote.trim()) {
+        showToast('Harap masukkan catatan yang akan dikirim!', 'fa-triangle-exclamation', 'warning');
+        return;
+      }
+    } else if (fulfillMode === 'topup') {
+      if (!fulfillAccount.trim() && !selectedOrderForFulfill.customerEmail) {
+        showToast('Harap isi Nama Akun / Game ID!', 'fa-triangle-exclamation', 'warning');
         return;
       }
     } else {
-      if (
-        !fulfillAccount.trim() &&
-        !fulfillCode.trim() &&
-        !fulfillPassword.trim() &&
-        !fulfillProfile.trim() &&
-        !fulfillPin.trim()
-      ) {
-        showToast('Harap isi minimal salah satu kredensial akun!', 'fa-triangle-exclamation', 'warning');
+      // premium_account
+      if (!fulfillAccount.trim() && !fulfillPassword.trim() && !fulfillCode.trim()) {
+        showToast('Harap isi Nama Akun atau Password!', 'fa-triangle-exclamation', 'warning');
         return;
       }
     }
@@ -557,19 +736,22 @@ export default function AdminApp() {
 
       const waMessage = formatWhatsAppFulfillMessage(
         selectedOrderForFulfill,
+        fulfillMode,
         {
           account: fulfillAccount,
           password: fulfillPassword,
           profile: fulfillProfile,
           pin: fulfillPin,
-          code: fulfillCode
+          duration: fulfillDuration,
+          warranty: fulfillWarranty,
+          code: fulfillCode,
+          email: selectedOrderForFulfill.customerEmail
         },
         fulfillAdminNote
       );
 
       waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
 
-      // Buka window WhatsApp segera pada klik user agar tidak terblokir popup blocker browser
       try {
         waWindow = window.open(waUrl, '_blank');
       } catch (eWa) {
@@ -590,10 +772,14 @@ export default function AdminApp() {
           code: fulfillCode.trim()
         },
         fulfillAdminNote.trim(),
-        selectedOrderForFulfill
+        selectedOrderForFulfill,
+        {
+          duration: fulfillDuration.trim(),
+          warranty: fulfillWarranty.trim()
+        }
       );
 
-      // Kurangi stok produk secara realtime di database saat admin memproses selesai & kirim akun
+      // Kurangi stok produk secara realtime
       let stockResult = null;
       try {
         const prodIdentifier =
@@ -609,10 +795,9 @@ export default function AdminApp() {
       recordUserActivity(
         adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
         'ORDER_FULFILLED',
-        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - ${sendViaWhatsApp ? 'Terkirim via WhatsApp & Web' : 'Kredensial akun terkirim di Web'} (Stok otomatis terpotong)`
+        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - Mode: ${fulfillMode} (Stok otomatis terpotong)`
       );
 
-      // Perbarui tampilan ordersList secara instan
       setOrdersList((prev) =>
         prev.map((o) => (o.id === selectedOrderForFulfill.id ? { ...o, ...(fulfilled || {}), status: 'completed' } : o))
       );
@@ -653,12 +838,16 @@ export default function AdminApp() {
     if (!selectedOrderForFulfill) return;
     const msg = formatWhatsAppFulfillMessage(
       selectedOrderForFulfill,
+      fulfillMode,
       {
         account: fulfillAccount,
         password: fulfillPassword,
         profile: fulfillProfile,
         pin: fulfillPin,
-        code: fulfillCode
+        duration: fulfillDuration,
+        warranty: fulfillWarranty,
+        code: fulfillCode,
+        email: selectedOrderForFulfill.customerEmail
       },
       fulfillAdminNote
     );
@@ -2485,9 +2674,19 @@ export default function AdminApp() {
                     className={`gudang-tab-pill ${orderFilter === 'completed' ? 'active' : ''}`}
                     onClick={() => setOrderFilter('completed')}
                   >
-                    <i className="fa-solid fa-circle-check" style={{ color: '#10b981' }}></i>
+                    <i className="fa-brands fa-whatsapp" style={{ color: '#10b981' }}></i>
                     <span className="tab-label">Pesanan Selesai</span>
                     <span className="tab-counter-badge">{ordersStats.completed}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`gudang-tab-pill ${orderFilter === 'rejected' ? 'active' : ''}`}
+                    onClick={() => setOrderFilter('rejected')}
+                  >
+                    <i className="fa-solid fa-circle-xmark" style={{ color: '#ef4444' }}></i>
+                    <span className="tab-label">Ditolak</span>
+                    <span className="tab-counter-badge">{ordersStats.rejected}</span>
                   </button>
                 </div>
               </div>
@@ -2519,13 +2718,14 @@ export default function AdminApp() {
                     <tbody>
                       {filteredOrders.map((order) => {
                         const isProcessing = order.status === 'processing';
+                        const isRejected = order.status === 'rejected';
                         const hasCreds =
                           order.credentials &&
                           (order.credentials.account || order.credentials.code || order.credentials.password);
                         const proofTimeInfo = getProofTimeRemaining(order);
 
                         return (
-                          <tr key={order.id} className={isProcessing ? 'row-processing' : 'row-completed'}>
+                          <tr key={order.id} className={isProcessing ? 'row-processing' : isRejected ? 'row-rejected' : 'row-completed'}>
                             {/* ID & Date */}
                             <td className="cell-order-id">
                               <strong className="order-id-badge">{order.id}</strong>
@@ -2632,10 +2832,15 @@ export default function AdminApp() {
                                   <span className="badge-pulse-dot"></span>
                                   <span>Menunggu Diproses</span>
                                 </span>
+                              ) : isRejected ? (
+                                <span className="admin-status-badge badge-rejected" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.35)' }}>
+                                  <i className="fa-solid fa-circle-xmark"></i>
+                                  <span>Ditolak</span>
+                                </span>
                               ) : (
                                 <span className="admin-status-badge badge-completed">
-                                  <i className="fa-solid fa-circle-check"></i>
-                                  <span>Selesai / Terkirim</span>
+                                  <i className="fa-brands fa-whatsapp"></i>
+                                  <span>Telah Dikirim WA</span>
                                 </span>
                               )}
 
@@ -2674,16 +2879,32 @@ export default function AdminApp() {
                               )}
                             </td>
 
-                            {/* Actions */}
+                            {/* Actions: 1. Ceklis (Selesai Kirim WA), 2. X Merah (Tolak), 3. Pesawat Kertas Lipat (Modal 4 Pilihan) */}
                             <td className="cell-action">
                               <div className="order-actions-cell-group">
                                 <button
                                   type="button"
-                                  className={`btn-admin-order-action ${isProcessing ? 'btn-action-fulfill' : 'btn-action-edit'}`}
-                                  onClick={() => handleOpenFulfillModal(order)}
+                                  className="btn-admin-order-action-check"
+                                  onClick={() => handleQuickCompleteOrder(order)}
+                                  title="Ceklis: Tandai pesanan selesai & kirim notifikasi WhatsApp"
                                 >
-                                  <i className={isProcessing ? 'fa-solid fa-paper-plane' : 'fa-solid fa-pen-to-square'}></i>
-                                  <span>{isProcessing ? 'Proses & Kirim Akun' : 'Lihat / Ubah Data'}</span>
+                                  <i className="fa-solid fa-check"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-admin-order-action-reject"
+                                  onClick={() => handleQuickRejectOrder(order)}
+                                  title="X Merah: Proses ditolak (Pembeli dapat opsi Hubungi Admin)"
+                                >
+                                  <i className="fa-solid fa-xmark"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-admin-order-action-plane"
+                                  onClick={() => handleOpenFulfillModal(order)}
+                                  title="Kirim Pesawat: Rombak kirim Catatan, Akun Premium, Voucer, atau Top Up"
+                                >
+                                  <i className="fa-solid fa-paper-plane"></i>
                                 </button>
                               </div>
                             </td>
@@ -3761,167 +3982,105 @@ export default function AdminApp() {
                   </div>
                 </div>
 
-                {/* Mode Selector Tabs: Akun Premium vs Steam Key */}
+                {/* Mode Selector Tabs: 4 Mode Pengiriman */}
                 <div className="fulfill-mode-selector-card">
                   <div className="fulfill-mode-header">
                     <span className="fulfill-mode-title">
                       <i className="fa-solid fa-sliders text-cyan"></i> Pilihan Format Pengiriman:
                     </span>
                     <span className="fulfill-mode-hint">
-                      {fulfillMode === 'steam' ? '🎮 Mode Steam Key (2 Kolom Khusus)' : '🛡️ Mode Akun Premium (Canva, Netflix, dll)'}
+                      {fulfillMode === 'premium_account' && '🛡️ Mode Akun Premium (Nama Akun, Password, Profil, PIN, Durasi, Garansi)'}
+                      {fulfillMode === 'voucher' && '🎟️ Mode Voucer / Key (Code Voucer & Catatan)'}
+                      {fulfillMode === 'topup' && '⚡ Mode Top Up (Akun / ID Game, Gmail, Catatan)'}
+                      {fulfillMode === 'note_only' && '📝 Mode Catatan Saja (Catatan / Panduan Khusus)'}
                     </span>
                   </div>
-                  <div className="fulfill-mode-tab-buttons">
+                  <div className="fulfill-mode-tab-buttons fulfill-mode-tab-4">
                     <button
                       type="button"
-                      className={`btn-mode-tab ${fulfillMode === 'account' ? 'active' : ''}`}
-                      onClick={() => setFulfillMode('account')}
+                      className={`btn-mode-tab ${fulfillMode === 'premium_account' ? 'active' : ''}`}
+                      onClick={() => setFulfillMode('premium_account')}
                     >
                       <i className="fa-solid fa-user-shield"></i>
-                      <span>Akun Premium (Canva, Netflix, dll)</span>
+                      <span>Akun Premium</span>
                     </button>
                     <button
                       type="button"
-                      className={`btn-mode-tab btn-mode-tab-steam ${fulfillMode === 'steam' ? 'active' : ''}`}
-                      onClick={() => setFulfillMode('steam')}
+                      className={`btn-mode-tab btn-mode-tab-voucher ${fulfillMode === 'voucher' ? 'active' : ''}`}
+                      onClick={() => setFulfillMode('voucher')}
                     >
-                      <i className="fa-brands fa-steam"></i>
-                      <span>Steam Key (2 Kolom Khusus)</span>
+                      <i className="fa-solid fa-ticket"></i>
+                      <span>Voucer / Key</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-mode-tab btn-mode-tab-topup ${fulfillMode === 'topup' ? 'active' : ''}`}
+                      onClick={() => setFulfillMode('topup')}
+                    >
+                      <i className="fa-solid fa-bolt"></i>
+                      <span>Top Up</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-mode-tab btn-mode-tab-note ${fulfillMode === 'note_only' ? 'active' : ''}`}
+                      onClick={() => setFulfillMode('note_only')}
+                    >
+                      <i className="fa-solid fa-comment-dots"></i>
+                      <span>Catatan Saja</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Vault Helper: Check if Gudang has ready accounts for this product (Only in account mode) */}
-                {fulfillMode === 'account' && (() => {
-                  const match = productsList.find(
-                    (p) =>
-                      p.name.toLowerCase().includes(selectedOrderForFulfill.productName.toLowerCase()) ||
-                      selectedOrderForFulfill.productName.toLowerCase().includes(p.name.toLowerCase())
-                  );
-                  if (match && match.accounts && match.accounts.length > 0) {
-                    return (
-                      <div className="vault-quick-picker-box">
-                        <div className="vault-quick-picker-header">
-                          <i className="fa-solid fa-vault text-warning"></i>
-                          <span>
-                            Ditemukan <strong>{match.accounts.length} Akun Siap Pakai</strong> di Gudang ({match.name}):
-                          </span>
-                        </div>
-                        <div className="vault-quick-picker-list">
-                          {match.accounts.slice(0, 3).map((acc) => (
-                            <button
-                              key={acc.id}
-                              type="button"
-                              className="btn-vault-quick-pick"
-                              onClick={() => {
-                                setFulfillAccount(acc.email);
-                                setFulfillPassword(acc.password);
-                                if (acc.note) setFulfillProfile(acc.note);
-                                setShowExtraFields(true);
-                                showToast(`Akun ${acc.email} berhasil dimasukkan ke form!`, 'fa-vault', 'info');
-                              }}
-                              title="Klik untuk gunakan akun ini"
-                            >
-                              <i className="fa-solid fa-paste"></i>
-                              <span>Gunakan: <strong>{acc.email}</strong></span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-
-                {fulfillMode === 'steam' ? (
-                  /* 2 KOLOM KHUSUS STEAM KEY: 1. Code Key & 2. Catatan */
-                  <div className="fulfill-steam-mode-box">
-                    <div className="steam-mode-banner">
-                      <i className="fa-brands fa-steam steam-banner-icon"></i>
-                      <div className="steam-banner-text">
-                        <strong>Pengiriman Khusus Steam Key (2 Kolom)</strong>
-                        <p>
-                          Format otomatis Steam Key: Cukup isi <strong>1. Code Key</strong> dan <strong>2. Catatan</strong>. Tidak memerlukan email/password akun.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="steam-two-fields-wrapper">
-                      {/* 1. Code Key */}
-                      <div className="admin-form-group steam-field-card">
-                        <label htmlFor="fulfillSteamCode" className="steam-field-label">
-                          <span className="steam-num-badge">1</span>
-                          <i className="fa-solid fa-key text-warning"></i>
-                          <span>Code Key (Serial Key Steam)</span>
-                          <span className="field-required-pill">Wajib Diisi</span>
-                        </label>
-                        <input
-                          id="fulfillSteamCode"
-                          type="text"
-                          className="admin-text-input steam-code-input"
-                          placeholder="contoh: STEAM-XXXXX-YYYYY-ZZZZZ atau KEY-ORIGINAL-8821"
-                          value={fulfillCode}
-                          onChange={(e) => setFulfillCode(e.target.value)}
-                          required
-                          autoFocus
-                        />
-                        <span className="field-sub-hint">
-                          Kode Serial Key ini akan langsung tampil di menu Transaksi pembeli lengkap dengan tombol "Salin" instan untuk aktivasi di Steam Client.
-                        </span>
-                      </div>
-
-                      {/* 2. Catatan */}
-                      <div className="admin-form-group steam-field-card">
-                        <label htmlFor="fulfillSteamNote" className="steam-field-label">
-                          <span className="steam-num-badge">2</span>
-                          <i className="fa-solid fa-comment-dots text-cyan"></i>
-                          <span>Catatan (Instruksi Aktivasi / Pesan Khusus Pembeli)</span>
-                        </label>
-                        <textarea
-                          id="fulfillSteamNote"
-                          className="admin-text-input fulfill-note-textarea steam-note-textarea"
-                          rows="3"
-                          placeholder="Tuliskan catatan cara aktivasi key di Steam atau pesan untuk pelanggan..."
-                          value={fulfillAdminNote}
-                          onChange={(e) => setFulfillAdminNote(e.target.value)}
-                        ></textarea>
-
-                        {/* Quick Presets for Steam Key */}
-                        <div className="fulfill-note-presets">
-                          <span className="presets-label">Template Catatan Steam:</span>
-                          <button
-                            type="button"
-                            className="btn-preset-quick btn-preset-steam"
-                            onClick={() =>
-                              setFulfillAdminNote(
-                                'Steam Key Original aktif & bergaransi resmi Valve. Cara Aktivasi: Buka aplikasi Steam di PC -> Klik menu "Games" -> Klik "Activate a Product on Steam" -> Masukkan Code Key di atas -> Klik Lanjut. Selamat bermain!'
-                              )
-                            }
-                          >
-                            <i className="fa-brands fa-steam"></i> + Template Redeem Steam
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-preset-quick"
-                            onClick={() =>
-                              setFulfillAdminNote(
-                                'Pesanan Steam Key resmi berhasil diproses. Silakan segera aktivasi di akun Steam Anda. Jika ada kendala, hubungi CS ChaizStore. Terima kasih sudah belanja!'
-                              )
-                            }
-                          >
-                            + Template Sukses
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
+                {/* 1. MODE: AKUN PREMIUM */}
+                {fulfillMode === 'premium_account' && (
                   <div className="fulfill-account-simplified-box">
+                    {/* Vault Helper: Check if Gudang has ready accounts for this product */}
+                    {(() => {
+                      const match = productsList.find(
+                        (p) =>
+                          p.name.toLowerCase().includes(selectedOrderForFulfill.productName.toLowerCase()) ||
+                          selectedOrderForFulfill.productName.toLowerCase().includes(p.name.toLowerCase())
+                      );
+                      if (match && match.accounts && match.accounts.length > 0) {
+                        return (
+                          <div className="vault-quick-picker-box">
+                            <div className="vault-quick-picker-header">
+                              <i className="fa-solid fa-vault text-warning"></i>
+                              <span>
+                                Ditemukan <strong>{match.accounts.length} Akun Siap Pakai</strong> di Gudang ({match.name}):
+                              </span>
+                            </div>
+                            <div className="vault-quick-picker-list">
+                              {match.accounts.slice(0, 3).map((acc) => (
+                                <button
+                                  key={acc.id}
+                                  type="button"
+                                  className="btn-vault-quick-pick"
+                                  onClick={() => {
+                                    setFulfillAccount(acc.email);
+                                    setFulfillPassword(acc.password);
+                                    if (acc.note) setFulfillProfile(acc.note);
+                                    setShowExtraFields(true);
+                                    showToast(`Akun ${acc.email} berhasil dimasukkan ke form!`, 'fa-vault', 'info');
+                                  }}
+                                  title="Klik untuk gunakan akun ini"
+                                >
+                                  <i className="fa-solid fa-paste"></i>
+                                  <span>Gunakan: <strong>{acc.email}</strong></span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     <div className="account-mode-banner">
                       <div className="account-banner-header">
                         <i className="fa-solid fa-circle-check text-success account-banner-icon"></i>
                         <div>
-                          <strong>Kirim Kredensial & Notifikasi WhatsApp</strong>
+                          <strong>Kirim Kredensial Akun Premium</strong>
                           <p>
                             Isi detail kredensial akun pelanggan di bawah. Kolom yang dibiarkan kosong otomatis tidak akan disertakan pada pesan WhatsApp.
                           </p>
@@ -3929,13 +4088,13 @@ export default function AdminApp() {
                       </div>
                     </div>
 
-                    {/* 1. NAMA GMAIL PENGGUNA (Auto-fill) */}
+                    {/* 1. NAMA AKUN / GMAIL PENGGUNA */}
                     <div className="admin-form-group account-field-card primary-field-card">
                       <div className="field-card-header">
                         <label htmlFor="fulfillAccount" className="account-field-label">
                           <span className="account-num-badge">1</span>
                           <i className="fa-solid fa-envelope text-cyan"></i>
-                          <span>Nama Gmail Pengguna:</span>
+                          <span>Nama Akun / Gmail Pengguna:</span>
                           <span className="field-required-pill" style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#22d3ee', borderColor: 'rgba(6, 182, 212, 0.3)' }}>
                             Keisi Otomatis
                           </span>
@@ -3968,7 +4127,7 @@ export default function AdminApp() {
                       </span>
                     </div>
 
-                    {/* GRID 4 FIELD MANUAL: PASSWORD, PROFIL, CODE PIN, VOUCER */}
+                    {/* GRID FIELD MANUAL: PASSWORD, PROFIL, CODE PIN, DURASI, GARANSI */}
                     <div className="fulfill-fields-grid" style={{ marginTop: '14px', marginBottom: '14px' }}>
                       {/* Password */}
                       <div className="admin-form-group">
@@ -3998,7 +4157,7 @@ export default function AdminApp() {
                       {/* Profil */}
                       <div className="admin-form-group">
                         <label htmlFor="fulfillProfile">
-                          <i className="fa-solid fa-tv text-cyan"></i> Profil:
+                          <i className="fa-solid fa-tv text-cyan"></i> Profil / Layar:
                         </label>
                         <input
                           id="fulfillProfile"
@@ -4025,18 +4184,33 @@ export default function AdminApp() {
                         />
                       </div>
 
-                      {/* Voucer / Code Key */}
+                      {/* Durasi */}
                       <div className="admin-form-group">
-                        <label htmlFor="fulfillCode">
-                          <i className="fa-solid fa-ticket text-warning"></i> Voucer / Code Key:
+                        <label htmlFor="fulfillDuration">
+                          <i className="fa-solid fa-clock text-cyan"></i> Durasi:
                         </label>
                         <input
-                          id="fulfillCode"
+                          id="fulfillDuration"
                           type="text"
                           className="admin-text-input"
-                          placeholder="contoh: CHAIZ-VOUCHER-XXXX (manual)"
-                          value={fulfillCode}
-                          onChange={(e) => setFulfillCode(e.target.value)}
+                          placeholder="contoh: 1 Bulan / 1 Tahun"
+                          value={fulfillDuration}
+                          onChange={(e) => setFulfillDuration(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Garansi */}
+                      <div className="admin-form-group">
+                        <label htmlFor="fulfillWarranty">
+                          <i className="fa-solid fa-shield-halved text-success"></i> Garansi:
+                        </label>
+                        <input
+                          id="fulfillWarranty"
+                          type="text"
+                          className="admin-text-input"
+                          placeholder="contoh: 30 Hari / Garansi Penuh"
+                          value={fulfillWarranty}
+                          onChange={(e) => setFulfillWarranty(e.target.value)}
                         />
                       </div>
                     </div>
@@ -4091,6 +4265,235 @@ export default function AdminApp() {
                           }
                         >
                           + Template YouTube / Spotify
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. MODE: VOUCER / SERIAL KEY */}
+                {fulfillMode === 'voucher' && (
+                  <div className="fulfill-steam-mode-box">
+                    <div className="steam-mode-banner">
+                      <i className="fa-solid fa-ticket steam-banner-icon" style={{ color: '#f59e0b' }}></i>
+                      <div className="steam-banner-text">
+                        <strong>Pengiriman Voucer / Serial Key (2 Kolom Khusus)</strong>
+                        <p>
+                          Cukup isi <strong>1. Code Voucer / Key</strong> dan <strong>2. Catatan / Panduan</strong>. Data kredensial email/password tidak diperlukan.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="steam-two-fields-wrapper">
+                      {/* 1. Code Key */}
+                      <div className="admin-form-group steam-field-card">
+                        <label htmlFor="fulfillSteamCode" className="steam-field-label">
+                          <span className="steam-num-badge">1</span>
+                          <i className="fa-solid fa-key text-warning"></i>
+                          <span>Code Voucer / Serial Key:</span>
+                          <span className="field-required-pill">Wajib Diisi</span>
+                        </label>
+                        <input
+                          id="fulfillSteamCode"
+                          type="text"
+                          className="admin-text-input steam-code-input"
+                          placeholder="contoh: STEAM-XXXXX-YYYYY-ZZZZZ atau CHAIZ-VOUCHER-8821"
+                          value={fulfillCode}
+                          onChange={(e) => setFulfillCode(e.target.value)}
+                          required
+                          autoFocus
+                        />
+                        <span className="field-sub-hint">
+                          Kode Voucer / Key ini akan otomatis disertakan pada pesan WhatsApp & tampil di menu transaksi pembeli.
+                        </span>
+                      </div>
+
+                      {/* 2. Catatan */}
+                      <div className="admin-form-group steam-field-card">
+                        <label htmlFor="fulfillSteamNote" className="steam-field-label">
+                          <span className="steam-num-badge">2</span>
+                          <i className="fa-solid fa-comment-dots text-cyan"></i>
+                          <span>Catatan (Instruksi Aktivasi / Pesan Khusus Pembeli)</span>
+                        </label>
+                        <textarea
+                          id="fulfillSteamNote"
+                          className="admin-text-input fulfill-note-textarea steam-note-textarea"
+                          rows="3"
+                          placeholder="Tuliskan catatan cara aktivasi key atau pesan untuk pelanggan..."
+                          value={fulfillAdminNote}
+                          onChange={(e) => setFulfillAdminNote(e.target.value)}
+                        ></textarea>
+
+                        {/* Quick Presets for Steam Key / Voucher */}
+                        <div className="fulfill-note-presets">
+                          <span className="presets-label">Template Catatan:</span>
+                          <button
+                            type="button"
+                            className="btn-preset-quick btn-preset-steam"
+                            onClick={() =>
+                              setFulfillAdminNote(
+                                'Kode Key Original aktif & bergaransi resmi. Cara Aktivasi: Buka aplikasi/website penyedia -> Masukkan Code Key di atas -> Klik Redeem/Aktivasi. Selamat menikmati!'
+                              )
+                            }
+                          >
+                            <i className="fa-solid fa-key"></i> + Template Redeem Key
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-preset-quick"
+                            onClick={() =>
+                              setFulfillAdminNote(
+                                'Pesanan Voucer resmi berhasil diproses. Silakan segera aktivasi di akun Anda. Jika ada kendala, hubungi CS ChaizStore. Terima kasih sudah berbelanja!'
+                              )
+                            }
+                          >
+                            + Template Sukses
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. MODE: TOP UP GAME / SALDO */}
+                {fulfillMode === 'topup' && (
+                  <div className="fulfill-topup-mode-box" style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 'var(--admin-radius-md)', padding: '16px', marginBottom: '16px' }}>
+                    <div className="account-mode-banner" style={{ marginBottom: '14px' }}>
+                      <div className="account-banner-header">
+                        <i className="fa-solid fa-bolt text-warning account-banner-icon"></i>
+                        <div>
+                          <strong>Pengiriman Layanan Top Up Game / Saldo</strong>
+                          <p>
+                            Isi detail Akun / User ID Game pemesan dan konfirmasi status pengiriman saldo/diamond ke pelanggan.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 1. Nama Akun / ID Game */}
+                    <div className="admin-form-group account-field-card primary-field-card" style={{ marginBottom: '14px' }}>
+                      <label htmlFor="fulfillTopupAccount" className="account-field-label">
+                        <span className="account-num-badge">1</span>
+                        <i className="fa-solid fa-gamepad text-cyan"></i>
+                        <span>Nama Akun / Game ID / User ID:</span>
+                        <span className="field-required-pill">Wajib Diisi</span>
+                      </label>
+                      <input
+                        id="fulfillTopupAccount"
+                        type="text"
+                        className="admin-text-input account-primary-input"
+                        placeholder="contoh: ID Game 128491823 (Server 2049) atau Username"
+                        value={fulfillAccount}
+                        onChange={(e) => setFulfillAccount(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+
+                    {/* 2. Gmail Pemesan */}
+                    <div className="admin-form-group account-field-card primary-field-card" style={{ marginBottom: '14px' }}>
+                      <label className="account-field-label">
+                        <span className="account-num-badge">2</span>
+                        <i className="fa-solid fa-envelope text-warning"></i>
+                        <span>Nama Gmail Pelanggan (Data Pesanan):</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="admin-text-input"
+                        value={selectedOrderForFulfill.customerEmail || '-'}
+                        readOnly
+                        style={{ opacity: 0.8, cursor: 'not-allowed' }}
+                      />
+                    </div>
+
+                    {/* 3. Catatan Top Up */}
+                    <div className="admin-form-group account-field-card primary-field-card">
+                      <label htmlFor="fulfillTopupNote" className="account-field-label">
+                        <span className="account-num-badge">3</span>
+                        <i className="fa-solid fa-comment-dots text-success"></i>
+                        <span>Catatan Pengiriman Top Up:</span>
+                      </label>
+                      <textarea
+                        id="fulfillTopupNote"
+                        className="admin-text-input fulfill-note-textarea"
+                        rows="3"
+                        placeholder="Tuliskan catatan konfirmasi top up..."
+                        value={fulfillAdminNote}
+                        onChange={(e) => setFulfillAdminNote(e.target.value)}
+                      ></textarea>
+
+                      <div className="fulfill-note-presets">
+                        <span className="presets-label">Template Catatan:</span>
+                        <button
+                          type="button"
+                          className="btn-preset-quick"
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan Top Up ${selectedOrderForFulfill.productName} telah sukses dikirim ke akun ${fulfillAccount || 'Anda'}. Silakan login dan periksa saldo/diamond Anda. Terima kasih!`
+                            )
+                          }
+                        >
+                          + Template Top Up Sukses
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. MODE: CATATAN SAJA */}
+                {fulfillMode === 'note_only' && (
+                  <div className="fulfill-note-mode-box" style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 'var(--admin-radius-md)', padding: '16px', marginBottom: '16px' }}>
+                    <div className="account-mode-banner" style={{ marginBottom: '14px' }}>
+                      <div className="account-banner-header">
+                        <i className="fa-solid fa-comment-dots text-emerald account-banner-icon"></i>
+                        <div>
+                          <strong>Kirim Catatan / Panduan Khusus Saja</strong>
+                          <p>
+                            Gunakan mode ini jika Anda hanya ingin mengirimkan panduan aktivasi, instruksi undangan, atau pesan konfirmasi tanpa menyertakan password akun baru.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="admin-form-group account-field-card primary-field-card">
+                      <label htmlFor="fulfillNoteOnly" className="account-field-label">
+                        <i className="fa-solid fa-pen-to-square text-cyan"></i>
+                        <span>Isi Catatan / Panduan untuk Pelanggan:</span>
+                        <span className="field-required-pill">Wajib Diisi</span>
+                      </label>
+                      <textarea
+                        id="fulfillNoteOnly"
+                        className="admin-text-input fulfill-note-textarea"
+                        rows="4"
+                        placeholder="Tuliskan catatan, link undangan, atau panduan aktivasi untuk pelanggan..."
+                        value={fulfillAdminNote}
+                        onChange={(e) => setFulfillAdminNote(e.target.value)}
+                        autoFocus
+                        required
+                      ></textarea>
+
+                      <div className="fulfill-note-presets">
+                        <span className="presets-label">Template Cepat:</span>
+                        <button
+                          type="button"
+                          className="btn-preset-quick"
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan Anda untuk ${selectedOrderForFulfill.productName} telah selesai kami proses. Silakan ikuti instruksi yang telah kami siapkan. Jika ada kendala, hubungi CS kami. Terima kasih!`
+                            )
+                          }
+                        >
+                          + Template Selesai
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-preset-quick"
+                          onClick={() =>
+                            setFulfillAdminNote(
+                              `Halo kak ${selectedOrderForFulfill.customerName || ''}, undangan membership/family ${selectedOrderForFulfill.productName} telah dikirim ke email ${selectedOrderForFulfill.customerEmail || 'Anda'}. Silakan cek inbox/spam email dan klik Terima Undangan. Full garansi aktif!`
+                            )
+                          }
+                        >
+                          + Template Undangan Email
                         </button>
                       </div>
                     </div>
@@ -4172,12 +4575,16 @@ export default function AdminApp() {
                     <div className="fulfill-wa-preview-bubble">
                       {formatWhatsAppFulfillMessage(
                         selectedOrderForFulfill,
+                        fulfillMode,
                         {
                           account: fulfillAccount,
                           password: fulfillPassword,
                           profile: fulfillProfile,
                           pin: fulfillPin,
-                          code: fulfillCode
+                          duration: fulfillDuration,
+                          warranty: fulfillWarranty,
+                          code: fulfillCode,
+                          email: selectedOrderForFulfill.customerEmail
                         },
                         fulfillAdminNote
                       )}

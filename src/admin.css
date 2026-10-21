@@ -3622,6 +3622,17 @@ body.admin-body {
   gap: 10px;
 }
 
+.fulfill-mode-tab-buttons.fulfill-mode-tab-4 {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .fulfill-mode-tab-buttons.fulfill-mode-tab-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .btn-mode-tab {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -3651,11 +3662,26 @@ body.admin-body {
   box-shadow: 0 0 14px rgba(6, 182, 212, 0.2);
 }
 
+.btn-mode-tab-voucher.active,
 .btn-mode-tab-steam.active {
-  background: linear-gradient(135deg, rgba(23, 29, 37, 0.9) 0%, rgba(27, 40, 56, 0.95) 100%);
-  border-color: #66c0f4;
-  color: #66c0f4;
-  box-shadow: 0 0 16px rgba(102, 192, 244, 0.3);
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+}
+
+.btn-mode-tab-topup.active {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: #6366f1;
+  color: #a5b4fc;
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.25);
+}
+
+.btn-mode-tab-note.active {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 }
 
 /* Steam Key 2-Field Dedicated Box */

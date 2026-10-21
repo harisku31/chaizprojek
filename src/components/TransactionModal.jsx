@@ -13,6 +13,7 @@ export default function TransactionModal({
   if (!isOpen || !transaction) return null;
 
   const isCompleted = transaction.status === 'completed';
+  const isRejected = transaction.status === 'rejected';
   const creds = transaction.credentials || {};
 
   const handleCopy = async (text, label) => {
@@ -47,14 +48,14 @@ export default function TransactionModal({
         {/* Modal Header */}
         <div className="modal-header-centered trx-modal-header">
           <div className="trx-header-icon-wrap">
-            <i className={`fa-solid ${isCompleted ? 'fa-circle-check text-emerald' : 'fa-clock-rotate-left text-amber'}`}></i>
+            <i className={`fa-solid ${isCompleted ? 'fa-circle-check text-emerald' : isRejected ? 'fa-circle-xmark text-danger' : 'fa-clock-rotate-left text-amber'}`}></i>
           </div>
           <span className="modal-tag">DETAIL TRANSAKSI PELANGGAN</span>
           <h3 className="modal-title-centered">{transaction.productName}</h3>
           <div className="trx-status-pill-row">
-            <span className={`trx-status-badge ${isCompleted ? 'status-completed' : 'status-processing'}`}>
-              <i className={`fa-solid ${isCompleted ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i>
-              {isCompleted ? 'Pesanan Berhasil / Terkirim' : 'Sedang Diproses Admin'}
+            <span className={`trx-status-badge ${isCompleted ? 'status-completed' : isRejected ? 'status-rejected' : 'status-processing'}`}>
+              <i className={`fa-solid ${isCompleted ? 'fa-check-double' : isRejected ? 'fa-circle-xmark' : 'fa-spinner fa-spin'}`}></i>
+              {isCompleted ? 'Pesanan Berhasil / Terkirim' : isRejected ? 'Pesanan Ditolak' : 'Sedang Diproses Admin'}
             </span>
           </div>
         </div>
@@ -128,7 +129,33 @@ export default function TransactionModal({
               )}
             </div>
 
-            {!isCompleted ? (
+            {isRejected ? (
+              <div className="trx-rejected-modal-box">
+                <div className="rejected-icon">
+                  <i className="fa-solid fa-circle-xmark text-danger"></i>
+                </div>
+                <div className="rejected-content">
+                  <strong className="rejected-title">Pesanan Ditolak oleh Admin</strong>
+                  <div className="rejected-reason-card">
+                    <span className="rejected-reason-label">Alasan Penolakan:</span>
+                    <p className="rejected-reason-val">
+                      "{transaction.rejectReason || transaction.adminNote || 'Bukti transfer tidak valid atau stok produk sedang habis.'}"
+                    </p>
+                  </div>
+                  <p className="rejected-help-text">
+                    Jika Anda memiliki kendala atau ingin melakukan konfirmasi transaksi, silakan hubungi Customer Service kami via WhatsApp.
+                  </p>
+                  <a
+                    href={`https://wa.me/6281809730331?text=${encodeURIComponent(`Halo Admin ChaizStore, pesanan saya #${transaction.id} (${transaction.productName}) ditolak dengan alasan: "${transaction.rejectReason || transaction.adminNote || '-'}". Mohon bantuannya.`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-chat-cs-rejected"
+                  >
+                    <i className="fa-brands fa-whatsapp"></i> Hubungi CS via WhatsApp (0818-0973-0331)
+                  </a>
+                </div>
+              </div>
+            ) : !isCompleted ? (
               <div className="trx-processing-box">
                 <div className="processing-spinner">
                   <i className="fa-solid fa-hourglass-half fa-spin"></i>

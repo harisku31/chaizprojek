@@ -642,7 +642,7 @@ export function getProofTimeRemaining(trx) {
  * Update Status Pesanan oleh Admin (Kirim Akun & Catatan Khusus)
  * Mengupdate data di node global dan node privat user di Firebase RTDB
  */
-export async function fulfillTransaction(id, credentials = {}, adminNote = '', fallbackOrder = null) {
+export async function fulfillTransaction(id, credentials = {}, adminNote = '', fallbackOrder = null, extraMeta = {}) {
   const transactions = getTransactions();
   let existing = transactions.find((trx) => trx.id === id) || fallbackOrder;
 
@@ -667,6 +667,8 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     userId: userKey || existing?.userId || null,
     userKey: userKey || existing?.userKey || null,
     status: 'completed',
+    productDuration: extraMeta.duration || credentials?.duration || existing?.productDuration || 'Reguler',
+    warrantyPeriod: extraMeta.warranty || credentials?.warranty || existing?.warrantyPeriod || 'Garansi Penuh',
     credentials: {
       account: credentials?.account || existing?.credentials?.account || '',
       password: credentials?.password || existing?.credentials?.password || '',
@@ -719,6 +721,8 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
   // 3. Sinkronisasi atomic ke Firebase Realtime Database
   const patchData = {
     status: 'completed',
+    productDuration: updatedTrx.productDuration,
+    warrantyPeriod: updatedTrx.warrantyPeriod,
     credentials: updatedTrx.credentials,
     adminNote: updatedTrx.adminNote,
     processedAt: updatedTrx.processedAt,
@@ -751,6 +755,8 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
   updateTransactionInSql({
     id,
     status: 'completed',
+    productDuration: updatedTrx.productDuration,
+    warrantyPeriod: updatedTrx.warrantyPeriod,
     credentials: updatedTrx.credentials,
     adminNote: updatedTrx.adminNote,
     processedAt: updatedTrx.processedAt,
@@ -758,6 +764,112 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
   }).catch(() => {});
 
   broadcastSync('TRANSACTION_FULFILLED', { updatedTrx, userKey });
+  return updatedTrx;
+}
+
+/**
+ * Tolak Pesanan oleh Admin
+ */
+export async function rejectTransaction(id, rejectReason = 'Pesanan tidak dapat diproses', fallbackOrder = null) {
+  const transactions = getTransactions();
+  let existing = transactions.find((trx) => trx.id === id) || fallbackOrder;
+
+  if (!existing) {
+    try {
+      const fromCloud = await readFromFirebase(`${FIREBASE_PATH_TRX}/${id}`);
+      if (fromCloud) existing = fromCloud;
+    } catch (e) {}
+  }
+
+  const userKey =
+    existing?.userKey ||
+    existing?.userId ||
+    (existing?.customerEmail && existing.customerEmail !== '-'
+      ? getUserKey({ email: existing.customerEmail, name: existing.customerName })
+      : null);
+
+  const updatedTrx = {
+    ...(existing || {}),
+    id,
+    userId: userKey || existing?.userId || null,
+    userKey: userKey || existing?.userKey || null,
+    status: 'rejected',
+    rejectReason: rejectReason || 'Pesanan ditolak oleh admin',
+    adminNote: rejectReason || 'Pesanan ditolak oleh admin',
+    rejectedAt: new Date().toISOString(),
+    isRead: false
+  };
+
+  // 1. Simpan di Global Admin List
+  let foundInList = false;
+  const updatedList = transactions.map((trx) => {
+    if (trx.id === id) {
+      foundInList = true;
+      return updatedTrx;
+    }
+    return trx;
+  });
+
+  if (!foundInList) {
+    updatedList.unshift(updatedTrx);
+  }
+
+  saveTransactions(updatedList);
+
+  // 2. Simpan di Private User List
+  if (userKey) {
+    const userTrxList = getUserTransactions({ id: userKey, email: updatedTrx.customerEmail });
+    let foundInUser = false;
+    const updatedUserList = userTrxList.map((trx) => {
+      if (trx.id === id) {
+        foundInUser = true;
+        return updatedTrx;
+      }
+      return trx;
+    });
+    if (!foundInUser) {
+      updatedUserList.unshift(updatedTrx);
+    }
+    saveUserTransactions({ id: userKey }, updatedUserList);
+  }
+
+  // 3. Sinkronisasi atomic ke Firebase Realtime Database
+  const patchData = {
+    status: 'rejected',
+    rejectReason: updatedTrx.rejectReason,
+    adminNote: updatedTrx.adminNote,
+    rejectedAt: updatedTrx.rejectedAt,
+    isRead: false
+  };
+
+  try {
+    await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patchData);
+  } catch (patchErr) {
+    try {
+      await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
+    } catch (err) {}
+  }
+
+  if (userKey) {
+    try {
+      await updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patchData);
+    } catch (userPatchErr) {
+      try {
+        await writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, updatedTrx);
+      } catch (err) {}
+    }
+  }
+
+  // 4. Sinkronisasi ke SQL
+  updateTransactionInSql({
+    id,
+    status: 'rejected',
+    adminNote: updatedTrx.adminNote,
+    rejectedAt: updatedTrx.rejectedAt,
+    isRead: false
+  }).catch(() => {});
+
+  broadcastSync('TRANSACTION_REJECTED', { updatedTrx, userKey });
   return updatedTrx;
 }
 

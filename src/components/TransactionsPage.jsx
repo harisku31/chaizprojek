@@ -299,10 +299,12 @@ export default function TransactionsPage({
 
   const processingCount = myTransactions.filter((t) => t.status === 'processing').length;
   const completedCount = myTransactions.filter((t) => t.status === 'completed').length;
+  const rejectedCount = myTransactions.filter((t) => t.status === 'rejected').length;
 
   const filteredTransactions = myTransactions.filter((t) => {
     if (activeFilter === 'processing') return t.status === 'processing';
     if (activeFilter === 'completed') return t.status === 'completed';
+    if (activeFilter === 'rejected') return t.status === 'rejected';
     return true;
   });
 
@@ -435,6 +437,13 @@ export default function TransactionsPage({
               >
                 <i className="fa-solid fa-circle-check text-emerald"></i> Berhasil Terkirim ({completedCount})
               </button>
+              <button
+                type="button"
+                className={`trx-tab-btn ${activeFilter === 'rejected' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('rejected')}
+              >
+                <i className="fa-solid fa-circle-xmark text-danger"></i> Ditolak ({rejectedCount})
+              </button>
             </div>
           </div>
 
@@ -443,6 +452,7 @@ export default function TransactionsPage({
             <div className="trx-cards-list">
               {filteredTransactions.map((trx) => {
                 const isCompleted = trx.status === 'completed';
+                const isRejected = trx.status === 'rejected';
                 const hasRated = !!trx.rating;
                 const formattedDate = new Date(trx.createdAt).toLocaleDateString('id-ID', {
                   day: 'numeric',
@@ -455,7 +465,7 @@ export default function TransactionsPage({
                 return (
                   <div
                     key={trx.id}
-                    className={`trx-card-item ${isCompleted ? 'card-completed' : 'card-processing'}`}
+                    className={`trx-card-item ${isCompleted ? 'card-completed' : isRejected ? 'card-rejected' : 'card-processing'}`}
                   >
                     <div className="trx-card-header">
                       <div className="trx-card-left">
@@ -467,9 +477,9 @@ export default function TransactionsPage({
                         </span>
                       </div>
                       <div className="trx-card-right">
-                        <span className={`trx-status-badge ${isCompleted ? 'status-completed' : 'status-processing'}`}>
-                          <i className={`fa-solid ${isCompleted ? 'fa-circle-check' : 'fa-spinner fa-spin'}`}></i>
-                          {isCompleted ? 'Pesanan Berhasil / Terkirim' : 'Sedang Diproses Admin'}
+                        <span className={`trx-status-badge ${isCompleted ? 'status-completed' : isRejected ? 'status-rejected' : 'status-processing'}`}>
+                          <i className={`fa-solid ${isCompleted ? 'fa-circle-check' : isRejected ? 'fa-circle-xmark' : 'fa-spinner fa-spin'}`}></i>
+                          {isCompleted ? 'Pesanan Berhasil / Terkirim' : isRejected ? 'Pesanan Ditolak' : 'Sedang Diproses Admin'}
                         </span>
                       </div>
                     </div>
@@ -477,7 +487,7 @@ export default function TransactionsPage({
                     <div className="trx-card-body">
                       <div className="trx-product-info">
                         <div className="trx-product-icon">
-                          <i className="fa-solid fa-crown text-warning"></i>
+                          <i className={`fa-solid ${isRejected ? 'fa-triangle-exclamation text-danger' : 'fa-crown text-warning'}`}></i>
                         </div>
                         <div className="trx-product-details">
                           <h3 className="trx-prod-name">{trx.productName}</h3>
@@ -504,6 +514,26 @@ export default function TransactionsPage({
                         <span>
                           <strong>Pesan Admin:</strong> "{trx.adminNote}"
                         </span>
+                      </div>
+                    )}
+
+                    {/* Notifikasi Pesanan Ditolak dengan Alasan & Kontak Admin */}
+                    {isRejected && (
+                      <div className="trx-rejected-notice">
+                        <div className="trx-rejected-header">
+                          <i className="fa-solid fa-triangle-exclamation text-danger"></i>
+                          <span><strong>Pesanan Ditolak:</strong> {trx.rejectReason || trx.adminNote || 'Pesanan dibatalkan / ditolak oleh admin.'}</span>
+                        </div>
+                        <div className="trx-rejected-action-row">
+                          <a
+                            href={`https://wa.me/6281809730331?text=${encodeURIComponent(`Halo Admin ChaizStore, pesanan saya #${trx.id} (${trx.productName}) ditolak dengan alasan: "${trx.rejectReason || trx.adminNote || '-'}". Mohon info bantuan / pengembalian dana.`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-chat-admin-rejected"
+                          >
+                            <i className="fa-brands fa-whatsapp"></i> Hubungi Admin via WA (0818-0973-0331)
+                          </a>
+                        </div>
                       </div>
                     )}
 
