@@ -50,6 +50,12 @@ const cleanPhoneNumber = (phone) => {
   return cleaned;
 };
 
+// Safe String Trim Helper: Mencegah TypeError jika data bertipe number/null/undefined
+const sTrim = (val) => {
+  if (val === null || val === undefined) return '';
+  return String(val).trim();
+};
+
 // Helper: Format pesan WhatsApp kredensial pesanan berdasarkan 4 Mode:
 // 1. note_only: Kirim Catatan Saja
 // 2. premium_account: Kirim Akun Premium (Nama Akun, Password, Profile, PIN, Durasi, Garansi)
@@ -58,11 +64,18 @@ const cleanPhoneNumber = (phone) => {
 // Aturan: Hanya field yang diisi yang akan disertakan!
 const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}, adminNote = '') => {
   if (!order) return '';
-  const customerName = order.customerName || 'Kak';
+  const customerName = sTrim(order.customerName) || 'Kak';
   const orderId = order.id || '-';
-  const productName = order.productName || 'Produk';
-  const duration = data.duration || order.productDuration || '';
-  const warranty = data.warranty || order.warrantyPeriod || '';
+  const productName = sTrim(order.productName) || 'Produk';
+  const duration = sTrim(data.duration || order.productDuration);
+  const warranty = sTrim(data.warranty || order.warrantyPeriod);
+  const account = sTrim(data.account);
+  const password = sTrim(data.password);
+  const profile = sTrim(data.profile);
+  const pin = sTrim(data.pin);
+  const code = sTrim(data.code);
+  const email = sTrim(data.email || order.customerEmail);
+  const note = sTrim(adminNote);
 
   const lines = [
     `Halo kak *${customerName}*! Salam dari *ChaizStore* ✨`,
@@ -75,32 +88,32 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
 
   if (mode === 'note_only') {
     lines.push(``);
-    if (adminNote && adminNote.trim()) {
+    if (note) {
       lines.push(`📝 *CATATAN / PANDUAN ADMIN:*`);
-      lines.push(adminNote.trim());
+      lines.push(note);
       lines.push(``);
     }
   } else if (mode === 'premium_account') {
-    if (duration && duration.trim()) {
-      lines.push(`• *Durasi:* ${duration.trim()}`);
+    if (duration) {
+      lines.push(`• *Durasi:* ${duration}`);
     }
-    if (warranty && warranty.trim()) {
-      lines.push(`• *Garansi:* ${warranty.trim()}`);
+    if (warranty) {
+      lines.push(`• *Garansi:* ${warranty}`);
     }
     lines.push(``);
 
     const credLines = [];
-    if (data.account && data.account.trim()) {
-      credLines.push(`• *Nama Akun:* ${data.account.trim()}`);
+    if (account) {
+      credLines.push(`• *Nama Akun:* ${account}`);
     }
-    if (data.password && data.password.trim()) {
-      credLines.push(`• *Password:* ${data.password.trim()}`);
+    if (password) {
+      credLines.push(`• *Password:* ${password}`);
     }
-    if (data.profile && data.profile.trim()) {
-      credLines.push(`• *Profile:* ${data.profile.trim()}`);
+    if (profile) {
+      credLines.push(`• *Profile:* ${profile}`);
     }
-    if (data.pin && data.pin.trim()) {
-      credLines.push(`• *PIN:* ${data.pin.trim()}`);
+    if (pin) {
+      credLines.push(`• *PIN:* ${pin}`);
     }
 
     if (credLines.length > 0) {
@@ -109,40 +122,40 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
       lines.push(``);
     }
 
-    if (adminNote && adminNote.trim()) {
+    if (note) {
       lines.push(`📝 *CATATAN / PANDUAN PENGGUNA:*`);
-      lines.push(adminNote.trim());
+      lines.push(note);
       lines.push(``);
     }
   } else if (mode === 'voucher') {
     lines.push(``);
-    if (data.code && data.code.trim()) {
+    if (code) {
       lines.push(`🎟️ *KODE VOUCER:*`);
-      lines.push(`• *Code Voucer:* ${data.code.trim()}`);
+      lines.push(`• *Code Voucer:* ${code}`);
       lines.push(``);
     }
-    if (adminNote && adminNote.trim()) {
+    if (note) {
       lines.push(`📝 *PANDUAN / CATATAN:*`);
-      lines.push(adminNote.trim());
+      lines.push(note);
       lines.push(``);
     }
   } else if (mode === 'topup') {
     lines.push(``);
     const topupLines = [];
-    if (data.account && data.account.trim()) {
-      topupLines.push(`• *Nama Akun:* ${data.account.trim()}`);
+    if (account) {
+      topupLines.push(`• *Nama Akun / ID:* ${account}`);
     }
-    if (data.email && data.email.trim()) {
-      topupLines.push(`• *Nama Gmail:* ${data.email.trim()}`);
+    if (email && email !== '-') {
+      topupLines.push(`• *Nama Gmail:* ${email}`);
     }
     if (topupLines.length > 0) {
       lines.push(`⚡ *DETAIL AKUN TOP UP:*`);
       topupLines.forEach((tl) => lines.push(tl));
       lines.push(``);
     }
-    if (adminNote && adminNote.trim()) {
+    if (note) {
       lines.push(`📝 *CATATAN:*`);
-      lines.push(adminNote.trim());
+      lines.push(note);
       lines.push(``);
     }
   }
@@ -542,10 +555,11 @@ export default function AdminApp() {
   }, [ordersList, orderFilter, orderSearch]);
 
   const handleOpenFulfillModal = (order) => {
+    if (!order) return;
     setSelectedOrderForFulfill(order);
 
-    const prodName = (order.productName || '').toLowerCase();
-    const catName = (order.productCategory || '').toLowerCase();
+    const prodName = String(order.productName || '').toLowerCase();
+    const catName = String(order.productCategory || '').toLowerCase();
 
     // Auto-detect initial fulfillment mode based on product
     let initialMode = 'premium_account';
@@ -576,15 +590,15 @@ export default function AdminApp() {
     const initialAccount =
       order.credentials?.account || customerMail || order.customerUsername || '';
 
-    setFulfillAccount(initialAccount);
-    setFulfillPassword(order.credentials?.password || '');
-    setFulfillUsername(order.credentials?.username || order.customerUsername || '');
-    setFulfillPin(order.credentials?.pin || '');
-    setFulfillProfile(order.credentials?.profile || '');
-    setFulfillDuration(order.productDuration || '1 Bulan');
-    setFulfillWarranty(order.warrantyPeriod || '30 Hari');
-    setFulfillCode(order.credentials?.code || '');
-    setFulfillCustomerPhone(order.customerPhone || '');
+    setFulfillAccount(String(initialAccount || ''));
+    setFulfillPassword(String(order.credentials?.password || ''));
+    setFulfillUsername(String(order.credentials?.username || order.customerUsername || ''));
+    setFulfillPin(String(order.credentials?.pin || ''));
+    setFulfillProfile(String(order.credentials?.profile || ''));
+    setFulfillDuration(String(order.productDuration || '1 Bulan'));
+    setFulfillWarranty(String(order.warrantyPeriod || '30 Hari'));
+    setFulfillCode(String(order.credentials?.code || ''));
+    setFulfillCustomerPhone(String(order.customerPhone || ''));
     setCopyWaSuccess(false);
 
     setFulfillAdminNote(
@@ -592,7 +606,7 @@ export default function AdminApp() {
         (initialMode === 'voucher'
           ? 'Kode Voucher / Key Original aktif & bergaransi resmi. Silakan segera aktivasi di akun Anda. Selamat menikmati!'
           : initialMode === 'topup'
-          ? `Layanan Top Up untuk pesanan ${order.productName} telah berhasil diproses ke akun Anda. Selamat bermain!`
+          ? `Layanan Top Up untuk pesanan ${order.productName || 'Produk'} telah berhasil diproses ke akun Anda. Selamat bermain!`
           : `Layanan Akun ${order.productName || 'Premium'} sudah berhasil diproses dan diaktifkan. Garansi penuh ChaizStore aktif!`)
     );
     setShowFulfillPassword(false);
@@ -784,18 +798,18 @@ export default function AdminApp() {
       const fulfilled = await fulfillTransaction(
         selectedOrderForFulfill.id,
         {
-          account: fulfillAccount.trim(),
-          password: fulfillPassword.trim(),
-          username: fulfillUsername.trim(),
-          pin: fulfillPin.trim(),
-          profile: fulfillProfile.trim(),
-          code: fulfillCode.trim()
+          account: sTrim(fulfillAccount),
+          password: sTrim(fulfillPassword),
+          username: sTrim(fulfillUsername),
+          pin: sTrim(fulfillPin),
+          profile: sTrim(fulfillProfile),
+          code: sTrim(fulfillCode)
         },
-        fulfillAdminNote.trim(),
+        sTrim(fulfillAdminNote),
         selectedOrderForFulfill,
         {
-          duration: fulfillDuration.trim(),
-          warranty: fulfillWarranty.trim()
+          duration: sTrim(fulfillDuration),
+          warranty: sTrim(fulfillWarranty)
         }
       );
 
@@ -3798,7 +3812,7 @@ export default function AdminApp() {
                 <div>
                   <h3>Proses Pesanan: #{selectedOrderForFulfill.id}</h3>
                   <span className="modal-subtitle-text">
-                    {selectedOrderForFulfill.productName} • Pemesan: <strong>{selectedOrderForFulfill.customerName}</strong>
+                    {selectedOrderForFulfill.productName || 'Produk'} • Pemesan: <strong>{selectedOrderForFulfill.customerName || 'Pelanggan'}</strong>
                   </span>
                 </div>
               </div>
@@ -3817,7 +3831,7 @@ export default function AdminApp() {
                 <div className="fulfill-order-strip">
                   <div className="strip-item">
                     <span className="strip-label">Produk</span>
-                    <strong className="strip-val">{selectedOrderForFulfill.productName}</strong>
+                    <strong className="strip-val">{selectedOrderForFulfill.productName || 'Produk'}</strong>
                   </div>
                   <div className="strip-item">
                     <span className="strip-label">Durasi / Paket</span>
@@ -3830,7 +3844,7 @@ export default function AdminApp() {
                   <div className="strip-item">
                     <span className="strip-label">Total Tagihan</span>
                     <strong className="strip-val text-success">
-                      Rp {Number(selectedOrderForFulfill.total || selectedOrderForFulfill.price).toLocaleString('id-ID')}
+                      Rp {Number(selectedOrderForFulfill.total ?? selectedOrderForFulfill.price ?? 0).toLocaleString('id-ID')}
                     </strong>
                   </div>
                   <div className="strip-item">
@@ -3846,7 +3860,7 @@ export default function AdminApp() {
                       <i className="fa-solid fa-image text-cyan"></i>
                       <span>
                         Ada Bukti Transfer ({selectedOrderForFulfill.proofFileName || 'Bukti_Pembayaran.png'})
-                        • <strong className="text-warning">{getProofTimeRemaining(selectedOrderForFulfill).text}</strong>
+                        • <strong className="text-warning">{getProofTimeRemaining(selectedOrderForFulfill)?.text || 'Aktif'}</strong>
                       </span>
                     </div>
                     <button
@@ -3947,7 +3961,7 @@ export default function AdminApp() {
                         <div className="customer-tile-btns">
                           {selectedOrderForFulfill.customerPhone && selectedOrderForFulfill.customerPhone !== '-' && (
                             <a
-                              href={`https://wa.me/${selectedOrderForFulfill.customerPhone.replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan ${selectedOrderForFulfill.productName} di ChaizStore sedang kami proses.`)}`}
+                              href={`https://wa.me/${cleanPhoneNumber(selectedOrderForFulfill.customerPhone)}?text=${encodeURIComponent(`Halo kak ${selectedOrderForFulfill.customerName || ''}, pesanan ${selectedOrderForFulfill.productName || ''} di ChaizStore sedang kami proses.`)}`}
                               target="_blank"
                               rel="noreferrer"
                               className="btn-chat-wa-quick"
@@ -4050,11 +4064,12 @@ export default function AdminApp() {
                   <div className="fulfill-account-simplified-box">
                     {/* Vault Helper: Check if Gudang has ready accounts for this product */}
                     {(() => {
-                      const match = productsList.find(
-                        (p) =>
-                          p.name.toLowerCase().includes(selectedOrderForFulfill.productName.toLowerCase()) ||
-                          selectedOrderForFulfill.productName.toLowerCase().includes(p.name.toLowerCase())
-                      );
+                      const currentProdName = String(selectedOrderForFulfill.productName || '').toLowerCase();
+                      const match = (productsList || []).find((p) => {
+                        if (!p || !p.name) return false;
+                        const pName = String(p.name).toLowerCase();
+                        return currentProdName && (pName.includes(currentProdName) || currentProdName.includes(pName));
+                      });
                       if (match && match.accounts && match.accounts.length > 0) {
                         return (
                           <div className="vault-quick-picker-box">
@@ -4067,14 +4082,13 @@ export default function AdminApp() {
                             <div className="vault-quick-picker-list">
                               {match.accounts.slice(0, 3).map((acc) => (
                                 <button
-                                  key={acc.id}
+                                  key={acc.id || acc.email}
                                   type="button"
                                   className="btn-vault-quick-pick"
                                   onClick={() => {
-                                    setFulfillAccount(acc.email);
-                                    setFulfillPassword(acc.password);
+                                    setFulfillAccount(acc.email || '');
+                                    setFulfillPassword(acc.password || '');
                                     if (acc.note) setFulfillProfile(acc.note);
-                                    setShowExtraFields(true);
                                     showToast(`Akun ${acc.email} berhasil dimasukkan ke form!`, 'fa-vault', 'info');
                                   }}
                                   title="Klik untuk gunakan akun ini"
@@ -4145,15 +4159,42 @@ export default function AdminApp() {
                     <div className="fulfill-fields-grid" style={{ marginTop: '14px', marginBottom: '14px' }}>
                       {/* Password */}
                       <div className="admin-form-group">
-                        <label htmlFor="fulfillPassword">
-                          <i className="fa-solid fa-lock text-warning"></i> Password:
-                        </label>
+                        <div className="field-label-with-presets">
+                          <label htmlFor="fulfillPassword">
+                            <i className="fa-solid fa-lock text-warning"></i> Password:
+                          </label>
+                          <div className="mini-presets-row">
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => {
+                                const randomPass = `Chaiz${Math.floor(1000 + Math.random() * 9000)}!`;
+                                setFulfillPassword(randomPass);
+                                setShowFulfillPassword(true);
+                                showToast(`Password otomatis dibuat: ${randomPass}`, 'fa-key', 'info');
+                              }}
+                              title="Buat password acak otomatis"
+                            >
+                              + Acak
+                            </button>
+                            {fulfillPassword && (
+                              <button
+                                type="button"
+                                className="btn-mini-preset btn-mini-preset-clear"
+                                onClick={() => setFulfillPassword('')}
+                                title="Kosongkan password"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </div>
+                        </div>
                         <div className="password-input-wrapper">
                           <input
                             id="fulfillPassword"
                             type={showFulfillPassword ? 'text' : 'password'}
                             className="admin-text-input"
-                            placeholder="Password akun (manual, kosongkan jika tidak ada)"
+                            placeholder="Password akun (kosongkan jika tidak ada)"
                             value={fulfillPassword}
                             onChange={(e) => setFulfillPassword(e.target.value)}
                           />
@@ -4170,14 +4211,39 @@ export default function AdminApp() {
 
                       {/* Profil */}
                       <div className="admin-form-group">
-                        <label htmlFor="fulfillProfile">
-                          <i className="fa-solid fa-tv text-cyan"></i> Profil / Layar:
-                        </label>
+                        <div className="field-label-with-presets">
+                          <label htmlFor="fulfillProfile">
+                            <i className="fa-solid fa-tv text-cyan"></i> Profil / Layar:
+                          </label>
+                          <div className="mini-presets-row">
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillProfile('Profil 1')}
+                            >
+                              P1
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillProfile('Profil 2')}
+                            >
+                              P2
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillProfile('Layar Utama')}
+                            >
+                              Utama
+                            </button>
+                          </div>
+                        </div>
                         <input
                           id="fulfillProfile"
                           type="text"
                           className="admin-text-input"
-                          placeholder="contoh: Profil 1 / Layar A (manual)"
+                          placeholder="contoh: Profil 1 / Layar A"
                           value={fulfillProfile}
                           onChange={(e) => setFulfillProfile(e.target.value)}
                         />
@@ -4185,14 +4251,40 @@ export default function AdminApp() {
 
                       {/* Code PIN */}
                       <div className="admin-form-group">
-                        <label htmlFor="fulfillPin">
-                          <i className="fa-solid fa-hashtag text-success"></i> Code PIN:
-                        </label>
+                        <div className="field-label-with-presets">
+                          <label htmlFor="fulfillPin">
+                            <i className="fa-solid fa-hashtag text-success"></i> Code PIN:
+                          </label>
+                          <div className="mini-presets-row">
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillPin('1234')}
+                            >
+                              1234
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillPin('0000')}
+                            >
+                              0000
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillPin(String(Math.floor(1000 + Math.random() * 9000)))}
+                              title="PIN 4 digit acak"
+                            >
+                              + Acak
+                            </button>
+                          </div>
+                        </div>
                         <input
                           id="fulfillPin"
                           type="text"
                           className="admin-text-input"
-                          placeholder="contoh: 1234 (manual, kosongkan jika tidak ada)"
+                          placeholder="contoh: 1234 (opsional)"
                           value={fulfillPin}
                           onChange={(e) => setFulfillPin(e.target.value)}
                         />
@@ -4200,9 +4292,27 @@ export default function AdminApp() {
 
                       {/* Durasi */}
                       <div className="admin-form-group">
-                        <label htmlFor="fulfillDuration">
-                          <i className="fa-solid fa-clock text-cyan"></i> Durasi:
-                        </label>
+                        <div className="field-label-with-presets">
+                          <label htmlFor="fulfillDuration">
+                            <i className="fa-solid fa-clock text-cyan"></i> Durasi:
+                          </label>
+                          <div className="mini-presets-row">
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillDuration('1 Bulan')}
+                            >
+                              1 Bln
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillDuration('1 Tahun')}
+                            >
+                              1 Thn
+                            </button>
+                          </div>
+                        </div>
                         <input
                           id="fulfillDuration"
                           type="text"
@@ -4215,9 +4325,27 @@ export default function AdminApp() {
 
                       {/* Garansi */}
                       <div className="admin-form-group">
-                        <label htmlFor="fulfillWarranty">
-                          <i className="fa-solid fa-shield-halved text-success"></i> Garansi:
-                        </label>
+                        <div className="field-label-with-presets">
+                          <label htmlFor="fulfillWarranty">
+                            <i className="fa-solid fa-shield-halved text-success"></i> Garansi:
+                          </label>
+                          <div className="mini-presets-row">
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillWarranty('30 Hari')}
+                            >
+                              30 Hari
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-mini-preset"
+                              onClick={() => setFulfillWarranty('Full Garansi')}
+                            >
+                              Full
+                            </button>
+                          </div>
+                        </div>
                         <input
                           id="fulfillWarranty"
                           type="text"
@@ -4301,12 +4429,26 @@ export default function AdminApp() {
                     <div className="steam-two-fields-wrapper">
                       {/* 1. Code Key */}
                       <div className="admin-form-group steam-field-card">
-                        <label htmlFor="fulfillSteamCode" className="steam-field-label">
-                          <span className="steam-num-badge">1</span>
-                          <i className="fa-solid fa-key text-warning"></i>
-                          <span>Code Voucer / Serial Key:</span>
-                          <span className="field-required-pill">Wajib Diisi</span>
-                        </label>
+                        <div className="field-card-header" style={{ marginBottom: '8px' }}>
+                          <label htmlFor="fulfillSteamCode" className="steam-field-label" style={{ margin: 0 }}>
+                            <span className="steam-num-badge">1</span>
+                            <i className="fa-solid fa-key text-warning"></i>
+                            <span>Code Voucer / Serial Key:</span>
+                            <span className="field-required-pill">Wajib Diisi</span>
+                          </label>
+                          <button
+                            type="button"
+                            className="btn-use-customer-gmail-inline"
+                            onClick={() => {
+                              const randomKey = `CHZ-${Math.random().toString(36).substring(2, 7).toUpperCase()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+                              setFulfillCode(randomKey);
+                              showToast(`Kode key otomatis dibuat: ${randomKey}`, 'fa-ticket', 'info');
+                            }}
+                            title="Generate kode voucer acak"
+                          >
+                            <i className="fa-solid fa-wand-magic-sparkles"></i> + Buat Key Acak
+                          </button>
+                        </div>
                         <input
                           id="fulfillSteamCode"
                           type="text"
