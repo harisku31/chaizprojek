@@ -5,7 +5,8 @@ export default function ProductCard({
   product,
   onOpenModal,
   onShowToast,
-  isHighlighted
+  isHighlighted,
+  onOpenSteamMenu
 }) {
   const isUnreleased = !!product.isUnreleased;
   const isOutOfStock = !isUnreleased && product.stock === 0;
@@ -93,7 +94,7 @@ export default function ProductCard({
           <span className="stock-mkt-label">Sisa Stok:</span>
         </div>
         <span className={`stock-mkt-badge ${isUrgent ? 'badge-urgent' : 'badge-available'}`}>
-          <strong>{product.stock}</strong> Akun
+          <strong>{product.stock}</strong> {product.isSteamSpecial ? 'Key Ready' : 'Akun'}
         </span>
       </div>
     );
@@ -102,6 +103,9 @@ export default function ProductCard({
   const handleCardClick = () => {
     if (isUnreleased) {
       onShowToast('Grok AI masih dalam status segel dan belum dirilis resmi!', 'fa-lock');
+    } else if (product.isSteamSpecial) {
+      if (onOpenSteamMenu) onOpenSteamMenu();
+      else window.location.hash = 'steam';
     } else {
       onOpenModal(product);
     }
@@ -187,6 +191,23 @@ export default function ProductCard({
             onClick={() => onShowToast('Grok AI masih dalam status segel dan belum dirilis resmi!', 'fa-lock')}
           >
             <i className="fa-solid fa-lock"></i> Segel: Belum Dirilis
+          </button>
+        ) : product.isSteamSpecial ? (
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)',
+              borderColor: '#38bdf8',
+              gap: '8px'
+            }}
+            onClick={handleCardClick}
+          >
+            <i className="fa-brands fa-steam"></i>
+            <span>Buka Menu Steam</span>
+            <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '4px' }}></i>
           </button>
         ) : (
           <>

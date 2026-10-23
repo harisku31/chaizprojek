@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { formatRupiah } from '../utils/format';
-import SteamKeyModal, { STEAM_KEY_PACKAGES } from './SteamKeyModal';
 
 export default function TopUpPage({
   onBackToStore,
+  onOpenSteamMenu,
   onShowToast,
   authUser,
   isBanned = false,
@@ -12,57 +12,153 @@ export default function TopUpPage({
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSteamModalOpen, setIsSteamModalOpen] = useState(false);
-  const [modalKeyId, setModalKeyId] = useState('original');
-  const [pendingKeyId, setPendingKeyId] = useState(null);
-
-  // Jika user baru saja login dan sebelumnya sedang memilih paket Steam Key
-  useEffect(() => {
-    if (authUser && pendingKeyId) {
-      setModalKeyId(pendingKeyId);
-      setIsSteamModalOpen(true);
-      setPendingKeyId(null);
-    }
-  }, [authUser, pendingKeyId]);
 
   const categories = [
-    { id: 'all', label: 'Semua Varian Top Up', icon: 'fa-border-all' },
-    { id: 'original', label: 'Original Key (Rp 1.500)', icon: 'fa-brands fa-steam' },
-    { id: 'epic', label: 'Epic Tier (Rp 3.500)', icon: 'fa-trophy' },
-    { id: 'nsfw', label: 'NSFW 18+ (Rp 3.500)', icon: 'fa-heart' },
-    { id: 'hanimentai', label: 'Hanimetai (Rp 3.500)', icon: 'fa-wand-magic-sparkles' }
+    { id: 'all', label: 'Semua Layanan Top Up', icon: 'fa-border-all' },
+    { id: 'steam', label: 'Steam Games', icon: 'fa-brands fa-steam' },
+    { id: 'mobile', label: 'Game Mobile', icon: 'fa-mobile-screen' },
+    { id: 'pc', label: 'PC Games & Voucher', icon: 'fa-gamepad' }
   ];
 
-  const filteredKeys = STEAM_KEY_PACKAGES.filter((pkg) => {
-    const matchCategory = activeCategory === 'all' || pkg.id === activeCategory;
+  // Daftar Layanan Top Up (Steam dijadikan 1 Card Utama yang mengarah ke Menu Steam Lengkap)
+  const TOPUP_SERVICES = [
+    {
+      id: 'steam-game-valve',
+      name: 'Steam Key Game Resmi Valve',
+      category: 'steam',
+      badge: '4 Varian Game',
+      badgeClass: 'badge-bestseller',
+      image: 'steam.png',
+      desc: 'Pusat Steam Key resmi Valve. Tersedia paket Original Key, Epic Tier, NSFW 18+, dan Hanimetai.',
+      features: [
+        'Tersedia 4 Varian Paket (Original, Epic Tier, NSFW 18+, Hanimetai)',
+        'Aktivasi Global Permanen di Library Steam PC / Laptop',
+        '100% Legal & Bergaransi Kode Valid Resmi'
+      ],
+      price: 1500,
+      priceNote: 'Mulai Rp 1.500',
+      unit: 'key',
+      stock: 50,
+      isSteamMenuTrigger: true,
+      buttonText: 'Buka Menu Steam',
+      buttonIcon: 'fa-brands fa-steam'
+    },
+    {
+      id: 'topup-mlbb',
+      name: 'Mobile Legends: Bang Bang',
+      category: 'mobile',
+      badge: 'Segera Hadir',
+      badgeClass: 'badge-sealed',
+      image: null,
+      icon: 'fa-solid fa-gamepad',
+      iconColor: '#f59e0b',
+      desc: 'Top up Diamond Mobile Legends instan via User ID & Zone ID. Proses cepat & bebas antre.',
+      features: [
+        'Top Up Diamond Mobile Legends Resmi Moonton',
+        'Cukup Masukkan User ID & Zone ID Game',
+        'Proses Kilat Otomatis 1-3 Menit'
+      ],
+      price: 1500,
+      priceNote: 'Segera Hadir',
+      unit: 'dm',
+      stock: 0,
+      isComingSoon: true,
+      buttonText: 'Segera Hadir',
+      buttonIcon: 'fa-solid fa-clock'
+    },
+    {
+      id: 'topup-freefire',
+      name: 'Free Fire Max (FF)',
+      category: 'mobile',
+      badge: 'Segera Hadir',
+      badgeClass: 'badge-sealed',
+      image: null,
+      icon: 'fa-solid fa-fire',
+      iconColor: '#ef4444',
+      desc: 'Top up Diamond Free Fire resmi Garena langsung masuk ke akun FF Anda.',
+      features: [
+        'Top Up Diamond Free Fire Resmi Garena',
+        'Cukup Masukkan Player ID Akun Free Fire',
+        '100% Legal & Bergaransi Saldo Masuk'
+      ],
+      price: 1000,
+      priceNote: 'Segera Hadir',
+      unit: 'dm',
+      stock: 0,
+      isComingSoon: true,
+      buttonText: 'Segera Hadir',
+      buttonIcon: 'fa-solid fa-clock'
+    },
+    {
+      id: 'topup-roblox',
+      name: 'Roblox (Robux Instant)',
+      category: 'pc',
+      badge: 'Segera Hadir',
+      badgeClass: 'badge-sealed',
+      image: null,
+      icon: 'fa-solid fa-cube',
+      iconColor: '#ef4444',
+      desc: 'Layanan isi saldo Robux Roblox aman dan cepat untuk avatar & game pass favorit Anda.',
+      features: [
+        'Isi Saldo Robux Akun Roblox Legal',
+        'Garansi Transaksi Aman & Terpercaya',
+        'Bisa untuk Akun PC, Laptop & HP'
+      ],
+      price: 10000,
+      priceNote: 'Segera Hadir',
+      unit: 'robux',
+      stock: 0,
+      isComingSoon: true,
+      buttonText: 'Segera Hadir',
+      buttonIcon: 'fa-solid fa-clock'
+    },
+    {
+      id: 'topup-valorant',
+      name: 'Valorant Points (VP)',
+      category: 'pc',
+      badge: 'Segera Hadir',
+      badgeClass: 'badge-sealed',
+      image: null,
+      icon: 'fa-solid fa-crosshairs',
+      iconColor: '#f43f5e',
+      desc: 'Top up Riot Points / Valorant Points untuk skin senjata & Battle Pass terbaru.',
+      features: [
+        'Riot Points / Valorant Points Server Indonesia',
+        'Cukup Masukkan Riot ID & Tagline',
+        'Garansi Kode & Saldo Resmi Riot Games'
+      ],
+      price: 15000,
+      priceNote: 'Segera Hadir',
+      unit: 'vp',
+      stock: 0,
+      isComingSoon: true,
+      buttonText: 'Segera Hadir',
+      buttonIcon: 'fa-solid fa-clock'
+    }
+  ];
+
+  const filteredServices = TOPUP_SERVICES.filter((svc) => {
+    const matchCategory = activeCategory === 'all' || svc.category === activeCategory;
     const q = searchQuery.toLowerCase().trim();
     if (!q) return matchCategory;
     return (
       matchCategory &&
-      (pkg.name.toLowerCase().includes(q) ||
-        pkg.desc.toLowerCase().includes(q) ||
-        pkg.badge.toLowerCase().includes(q))
+      (svc.name.toLowerCase().includes(q) ||
+        svc.desc.toLowerCase().includes(q) ||
+        svc.badge.toLowerCase().includes(q))
     );
   });
 
-  const handleOpenKeyModal = (keyId = 'original') => {
-    // 1. Cek jika akun terkena banned
-    if (isBanned) {
-      onOpenBannedModal?.();
-      onShowToast?.('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
-      return;
+  const handleCardClick = (service) => {
+    if (service.isSteamMenuTrigger) {
+      if (onOpenSteamMenu) {
+        onOpenSteamMenu();
+      } else {
+        window.location.hash = 'steam';
+      }
+    } else if (service.isComingSoon) {
+      onShowToast?.(`Layanan ${service.name} sedang dalam persiapan & segera hadir di ChaizStore!`, 'fa-clock text-warning');
     }
-
-    // 2. Cek jika belum login
-    if (!authUser) {
-      setPendingKeyId(keyId);
-      onOpenLogin?.();
-      onShowToast?.('Silakan login terlebih dahulu untuk membeli Steam Key!', 'fa-right-to-bracket text-warning');
-      return;
-    }
-
-    setModalKeyId(keyId);
-    setIsSteamModalOpen(true);
   };
 
   return (
@@ -137,21 +233,21 @@ export default function TopUpPage({
         </div>
       </section>
 
-      {/* 2. Katalog Top Up & Steam Key */}
+      {/* 2. Katalog Top Up & Games */}
       <section className="katalog-section" style={{ paddingTop: '20px' }}>
         <div className="container">
           <div className="section-title text-center">
             <span className="subheading">
               <i className="fa-solid fa-layer-group"></i> KATALOG TOP UP AKUN & GAMES
             </span>
-            <h2>Pilih Varian Top Up Favoritmu</h2>
+            <h2>Pilih Layanan Top Up Favoritmu</h2>
             <p>
-              Tersedia berbagai pilihan top up akun premium, Steam Key game resmi Valve (Original, Epic Tier, NSFW 18+, Hanimetai), voucher game, dan produk digital favorit dengan harga termurah & proses kilat otomatis.
+              Tersedia menu Steam Key game resmi Valve (Original, Epic Tier, NSFW 18+, Hanimetai), voucher game, dan produk digital favorit dengan harga termurah & proses kilat otomatis.
             </p>
           </div>
 
           {/* Filter Categories Bar */}
-          <div className="category-tabs" id="steamCategoryTabs">
+          <div className="category-tabs" id="topupCategoryTabs">
             {categories.map((cat) => (
               <button
                 key={cat.id}
@@ -163,174 +259,148 @@ export default function TopUpPage({
             ))}
           </div>
 
-          {/* Product Grid Layout (Sama persis seperti Akun Premium) */}
+          {/* Product Grid Layout: 1 Steam Card + Layanan Top Up Lainnya */}
           <div className="product-grid" style={{ marginTop: '28px' }}>
-            {filteredKeys.map((pkg) => (
+            {filteredServices.map((svc) => (
               <div
-                key={pkg.id}
-                className="product-card has-banner"
-                onClick={() => handleOpenKeyModal(pkg.id)}
+                key={svc.id}
+                className={`product-card ${svc.image ? 'has-banner' : ''} ${svc.isComingSoon ? 'card-unreleased' : ''}`}
+                onClick={() => handleCardClick(svc)}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="card-top-bar">
                   <div className="card-top-left">
-                    <span className="product-category-pill" style={{ margin: 0 }}>
-                      <i className="fa-brands fa-steam"></i> STEAM
+                    <span
+                      className="product-category-pill"
+                      style={{
+                        margin: 0,
+                        background: svc.isSteamMenuTrigger ? 'rgba(102, 192, 244, 0.18)' : undefined,
+                        color: svc.isSteamMenuTrigger ? '#66c0f4' : undefined,
+                        borderColor: svc.isSteamMenuTrigger ? 'rgba(102, 192, 244, 0.35)' : undefined
+                      }}
+                    >
+                      <i className={svc.isSteamMenuTrigger ? 'fa-brands fa-steam' : 'fa-solid fa-gamepad'}></i>{' '}
+                      {svc.category.toUpperCase()}
                     </span>
                   </div>
-                  <span className={`badge-status ${pkg.badgeClass}`}>{pkg.badge}</span>
+                  <span className={`badge-status ${svc.badgeClass}`}>{svc.badge}</span>
                 </div>
 
-                {/* Banner Image Steam Sesuai Judul / Paket */}
-                <div className="product-banner-wrap">
-                  <img
-                    src={`/${pkg.image || 'steam.png'}`}
-                    alt={pkg.name}
-                    className="product-banner-img"
-                    loading="lazy"
-                  />
-                  <div className="product-banner-overlay">
-                    <span className="product-category-pill">STEAM KEY RESMI</span>
-                    <h3 className="product-banner-title">{pkg.name}</h3>
+                {/* Banner Image / Icon Wrap */}
+                {svc.image ? (
+                  <div className="product-banner-wrap">
+                    <img
+                      src={`/${svc.image}`}
+                      alt={svc.name}
+                      className="product-banner-img"
+                      loading="lazy"
+                    />
+                    <div className="product-banner-overlay">
+                      <span className="product-category-pill">LAYANAN RESMI</span>
+                      <h3 className="product-banner-title">{svc.name}</h3>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="product-info" style={{ padding: '24px 20px 10px' }}>
+                    <div
+                      className="product-icon-wrap"
+                      style={{
+                        color: svc.iconColor || '#38bdf8',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        marginBottom: '12px'
+                      }}
+                    >
+                      <i className={svc.icon || 'fa-solid fa-gamepad'}></i>
+                    </div>
+                    <span className="product-category">{svc.category.toUpperCase()}</span>
+                    <h3 className="product-title">{svc.name}</h3>
+                  </div>
+                )}
 
                 {/* Fitur / Deskripsi */}
                 <ul className="product-banner-features" style={{ margin: '14px 0 10px' }}>
-                  <li>
-                    <i className="fa-solid fa-circle-check"></i>
-                    <span>{pkg.desc}</span>
-                  </li>
-                  <li>
-                    <i className="fa-solid fa-circle-check"></i>
-                    <span>Aktivasi Global Permanen di Library Steam</span>
-                  </li>
-                  <li>
-                    <i className="fa-solid fa-circle-check"></i>
-                    <span>100% Legal & Bergaransi Kode Valid</span>
-                  </li>
+                  {svc.features.map((feat, idx) => (
+                    <li key={idx}>
+                      <i className={`fa-solid fa-circle-check ${svc.isSteamMenuTrigger ? 'text-cyan' : 'text-emerald'}`}></i>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
                 </ul>
 
-                {/* Indikator Sisa Stok (Gaya Marketing Badge) */}
-                <div className="card-stock-marketing stock-status-available">
+                {/* Indikator Sisa Stok */}
+                <div className={`card-stock-marketing ${svc.stock > 0 ? 'stock-status-available' : 'stock-status-sealed'}`}>
                   <div className="stock-mkt-left">
-                    <i className="fa-solid fa-bolt-lightning text-emerald"></i>
-                    <span className="stock-mkt-label">Sisa Stok:</span>
+                    <i className={`fa-solid ${svc.stock > 0 ? 'fa-bolt-lightning text-emerald' : 'fa-clock text-warning'}`}></i>
+                    <span className="stock-mkt-label">{svc.stock > 0 ? 'Status Layanan:' : 'Status:'}</span>
                   </div>
-                  <span className="stock-mkt-badge badge-available">
-                    <strong>50</strong> Akun
+                  <span className={`stock-mkt-badge ${svc.stock > 0 ? 'badge-available' : 'badge-sealed'}`}>
+                    {svc.stock > 0 ? <strong>Ready Stock</strong> : 'Segera Hadir'}
                   </span>
                 </div>
 
                 {/* Price Box */}
                 <div className="product-price-box">
                   <div>
-                    <span className="price-label">Harga Satuan</span>
-                    <div className="current-price">{formatRupiah(pkg.price)}</div>
+                    <span className="price-label">Harga</span>
+                    <div className="current-price" style={{ color: svc.isSteamMenuTrigger ? '#66c0f4' : undefined }}>
+                      {svc.priceNote ? svc.priceNote : formatRupiah(svc.price)}
+                    </div>
                   </div>
-                  <span className="price-unit">/ {pkg.unit}</span>
+                  <span className="price-unit">{svc.stock > 0 ? `/ ${svc.unit}` : ''}</span>
                 </div>
 
-                {/* Action Button: Khusus Tombol Beli Langsung (Tanpa Keranjang) */}
+                {/* Action Button: Buka Menu Steam atau Segera Hadir */}
                 <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => handleOpenKeyModal(pkg.id)}
-                  >
-                    <i className="fa-solid fa-bag-shopping"></i> Beli
-                  </button>
+                  {svc.isSteamMenuTrigger ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)',
+                        borderColor: '#38bdf8',
+                        gap: '8px'
+                      }}
+                      onClick={() => handleCardClick(svc)}
+                    >
+                      <i className="fa-brands fa-steam"></i>
+                      <span>Buka Menu Steam</span>
+                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '4px' }}></i>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sealed"
+                      style={{
+                        width: '100%',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                        color: '#fbbf24',
+                        fontWeight: 700
+                      }}
+                      onClick={() => handleCardClick(svc)}
+                    >
+                      <i className="fa-solid fa-clock"></i> Segera Hadir
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          {filteredKeys.length === 0 && (
+          {filteredServices.length === 0 && (
             <div className="empty-state">
               <i className="fa-solid fa-gamepad"></i>
-              <h3>Paket Top Up Tidak Ditemukan</h3>
-              <p>Coba pilih kategori lain atau tampilkan semua varian top up.</p>
+              <h3>Layanan Top Up Tidak Ditemukan</h3>
+              <p>Coba pilih kategori lain atau tampilkan semua layanan top up.</p>
               <button className="btn btn-outline" onClick={() => setActiveCategory('all')}>
-                Tampilkan Semua Varian
+                Tampilkan Semua Layanan
               </button>
             </div>
           )}
         </div>
       </section>
-
-      {/* 3. Panduan Cara Redeem Steam Key dengan Background Banner AI */}
-      <section className="topup-faq-section topup-guide-hero-banner">
-        <div className="topup-guide-bg-wrap">
-          <img
-            src="/guide-banner.svg"
-            alt="Panduan Aktivasi Steam Key ChaizStore"
-            className="topup-guide-bg-banner"
-            loading="lazy"
-            onError={(e) => {
-              if (!e.currentTarget.src.endsWith('.jpg')) {
-                e.currentTarget.src = '/guide-banner.jpg';
-              }
-            }}
-          />
-          <div className="topup-guide-overlay"></div>
-        </div>
-
-        <div className="container" style={{ position: 'relative', zIndex: 2 }}>
-          <div className="section-title text-center">
-            <span className="subheading">
-              <i className="fa-solid fa-circle-question"></i> PANDUAN PENGGUNA
-            </span>
-            <h2>
-              Cara Aktivasi Steam Key <span>di PC / Laptop</span>
-            </h2>
-            <p>Panduan mudah dan cepat untuk me-redeem kode game Steam resmi yang Anda beli di ChaizStore.</p>
-          </div>
-
-          <div className="topup-steps-grid" style={{ marginTop: '32px' }}>
-            <div className="step-card">
-              <span className="step-num">1</span>
-              <div>
-                <strong>Buka Aplikasi Steam</strong>
-                <small>Login ke akun Steam Anda di PC atau Laptop.</small>
-              </div>
-            </div>
-            <div className="step-card">
-              <span className="step-num">2</span>
-              <div>
-                <strong>Klik Menu "Add a Game"</strong>
-                <small>Terletak di pojok kiri bawah layar aplikasi Steam.</small>
-              </div>
-            </div>
-            <div className="step-card">
-              <span className="step-num">3</span>
-              <div>
-                <strong>Pilih "Activate a Product"</strong>
-                <small>Klik opsi "Activate a Product on Steam...".</small>
-              </div>
-            </div>
-            <div className="step-card">
-              <span className="step-num">4</span>
-              <div>
-                <strong>Masukkan Kode Steam Key</strong>
-                <small>Ketik kode dari Admin ChaizStore & game siap di-download!</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Modal Khusus Pembelian Steam Key */}
-      <SteamKeyModal
-        isOpen={isSteamModalOpen}
-        onClose={() => setIsSteamModalOpen(false)}
-        initialKeyId={modalKeyId}
-        authUser={authUser}
-        isBanned={isBanned}
-        onOpenLogin={onOpenLogin}
-        onOpenBannedModal={onOpenBannedModal}
-        onShowToast={onShowToast}
-      />
     </div>
   );
 }

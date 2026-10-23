@@ -12,6 +12,7 @@ import Footer from './components/Footer';
 import ProductModal from './components/ProductModal';
 import TopUpModal from './components/TopUpModal';
 import TopUpPage from './components/TopUpPage';
+import SteamPage from './components/SteamPage';
 import TransactionsPage from './components/TransactionsPage';
 import CheckoutModal from './components/CheckoutModal';
 import CartDrawer from './components/CartDrawer';
@@ -76,15 +77,19 @@ export default function App() {
   const [currentCategory, setCurrentCategory] = useState('all');
   const [highlightedProductId, setHighlightedProductId] = useState(null);
 
-  // Active View Tab: 'store' (Akun Premium) | 'topup' (Halaman Baru Khusus Top Up)
+  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'transaksi'
   const [activeTab, setActiveTab] = useState(() => {
-    return window.location.hash === '#topup' ? 'topup' : 'store';
+    if (window.location.hash === '#steam') return 'steam';
+    if (window.location.hash === '#topup') return 'topup';
+    return 'store';
   });
 
   // Listen to hash change (back/forward button, links)
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#topup') {
+      if (window.location.hash === '#steam') {
+        setActiveTab('steam');
+      } else if (window.location.hash === '#topup') {
         setActiveTab('topup');
       } else {
         setActiveTab('store');
@@ -96,16 +101,26 @@ export default function App() {
 
   const handleSwitchTab = (tab) => {
     setActiveTab(tab);
-    if (tab === 'topup') {
+    if (tab === 'steam') {
+      if (window.location.hash !== '#steam') {
+        window.location.hash = 'steam';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_STEAM', 'Membuka menu Steam Key Game Resmi');
+      }
+    } else if (tab === 'topup') {
       if (window.location.hash !== '#topup') {
         window.location.hash = 'topup';
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       if (authUser) {
-        recordUserActivity(authUser, 'VIEW_TOPUP', 'Membuka menu Top Up Steam Wallet');
+        recordUserActivity(authUser, 'VIEW_TOPUP', 'Membuka menu Top Up Akun & Games');
       }
+    } else if (tab === 'transaksi') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      if (window.location.hash === '#topup') {
+      if (window.location.hash === '#topup' || window.location.hash === '#steam') {
         history.pushState('', document.title, window.location.pathname + window.location.search);
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -613,9 +628,20 @@ export default function App() {
       />
 
       <main>
-        {activeTab === 'topup' ? (
+        {activeTab === 'steam' ? (
+          <SteamPage
+            onBackToTopUp={() => handleSwitchTab('topup')}
+            onBackToStore={() => handleSwitchTab('store')}
+            onShowToast={showToast}
+            authUser={authUser}
+            isBanned={isCurrentBanned}
+            onOpenLogin={() => setIsLoginOpen(true)}
+            onOpenBannedModal={() => setIsBannedModalOpen(true)}
+          />
+        ) : activeTab === 'topup' ? (
           <TopUpPage
             onBackToStore={() => handleSwitchTab('store')}
+            onOpenSteamMenu={() => handleSwitchTab('steam')}
             onShowToast={showToast}
             authUser={authUser}
             isBanned={isCurrentBanned}
@@ -643,7 +669,14 @@ export default function App() {
                 setSearchQuery('');
                 setCurrentCategory('all');
               }}
-              onOpenProductModal={(prod) => setModalProduct(prod)}
+              onOpenProductModal={(prod) => {
+                if (prod.isSteamSpecial) {
+                  handleSwitchTab('steam');
+                } else {
+                  setModalProduct(prod);
+                }
+              }}
+              onOpenSteamMenu={() => handleSwitchTab('steam')}
               onShowToast={showToast}
               highlightedProductId={highlightedProductId}
             />

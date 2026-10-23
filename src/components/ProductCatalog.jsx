@@ -9,7 +9,8 @@ export default function ProductCatalog({
   onResetSearch,
   onOpenProductModal,
   onShowToast,
-  highlightedProductId
+  highlightedProductId,
+  onOpenSteamMenu
 }) {
   const categories = [
     { id: 'all', label: 'Semua Akun', icon: 'fa-border-all' },
@@ -76,6 +77,7 @@ export default function ProductCatalog({
                 onOpenModal={onOpenProductModal}
                 onShowToast={onShowToast}
                 isHighlighted={highlightedProductId === product.id}
+                onOpenSteamMenu={onOpenSteamMenu}
               />
             ))}
           </div>

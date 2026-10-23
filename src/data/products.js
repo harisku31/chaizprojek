@@ -387,5 +387,35 @@ export const PRODUCTS = [
       { id: "1m", name: "1 Bulan Super", price: 10000, warranty: "1 Bulan", tag: "Hemat" },
       { id: "12m-redeem", name: "12 Bulan (Link Redeem)", price: 19000, warranty: "12 Bulan", tag: "Best Deal" }
     ]
+  },
+  {
+    id: "steam-key-center",
+    name: "Steam Key Game Resmi Valve",
+    category: "utility",
+    icon: "fa-brands fa-steam",
+    iconColor: "#66c0f4",
+    image: "steam.png",
+    stock: 50,
+    warranty: "Kode Valid 100%",
+    badge: "4 Varian Paket",
+    badgeClass: "badge-bestseller",
+    isFlashSale: false,
+    oldPrice: 5000,
+    currentPrice: 1500,
+    priceNote: "Mulai Rp 1.500",
+    isSteamSpecial: true,
+    features: [
+      "Pilihan: Original, Epic Tier, NSFW 18+, Hanimetai",
+      "Garansi: Kode Original Valid & Berlisensi",
+      "Aktivasi Global Permanen di Library Steam",
+      "Bisa Dimainkan di PC / Laptop Sepuasnya",
+      "Proses Kilat 1-3 Menit Otomatis ke WhatsApp"
+    ],
+    durations: [
+      { id: "original", name: "Original Key", price: 1500, warranty: "Valid 100%", tag: "Termurah" },
+      { id: "epic", name: "Epic Tier", price: 3500, warranty: "Valid 100%", tag: "Populer" },
+      { id: "nsfw", name: "NSFW 18+", price: 3500, warranty: "Valid 100%", tag: "Dewasa" },
+      { id: "hanimentai", name: "Hanimetai", price: 3500, warranty: "Valid 100%", tag: "Anime" }
+    ]
   }
 ];
