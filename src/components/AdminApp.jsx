@@ -2878,8 +2878,13 @@ export default function AdminApp() {
                                 <i className="fa-solid fa-user-circle text-cyan"></i> {order.customerName || 'Pelanggan'}
                               </strong>
                               {order.customerUsername && order.customerUsername !== '-' && (
-                                <span className="customer-sub-text customer-username-pill">
-                                  <i className="fa-solid fa-at text-purple"></i> {order.customerUsername}
+                                <span className="customer-sub-text customer-username-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                  {order.customerRobloxAvatar ? (
+                                    <img src={order.customerRobloxAvatar} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #38bdf8' }} />
+                                  ) : (
+                                    <i className="fa-solid fa-at text-purple"></i>
+                                  )}
+                                  {order.customerUsername}
                                 </span>
                               )}
                               {(() => {
@@ -4149,7 +4154,14 @@ export default function AdminApp() {
                             <span className="customer-tile-label">
                               <i className="fa-solid fa-id-badge text-purple"></i> Username:
                             </span>
-                            <div className="customer-tile-content">
+                            <div className="customer-tile-content" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {selectedOrderForFulfill.customerRobloxAvatar && (
+                                <img
+                                  src={selectedOrderForFulfill.customerRobloxAvatar}
+                                  alt=""
+                                  style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #38bdf8', objectFit: 'cover' }}
+                                />
+                              )}
                               <strong className="customer-tile-val">{selectedOrderForFulfill.customerUsername}</strong>
                               <button
                                 type="button"

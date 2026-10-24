@@ -539,8 +539,16 @@ export default function TransactionsPage({
 
                     <div className="trx-card-body">
                       <div className="trx-product-info">
-                        <div className="trx-product-icon">
-                          <i className={`fa-solid ${isRejected ? 'fa-triangle-exclamation text-danger' : 'fa-crown text-warning'}`}></i>
+                        <div className="trx-product-icon" style={trx.customerRobloxAvatar ? { padding: 0, background: 'transparent' } : {}}>
+                          {trx.customerRobloxAvatar ? (
+                            <img
+                              src={trx.customerRobloxAvatar}
+                              alt="Roblox Avatar"
+                              style={{ width: '42px', height: '42px', borderRadius: '50%', border: '2px solid #38bdf8', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <i className={`fa-solid ${isRejected ? 'fa-triangle-exclamation text-danger' : 'fa-crown text-warning'}`}></i>
+                          )}
                         </div>
                         <div className="trx-product-details">
                           <h3 className="trx-prod-name">{trx.productName}</h3>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/format';
 import { PAYMENT_INFO } from '../data/config';
 import { createTransaction, getUserKey } from '../utils/transactions';
+import { fetchRobloxProfile } from '../utils/roblox';
 
 export const ROBUX_PACKAGES = [
   {
@@ -84,6 +85,9 @@ export default function RobloxBuyModal({
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(initialPackageId);
   const [robloxUsername, setRobloxUsername] = useState('');
+  const [robloxProfile, setRobloxProfile] = useState(null);
+  const [isSearchingProfile, setIsSearchingProfile] = useState(false);
+  const [searchError, setSearchError] = useState(null);
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [buyerWa, setBuyerWa] = useState('');
@@ -103,13 +107,54 @@ export default function RobloxBuyModal({
         setBuyerName(authUser.name || '');
         setBuyerEmail(authUser.email || '');
         setBuyerWa(authUser.phone || '');
-        // Biarkan robloxUsername kosong atau autofill jika belum diisi
         if (!robloxUsername) {
           setRobloxUsername(authUser.username || '');
         }
       }
+    } else {
+      setRobloxProfile(null);
+      setSearchError(null);
+      setIsSearchingProfile(false);
     }
   }, [isOpen, initialPackageId, authUser]);
+
+  // Live Roblox Player Profile Lookup Debounce (450ms)
+  useEffect(() => {
+    let cleanUser = robloxUsername.trim();
+    if (cleanUser.startsWith('@')) {
+      cleanUser = cleanUser.substring(1).trim();
+    }
+
+    if (!cleanUser || cleanUser.length < 3) {
+      setRobloxProfile(null);
+      setSearchError(null);
+      setIsSearchingProfile(false);
+      return;
+    }
+
+    setIsSearchingProfile(true);
+    setSearchError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const result = await fetchRobloxProfile(cleanUser);
+        setIsSearchingProfile(false);
+        if (result && result.found && result.user) {
+          setRobloxProfile(result.user);
+          setSearchError(null);
+        } else {
+          setRobloxProfile(null);
+          setSearchError(result?.message || `Akun Roblox "${cleanUser}" tidak ditemukan.`);
+        }
+      } catch (err) {
+        setIsSearchingProfile(false);
+        setRobloxProfile(null);
+        setSearchError('Gagal memeriksa profil Roblox. Periksa koneksi internet.');
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [robloxUsername]);
 
   if (!isOpen) return null;
 
@@ -243,7 +288,9 @@ export default function RobloxBuyModal({
       const newTrx = createTransaction({
         productId: 'roblox-' + currentPkg.id,
         productName: `Roblox Robux ${currentPkg.name} (${currentPkg.symbol})`,
-        productDuration: `Username: ${cleanRobloxUser}`,
+        productDuration: robloxProfile
+          ? `Robux ${currentPkg.symbol} • ${cleanRobloxUser} (ID: ${robloxProfile.id})`
+          : `Robux ${currentPkg.symbol} • ${cleanRobloxUser}`,
         productCategory: 'Top Up Game',
         price: currentPkg.price,
         qty: 1,
@@ -251,6 +298,10 @@ export default function RobloxBuyModal({
         userId: finalUserId,
         userEmail: finalEmail !== '-' ? finalEmail : null,
         customerUsername: cleanRobloxUser,
+        customerRobloxAvatar: robloxProfile?.avatarUrl || null,
+        customerRobloxFullAvatar: robloxProfile?.avatarFullUrl || null,
+        customerRobloxDisplayName: robloxProfile?.displayName || null,
+        customerRobloxId: robloxProfile?.id || null,
         customerName: name,
         customerEmail: finalEmail,
         customerPhone: wa,
@@ -262,7 +313,7 @@ export default function RobloxBuyModal({
       });
 
       onShowToast?.(
-        `🎉 Pesanan Robux #${newTrx.id} berhasil dibuat! Admin segera memproses saldo ke username: ${cleanRobloxUser}`,
+        `🎉 Pesanan Robux #${newTrx.id} berhasil dibuat! Admin segera memproses saldo ke akun @${cleanRobloxUser}`,
         'fa-circle-check text-success'
       );
 
@@ -272,6 +323,11 @@ export default function RobloxBuyModal({
         ``,
         `🎮 *Paket Robux:* ${currentPkg.name} (${currentPkg.symbol})`,
         `👤 *Username Roblox:* *${cleanRobloxUser}*`,
+        robloxProfile?.displayName && robloxProfile.displayName !== cleanRobloxUser
+          ? `🏷️ *Display Name:* ${robloxProfile.displayName}`
+          : '',
+        robloxProfile?.id ? `🆔 *Roblox User ID:* ${robloxProfile.id}` : '',
+        robloxProfile?.avatarUrl ? `🖼️ *Avatar Headshot:* ${robloxProfile.avatarUrl}` : '',
         `💰 *Total Tagihan:* *${formatRupiah(totalPrice)}*`,
         `💳 *Metode Bayar:* ${paymentName}`,
         ``,
@@ -281,8 +337,10 @@ export default function RobloxBuyModal({
         `• Email: ${email}`,
         `• ID Pesanan: #${newTrx.id}`,
         ``,
-        `Halo Admin ChaizStore, saya sudah melakukan pembayaran dan melampirkan bukti transfer untuk pengisian Robux ke username Roblox saya di atas. Mohon segera diproses ya kak!`
-      ].join('\n');
+        `Halo Admin ChaizStore, saya sudah melakukan pembayaran dan melampirkan bukti transfer untuk pengisian Robux ke akun Roblox saya di atas. Profil avatar sudah saya pastikan benar. Mohon segera diproses ya kak!`
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       const waUrl = `https://wa.me/6281809730331?text=${encodeURIComponent(waText)}`;
 
@@ -396,30 +454,43 @@ export default function RobloxBuyModal({
               marginBottom: '22px'
             }}
           >
-            <label className="steam-field-label" style={{ display: 'block', marginBottom: '6px', color: '#ffffff' }}>
-              <i className="fa-solid fa-user-ninja text-cyan" style={{ marginRight: '6px' }}></i>
-              <strong>Username Roblox Kamu (Wajib):</strong>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label className="steam-field-label" style={{ display: 'block', margin: 0, color: '#ffffff' }}>
+                <i className="fa-solid fa-user-ninja text-cyan" style={{ marginRight: '6px' }}></i>
+                <strong>Username Roblox Kamu (Wajib):</strong>
+              </label>
+              {robloxProfile && (
+                <span style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>
+                  <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i> Terverifikasi
+                </span>
+              )}
+            </div>
+
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
                 className="form-control"
-                placeholder="Contoh: player_roblox123"
+                placeholder="Ketik username Roblox kamu (cth: player123)"
                 value={robloxUsername}
                 onChange={(e) => setRobloxUsername(e.target.value)}
                 required
                 style={{
                   width: '100%',
-                  padding: '12px 14px 12px 42px',
+                  padding: '12px 42px 12px 42px',
                   borderRadius: '10px',
                   background: 'rgba(0, 0, 0, 0.65)',
-                  border: '1.5px solid rgba(56, 189, 248, 0.4)',
+                  border: robloxProfile
+                    ? '1.5px solid #10b981'
+                    : searchError
+                    ? '1.5px solid #ef4444'
+                    : '1.5px solid rgba(56, 189, 248, 0.4)',
                   color: '#ffffff',
                   fontSize: '15px',
                   fontWeight: 600,
                   letterSpacing: '0.5px'
                 }}
               />
+              {/* Icon kiri: @ */}
               <span
                 style={{
                   position: 'absolute',
@@ -432,8 +503,168 @@ export default function RobloxBuyModal({
               >
                 <i className="fa-solid fa-at"></i>
               </span>
+
+              {/* Status icon kanan */}
+              <span
+                style={{
+                  position: 'absolute',
+                  right: '14px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: '16px'
+                }}
+              >
+                {isSearchingProfile ? (
+                  <i className="fa-solid fa-spinner fa-spin text-cyan"></i>
+                ) : robloxProfile ? (
+                  <i className="fa-solid fa-circle-check text-emerald"></i>
+                ) : searchError ? (
+                  <i className="fa-solid fa-circle-xmark text-danger"></i>
+                ) : null}
+              </span>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+
+            {/* Status Searching */}
+            {isSearchingProfile && (
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '9px 13px',
+                  borderRadius: '10px',
+                  background: 'rgba(2, 132, 199, 0.18)',
+                  border: '1px dashed rgba(56, 189, 248, 0.55)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  color: '#38bdf8',
+                  fontSize: '12.5px'
+                }}
+              >
+                <i className="fa-solid fa-spinner fa-spin"></i>
+                <span>Sedang mencari profil avatar Roblox <strong>@{robloxUsername}</strong>...</span>
+              </div>
+            )}
+
+            {/* Profile Avatar Card Ketika Ditemukan */}
+            {robloxProfile && !isSearchingProfile && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '13px 15px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(2, 132, 199, 0.2) 100%)',
+                  border: '1.5px solid rgba(16, 185, 129, 0.6)',
+                  boxShadow: '0 8px 24px -6px rgba(16, 185, 129, 0.25)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <img
+                      src={robloxProfile.avatarUrl || robloxProfile.avatarFullUrl || '/roblox.png'}
+                      alt={robloxProfile.name}
+                      style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        border: '2.5px solid #10b981',
+                        background: '#0b1329',
+                        objectFit: 'cover',
+                        boxShadow: '0 0 16px rgba(16, 185, 129, 0.5)'
+                      }}
+                      onError={(e) => {
+                        if (robloxProfile.avatarFullUrl && e.target.src !== robloxProfile.avatarFullUrl) {
+                          e.target.src = robloxProfile.avatarFullUrl;
+                        } else {
+                          e.target.src = '/roblox.png';
+                        }
+                      }}
+                    />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        right: '-2px',
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: '#10b981',
+                        color: '#ffffff',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px solid #0f172a'
+                      }}
+                    >
+                      <i className="fa-solid fa-check"></i>
+                    </span>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.3px' }}>
+                        {robloxProfile.displayName || robloxProfile.name}
+                      </span>
+                      {robloxProfile.hasVerifiedBadge && (
+                        <i className="fa-solid fa-certificate text-cyan" title="Roblox Verified" style={{ fontSize: '13px' }}></i>
+                      )}
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          padding: '2px 7px',
+                          borderRadius: '6px',
+                          background: 'rgba(16, 185, 129, 0.25)',
+                          color: '#34d399',
+                          border: '1px solid rgba(16, 185, 129, 0.4)'
+                        }}
+                      >
+                        Akun Ditemukan
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#93c5fd', marginTop: '2px', fontWeight: 600 }}>
+                      @{robloxProfile.name} • <span style={{ color: 'rgba(255,255,255,0.65)' }}>ID: {robloxProfile.id}</span>
+                    </div>
+
+                    <div style={{ fontSize: '11.5px', color: '#a7f3d0', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <i className="fa-solid fa-circle-check"></i>
+                      <span>Pastikan foto avatar ini beneran akun Roblox kamu ya!</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Not Found */}
+            {searchError && !isSearchingProfile && robloxUsername.trim().length >= 3 && (
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1.5px solid rgba(239, 68, 68, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  color: '#fca5a5',
+                  fontSize: '12.5px'
+                }}
+              >
+                <i className="fa-solid fa-triangle-exclamation text-danger" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+                <div>
+                  <strong>{searchError}</strong>
+                  <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.75)', marginTop: '2px' }}>
+                    Gunakan <strong>Username asli</strong> akun Roblox kamu (bukan Display Name) tanpa tanda spasi.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Catatan Bantuan */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
               <i className="fa-solid fa-shield-halved text-emerald"></i>
               <span>Cukup masukkan username akun Roblox kamu tanpa tanda @ dan <strong>tanpa password</strong>.</span>
             </div>

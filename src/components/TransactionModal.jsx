@@ -82,11 +82,45 @@ export default function TransactionModal({
                 <strong className="meta-val">{formattedDate} WIB</strong>
               </div>
               {transaction.customerUsername && transaction.customerUsername !== '-' && (
-                <div className="meta-item">
-                  <span className="meta-label">Username Roblox / Akun:</span>
-                  <strong className="meta-val text-purple" style={{ color: '#c084fc' }}>
-                    <i className="fa-solid fa-at"></i> {transaction.customerUsername}
-                  </strong>
+                <div
+                  className="meta-item"
+                  style={transaction.customerRobloxAvatar ? { gridColumn: '1 / -1', background: 'rgba(56, 189, 248, 0.08)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.3)' } : {}}
+                >
+                  <span className="meta-label">
+                    {transaction.customerRobloxAvatar ? 'Akun Roblox Penerima Robux:' : 'Username Roblox / Akun:'}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+                    {transaction.customerRobloxAvatar && (
+                      <img
+                        src={transaction.customerRobloxAvatar}
+                        alt={transaction.customerUsername}
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '50%',
+                          border: '2px solid #38bdf8',
+                          background: '#0b1329',
+                          objectFit: 'cover',
+                          boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)'
+                        }}
+                      />
+                    )}
+                    <div>
+                      <strong className="meta-val text-purple" style={{ color: '#38bdf8', fontSize: '14px', display: 'block' }}>
+                        <i className="fa-solid fa-at"></i> {transaction.customerUsername}
+                        {transaction.customerRobloxDisplayName && transaction.customerRobloxDisplayName !== transaction.customerUsername && (
+                          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', marginLeft: '6px', fontWeight: 500 }}>
+                            ({transaction.customerRobloxDisplayName})
+                          </span>
+                        )}
+                      </strong>
+                      {transaction.customerRobloxId && (
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+                          Roblox User ID: {transaction.customerRobloxId}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="meta-item">
