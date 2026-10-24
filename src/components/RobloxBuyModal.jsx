@@ -316,9 +316,10 @@ export default function RobloxBuyModal({
           <div
             className="trx-header-icon-wrap"
             style={{
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%)',
-              borderColor: 'rgba(56, 189, 248, 0.5)',
-              color: '#38bdf8'
+              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.3) 0%, rgba(56, 189, 248, 0.3) 100%)',
+              borderColor: 'rgba(56, 189, 248, 0.55)',
+              color: '#38bdf8',
+              boxShadow: '0 0 20px rgba(56, 189, 248, 0.25)'
             }}
           >
             <i className="fa-solid fa-cube"></i>
@@ -390,7 +391,7 @@ export default function RobloxBuyModal({
             style={{
               padding: '16px 18px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
+              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(56, 189, 248, 0.08) 100%)',
               border: '1.5px solid rgba(56, 189, 248, 0.45)',
               marginBottom: '22px'
             }}
@@ -722,14 +723,14 @@ export default function RobloxBuyModal({
               padding: '14px',
               fontSize: '15px',
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
+              background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
               borderColor: '#38bdf8',
               borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              boxShadow: '0 8px 24px rgba(6, 182, 212, 0.25)'
+              boxShadow: '0 8px 24px rgba(14, 165, 233, 0.35)'
             }}
           >
             {isSubmitting ? (
