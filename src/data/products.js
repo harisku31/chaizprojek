@@ -31,13 +31,13 @@ export const PRODUCTS = [
     icon: "fa-brands fa-youtube",
     iconColor: "#ef4444",
     image: "youtube.png",
-    stock: 5,
+    stock: 15,
     warranty: "1 Bulan",
     badge: "Terlaris",
     badgeClass: "badge-bestseller",
     isFlashSale: false,
     oldPrice: 15000,
-    currentPrice: 5000,
+    currentPrice: 6000,
     features: [
       "Durasi: 1 Bulan Penuh",
       "Garansi: 1 Bulan Penggantian",
@@ -46,7 +46,7 @@ export const PRODUCTS = [
       "Bisa di Akun Pribadi Kamu Sendiri"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 5000, warranty: "1 Bulan", tag: "Populer" }
+      { id: "1m", name: "1 Bulan", price: 6000, warranty: "1 Bulan", tag: "Populer" }
     ]
   },
   {
@@ -56,23 +56,22 @@ export const PRODUCTS = [
     icon: "fa-solid fa-scissors",
     iconColor: "#14b8a6",
     image: "capcut.png",
-    stock: 5,
+    stock: 10,
     warranty: "1 Bulan",
     badge: "Editor VIP",
     badgeClass: "badge-bestseller",
     isFlashSale: false,
-    oldPrice: 30000,
-    currentPrice: 10000,
+    oldPrice: 35000,
+    currentPrice: 21000,
     features: [
-      "Pilihan: 1 Bulan & 1 Bulan Akun Sendiri",
+      "Durasi: 1 Bulan Penuh",
       "Garansi: 1 Bulan Penggantian Penuh",
       "Semua Efek & Transisi VIP Terbuka",
       "Auto Caption ID & Ekspor 4K 60fps",
       "Bebas Watermark & Template VIP Lengkap"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 10000, warranty: "1 Bulan", tag: "Sharing / Standar" },
-      { id: "1m-own", name: "1 Bulan (Akun Sendiri)", price: 23000, warranty: "1 Bulan", tag: "Akun Sendiri" }
+      { id: "1m", name: "1 Bulan", price: 21000, warranty: "1 Bulan", tag: "VIP Pro" }
     ]
   },
   {
@@ -83,25 +82,23 @@ export const PRODUCTS = [
     iconColor: "#38bdf8",
     image: "gemini.png",
     stock: 20,
-    warranty: "1 Bulan / 1 Tahun / 18 Bulan",
+    warranty: "1 Bulan / 18 Bulan",
     badge: "AI Canggih",
     badgeClass: "badge-flash",
     isFlashSale: true,
     oldPrice: 75000,
-    currentPrice: 12000,
-    priceNote: "Pilihan Paket Murah",
+    currentPrice: 6000,
+    priceNote: "Pilihan 1 Bln & 18 Bln",
     features: [
-      "Pilihan: 1 Bulan / 1 Tahun / 18 Bulan",
-      "Garansi: 1 Bulan / 1 Tahun / 18 Bulan",
+      "Pilihan: 1 Bulan & 18 Bulan (Privat)",
+      "Garansi: Sesuai Pilihan Durasi Paket",
       "Akses Model Gemini 1.5 Pro & Ultra",
       "Penyimpanan Cloud Google One 2TB",
       "Bisa untuk Riset, Dokumen & Koding Cepat"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 12000, warranty: "1 Bulan", tag: "Hemat" },
-      { id: "1y", name: "1 Tahun", price: 35000, warranty: "1 Tahun", tag: "Populer" },
-      { id: "18m-inv", name: "18 Bulan (Invite)", price: 45000, warranty: "18 Bulan", tag: "Best Deal" },
-      { id: "18m-priv", name: "18 Bulan (Privat)", price: 19000, warranty: "18 Bulan", tag: "Promo Spesial" }
+      { id: "1m", name: "1 Bulan", price: 6000, warranty: "1 Bulan", tag: "Hemat" },
+      { id: "18m-priv", name: "18 Bulan (Privat)", price: 24000, warranty: "18 Bulan", tag: "Privat 2TB" }
     ]
   },
   {
@@ -137,13 +134,13 @@ export const PRODUCTS = [
     icon: "fa-solid fa-film",
     iconColor: "#f43f5e",
     image: "netflix.png",
-    stock: 10,
+    stock: 15,
     warranty: "1 Bulan",
     badge: "Via Profil",
     badgeClass: "badge-bestseller",
     isFlashSale: true,
-    oldPrice: 35000,
-    currentPrice: 16000,
+    oldPrice: 45000,
+    currentPrice: 25000,
     features: [
       "Durasi: 1 Bulan (Via Profil)",
       "Garansi: 1 Bulan Penuh Anti On-Hold",
@@ -152,7 +149,7 @@ export const PRODUCTS = [
       "Bisa Nonton di HP, Laptop, Tablet & TV"
     ],
     durations: [
-      { id: "1m-profile", name: "1 Bulan (Via Profil)", price: 16000, warranty: "1 Bulan", tag: "1 User 1 Profil" }
+      { id: "1m-profile", name: "1 Bulan (Via Profil)", price: 25000, warranty: "1 Bulan", tag: "1 User 1 Profil" }
     ]
   },
   {
@@ -213,22 +210,22 @@ export const PRODUCTS = [
     icon: "fa-solid fa-video",
     iconColor: "#eab308",
     image: "viu.png",
-    stock: 0,
+    stock: 2000,
     warranty: "1 Bulan",
-    badge: "Stok Kosong",
-    badgeClass: "badge-out-stock",
+    badge: "Ready 2000+",
+    badgeClass: "badge-bestseller",
     isFlashSale: false,
-    oldPrice: null,
-    currentPrice: 0,
+    oldPrice: 10000,
+    currentPrice: 3000,
     features: [
-      "Status: Stok Saat Ini Sedang Kosong",
-      "Durasi: 1 Bulan (Saat Restock)",
-      "Nonton Drama Korea & Asia Lengkap",
+      "Durasi: 1 Bulan Penuh",
+      "Garansi: 1 Bulan Penggantian Penuh",
+      "Nonton Drama Korea, Anime & Asia Lengkap",
       "Bebas Iklan & Subtitle Indonesia Resmi",
-      "Silakan Hubungi CS untuk Jadwal Restock"
+      "Kualitas Jernih Full HD di Semua Perangkat"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 0, warranty: "1 Bulan", tag: "Kosong", outOfStock: true }
+      { id: "1m", name: "1 Bulan", price: 3000, warranty: "1 Bulan", tag: "Populer" }
     ]
   },
   {

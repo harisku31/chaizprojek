@@ -18,14 +18,16 @@ export function initializeProductsDatabase() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Merge with default PRODUCTS to ensure any new fields exist
+        // Merge with default PRODUCTS to ensure any new fields exist & prices stay updated
         const merged = PRODUCTS.map((prod) => {
           const existing = parsed.find((p) => p.id === prod.id);
           if (existing) {
             return {
-              ...prod,
               ...existing,
-              stock: typeof existing.stock === 'number' ? existing.stock : prod.stock,
+              ...prod,
+              stock: prod.id === 'viu-prem' && prod.stock === 2000
+                ? 2000
+                : (typeof existing.stock === 'number' ? existing.stock : prod.stock),
               accounts: Array.isArray(existing.accounts) ? existing.accounts : []
             };
           }
@@ -427,15 +429,31 @@ export function initProductDatabaseFirebaseSync() {
         : Object.values(cloudProducts);
 
       if (parsedProducts && parsedProducts.length > 0) {
+        // Merge cloud products dengan base PRODUCTS catalog agar harga, paket & durasi selalu sinkron
+        const merged = PRODUCTS.map((prod) => {
+          const cloudItem = parsedProducts.find((cp) => cp && cp.id === prod.id);
+          if (cloudItem) {
+            return {
+              ...cloudItem,
+              ...prod,
+              stock: prod.id === 'viu-prem' && prod.stock === 2000
+                ? 2000
+                : (typeof cloudItem.stock === 'number' ? cloudItem.stock : prod.stock),
+              accounts: Array.isArray(cloudItem.accounts) ? cloudItem.accounts : []
+            };
+          }
+          return prod;
+        });
+
         isCloudProductSyncing = true;
-        localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(parsedProducts));
+        localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(merged));
         isCloudProductSyncing = false;
 
         // Beritahu Storefront pembeli & Admin portal
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('chaiz_stock_updated', {
-              detail: { reason: 'CLOUD_SYNC', products: parsedProducts }
+              detail: { reason: 'CLOUD_SYNC', products: merged }
             })
           );
         }
