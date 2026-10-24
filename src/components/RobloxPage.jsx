@@ -11,8 +11,6 @@ export default function RobloxPage({
   onOpenLogin,
   onOpenBannedModal
 }) {
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [isRobloxModalOpen, setIsRobloxModalOpen] = useState(false);
   const [modalPackageId, setModalPackageId] = useState('50r');
   const [pendingPackageId, setPendingPackageId] = useState(null);
@@ -24,31 +22,6 @@ export default function RobloxPage({
       setPendingPackageId(null);
     }
   }, [authUser, pendingPackageId]);
-
-  const categories = [
-    { id: 'all', label: 'Semua Paket Robux (6)', icon: 'fa-border-all' },
-    { id: 'hemat', label: 'Paket Hemat (50r - 200r)', icon: 'fa-piggy-bank' },
-    { id: 'sultan', label: 'Paket Sultan (300r - 500r)', icon: 'fa-crown' }
-  ];
-
-  const filteredPackages = ROBUX_PACKAGES.filter((pkg) => {
-    let matchCat = true;
-    if (activeCategory === 'hemat') {
-      matchCat = pkg.amount <= 200;
-    } else if (activeCategory === 'sultan') {
-      matchCat = pkg.amount >= 300;
-    }
-
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return matchCat;
-    return (
-      matchCat &&
-      (pkg.name.toLowerCase().includes(q) ||
-        pkg.symbol.toLowerCase().includes(q) ||
-        pkg.desc.toLowerCase().includes(q) ||
-        pkg.badge.toLowerCase().includes(q))
-    );
-  });
 
   const handleOpenBuyModal = (pkgId = '50r') => {
     if (isBanned) {
@@ -70,7 +43,7 @@ export default function RobloxPage({
 
   return (
     <div className="topup-page-container roblox-page-container">
-      {/* 1. Header Navigation Bar */}
+      {/* 1. Header Navigation Bar & Bright Vibrant Hero Banner */}
       <section className="topup-page-hero roblox-page-hero">
         <div className="topup-hero-bg-wrap">
           <img
@@ -78,7 +51,10 @@ export default function RobloxPage({
             alt="ChaizStore Roblox Center Banner"
             className="topup-hero-bg-banner"
             loading="eager"
-            style={{ objectPosition: 'center 20%', filter: 'brightness(0.35) saturate(1.2)' }}
+            style={{
+              objectPosition: 'center 28%',
+              filter: 'brightness(0.95) contrast(1.08) saturate(1.2)'
+            }}
             onError={(e) => {
               if (!e.currentTarget.src.endsWith('.jpg')) {
                 e.currentTarget.src = '/topup-banner.jpg';
@@ -88,7 +64,7 @@ export default function RobloxPage({
           <div
             className="topup-hero-overlay"
             style={{
-              background: 'linear-gradient(180deg, rgba(10, 10, 15, 0.75) 0%, rgba(10, 10, 15, 0.95) 100%)'
+              background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.4) 0%, rgba(15, 23, 42, 0.88) 100%)'
             }}
           ></div>
         </div>
@@ -117,9 +93,10 @@ export default function RobloxPage({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  borderRadius: '8px',
-                  borderColor: 'rgba(239, 68, 68, 0.4)',
-                  color: '#f87171'
+                  borderRadius: '10px',
+                  borderColor: 'rgba(56, 189, 248, 0.45)',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  color: '#38bdf8'
                 }}
               >
                 <i className="fa-solid fa-arrow-left"></i>
@@ -139,8 +116,8 @@ export default function RobloxPage({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  borderRadius: '8px',
-                  opacity: 0.85
+                  borderRadius: '10px',
+                  opacity: 0.9
                 }}
               >
                 <i className="fa-solid fa-house"></i>
@@ -149,7 +126,7 @@ export default function RobloxPage({
             )}
 
             <div className="topup-page-status-pill" style={{ marginLeft: 'auto' }}>
-              <span className="live-status-dot" style={{ background: '#ef4444', boxShadow: '0 0 10px #ef4444' }}></span>
+              <span className="live-status-dot" style={{ background: '#38bdf8', boxShadow: '0 0 12px #38bdf8' }}></span>
               <span>Layanan Robux Online 24 Jam</span>
             </div>
           </div>
@@ -159,20 +136,20 @@ export default function RobloxPage({
               <span
                 className="topup-hero-badge"
                 style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  borderColor: 'rgba(239, 68, 68, 0.45)',
-                  color: '#f87171'
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  borderColor: 'rgba(56, 189, 248, 0.45)',
+                  color: '#38bdf8'
                 }}
               >
-                <i className="fa-solid fa-cube text-danger"></i> CHAIZSTORE ROBLOX STORE
+                <i className="fa-solid fa-cube text-cyan"></i> CHAIZSTORE ROBLOX STORE
               </span>
-              <span className="badge-status badge-bestseller" style={{ fontSize: '11px', padding: '4px 10px' }}>
+              <span className="badge-status badge-bestseller" style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(168, 85, 247, 0.2)', borderColor: 'rgba(168, 85, 247, 0.4)', color: '#c084fc' }}>
                 Via Username Resmi
               </span>
             </div>
 
             <h1 className="topup-hero-title">
-              Pusat Robux Roblox <span style={{ color: '#ef4444' }}>Via Username</span>
+              Pusat Robux Roblox <span style={{ color: '#38bdf8' }}>Via Username</span>
             </h1>
             <p className="topup-hero-sub">
               Top up saldo Robux legal, cepat, dan aman 100%. Cukup masukkan <strong>Username Roblox kamu</strong> tanpa perlu password akun. Saldo Robux langsung masuk kilat (estimasi 1–5 menit) ke avatar kamu!
@@ -187,7 +164,7 @@ export default function RobloxPage({
                 </div>
               </div>
               <div className="topup-stat-item">
-                <i className="fa-solid fa-user-ninja text-danger"></i>
+                <i className="fa-solid fa-user-ninja text-cyan"></i>
                 <div>
                   <strong>Cukup Username</strong>
                   <small>Tanpa Password Akun</small>
@@ -212,57 +189,89 @@ export default function RobloxPage({
         </div>
       </section>
 
-      {/* 2. Special Aesthetic Robux Username Menu Card */}
-      <section style={{ padding: '28px 0 10px' }}>
-        <div className="container">
+      {/* 2. Menu Estetika Rapi Ke Bawah (Tanpa Tombol Beli Duplikat) */}
+      <section style={{ padding: '36px 0 48px' }}>
+        <div className="container" style={{ maxWidth: '820px' }}>
           <div
             className="roblox-aesthetic-board"
             style={{
-              background: 'linear-gradient(135deg, rgba(20, 10, 15, 0.95) 0%, rgba(30, 15, 20, 0.9) 100%)',
-              border: '1.5px solid rgba(239, 68, 68, 0.4)',
-              borderRadius: '16px',
-              padding: '24px 28px',
-              boxShadow: '0 12px 36px rgba(239, 68, 68, 0.12)',
+              background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 27, 75, 0.9) 100%)',
+              border: '1.5px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: '20px',
+              padding: '28px 32px',
+              boxShadow: '0 16px 48px rgba(56, 189, 248, 0.12)',
               position: 'relative',
               overflow: 'hidden'
             }}
           >
-            {/* Background Glow */}
+            {/* Background Glow Accents */}
             <div
               style={{
                 position: 'absolute',
-                top: '-50px',
-                right: '-50px',
-                width: '180px',
-                height: '180px',
-                background: 'radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, transparent 70%)',
+                top: '-40px',
+                right: '-40px',
+                width: '240px',
+                height: '240px',
+                background: 'radial-gradient(circle, rgba(168, 85, 247, 0.22) 0%, transparent 70%)',
+                pointerEvents: 'none'
+              }}
+            ></div>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-40px',
+                left: '-40px',
+                width: '200px',
+                height: '200px',
+                background: 'radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, transparent 70%)',
                 pointerEvents: 'none'
               }}
             ></div>
 
             {/* Aesthetic Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(239, 68, 68, 0.2)', paddingBottom: '16px', marginBottom: '18px' }}>
-              <div>
-                <div style={{ fontFamily: 'monospace', fontSize: '15px', color: '#fca5a5', letterSpacing: '0.5px', fontWeight: 600 }}>
+            <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '18px', marginBottom: '20px', position: 'relative', zIndex: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ fontFamily: 'monospace', fontSize: '18px', color: '#38bdf8', letterSpacing: '0.5px', fontWeight: 700 }}>
                   ㅤ ╭   ──┼─   ▴  robux username  .ⓘ ›
                 </div>
-                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
-                  Pilih nominal Robux yang kamu inginkan, lalu masukkan username akun Roblox kamu saat checkout.
-                </p>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span
+                    className="badge-status"
+                    style={{
+                      fontSize: '11px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      borderColor: 'rgba(16, 185, 129, 0.4)',
+                      color: '#34d399',
+                      padding: '4px 10px',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <i className="fa-solid fa-lock"></i> No Password Required
+                  </span>
+                  <span
+                    className="badge-status"
+                    style={{
+                      fontSize: '11px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      borderColor: 'rgba(56, 189, 248, 0.4)',
+                      color: '#38bdf8',
+                      padding: '4px 10px',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <i className="fa-solid fa-bolt"></i> Instant Order
+                  </span>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <span className="badge-status badge-guarantee" style={{ fontSize: '11px' }}>
-                  <i className="fa-solid fa-lock"></i> No Password Required
-                </span>
-                <span className="badge-status badge-flash" style={{ fontSize: '11px' }}>
-                  <i className="fa-solid fa-bolt"></i> Instant Order
-                </span>
-              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '14px', color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.5 }}>
+                Pilih nominal Robux yang kamu inginkan, lalu masukkan username akun Roblox kamu saat checkout.
+              </p>
             </div>
 
-            {/* Aesthetic Price Table Rows */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
+            {/* List Rapi Ke Bawah (Tanpa Tombol Beli Duplikat, 1 Baris Rapih) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', position: 'relative', zIndex: 2 }}>
               {ROBUX_PACKAGES.map((pkg) => (
                 <div
                   key={pkg.id}
@@ -271,235 +280,86 @@ export default function RobloxPage({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    padding: '16px 22px',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1.5px solid rgba(255, 255, 255, 0.08)',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.22s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
-                    e.currentTarget.style.borderColor = '#ef4444';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.background = 'linear-gradient(90deg, rgba(56, 189, 248, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)';
+                    e.currentTarget.style.borderColor = '#38bdf8';
+                    e.currentTarget.style.transform = 'translateX(6px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(56, 189, 248, 0.12)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <i className="fa-solid fa-cube text-danger" style={{ fontSize: '15px' }}></i>
-                    <span style={{ fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <i className="fa-solid fa-cube" style={{ color: '#38bdf8', fontSize: '16px' }}></i>
+                    <span style={{ fontFamily: 'monospace', fontSize: '15px', color: '#ffffff', fontWeight: 600 }}>
                       ㅤ╎  {pkg.decoSymbol}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <strong style={{ color: '#f87171', fontSize: '14px', fontFamily: 'monospace' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <strong style={{ color: '#fbbf24', fontSize: '16px', fontFamily: 'monospace', fontWeight: 700 }}>
                       ⦂ {formatRupiah(pkg.price)}
                     </strong>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
+                    <div
                       style={{
-                        padding: '4px 10px',
-                        fontSize: '11px',
-                        borderColor: '#ef4444',
-                        color: '#f87171',
-                        borderRadius: '6px'
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#38bdf8',
+                        fontSize: '12px'
                       }}
                     >
-                      Beli
-                    </button>
+                      <i className="fa-solid fa-arrow-right"></i>
+                    </div>
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Bottom Footer Hint */}
+            <div
+              style={{
+                marginTop: '22px',
+                paddingTop: '16px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px',
+                position: 'relative',
+                zIndex: 2
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>
+                <i className="fa-solid fa-circle-check text-cyan"></i>
+                <span>Klik nominal di atas untuk langsung mengisi username Roblox kamu!</span>
+              </div>
+              <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600 }}>
+                <i className="fa-solid fa-bolt"></i> Estimasi Proses 1-5 Menit
+              </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Katalog Kartu Robux Roblox */}
-      <section className="katalog-section" style={{ paddingTop: '20px' }}>
-        <div className="container">
-          <div className="section-title text-center">
-            <span className="subheading" style={{ color: '#f87171' }}>
-              <i className="fa-solid fa-cube"></i> DAFTAR NOMINAL ROBUX
-            </span>
-            <h2>Pilih Paket Robux Favorit Kamu</h2>
-            <p>
-              Tersedia paket <strong>50r, 100r, 200r, 300r, 400r, hingga 500r</strong> dengan harga termurah, proses langsung masuk ke username akun Roblox kamu!
-            </p>
-          </div>
-
-          {/* Filter Categories Bar */}
-          <div className="category-tabs" id="robloxCategoryTabs">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                className={`cat-btn ${activeCategory === cat.id ? 'active' : ''}`}
-                onClick={() => setActiveCategory(cat.id)}
-                style={{
-                  borderColor: activeCategory === cat.id ? '#ef4444' : undefined,
-                  background: activeCategory === cat.id ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' : undefined
-                }}
-              >
-                <i className={`fa-solid ${cat.icon}`}></i> {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Product Grid Layout (6 Paket Robux) */}
-          <div className="product-grid" style={{ marginTop: '28px' }}>
-            {filteredPackages.map((pkg) => (
-              <div
-                key={pkg.id}
-                className="product-card has-banner roblox-card"
-                onClick={() => handleOpenBuyModal(pkg.id)}
-                style={{
-                  cursor: 'pointer',
-                  border: '1.5px solid rgba(239, 68, 68, 0.25)',
-                  transition: 'all 0.25s ease'
-                }}
-              >
-                <div className="card-top-bar">
-                  <div className="card-top-left">
-                    <span
-                      className="product-category-pill"
-                      style={{
-                        margin: 0,
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        color: '#f87171',
-                        borderColor: 'rgba(239, 68, 68, 0.35)'
-                      }}
-                    >
-                      <i className="fa-solid fa-cube"></i> ROBUX
-                    </span>
-                  </div>
-                  <span className={`badge-status ${pkg.badgeClass}`}>{pkg.badge}</span>
-                </div>
-
-                {/* Banner / Visual Wrap */}
-                <div
-                  className="product-banner-wrap"
-                  style={{
-                    background: 'linear-gradient(135deg, #18080a 0%, #2a0e14 100%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 20px',
-                    position: 'relative'
-                  }}
-                >
-                  <img
-                    src="/roblox.png"
-                    alt={pkg.name}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      opacity: 0.18,
-                      filter: 'grayscale(30%)'
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: 'relative',
-                      zIndex: 2,
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(249, 115, 22, 0.3) 100%)',
-                      border: '1.5px solid rgba(239, 68, 68, 0.6)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '28px',
-                      color: '#ffffff',
-                      marginBottom: '10px',
-                      boxShadow: '0 0 20px rgba(239, 68, 68, 0.3)'
-                    }}
-                  >
-                    <i className="fa-solid fa-cube"></i>
-                  </div>
-                  <h3 style={{ position: 'relative', zIndex: 2, color: '#ffffff', fontSize: '20px', fontWeight: 800, margin: '0 0 2px' }}>
-                    {pkg.name}
-                  </h3>
-                  <span style={{ position: 'relative', zIndex: 2, color: '#fca5a5', fontSize: '13px', fontFamily: 'monospace' }}>
-                    {pkg.decoSymbol}
-                  </span>
-                </div>
-
-                {/* Features List */}
-                <ul className="product-banner-features" style={{ margin: '14px 0 10px', padding: '0 20px' }}>
-                  <li>
-                    <i className="fa-solid fa-circle-check text-danger"></i>
-                    <span>Cukup Username Roblox (No Password)</span>
-                  </li>
-                  <li>
-                    <i className="fa-solid fa-circle-check text-danger"></i>
-                    <span>Garansi Robux Resmi Masuk 100%</span>
-                  </li>
-                  <li>
-                    <i className="fa-solid fa-circle-check text-danger"></i>
-                    <span>Estimasi Kilat 1–5 Menit Proses</span>
-                  </li>
-                </ul>
-
-                {/* Status Stok */}
-                <div className="card-stock-marketing stock-status-available" style={{ margin: '0 20px 10px' }}>
-                  <div className="stock-mkt-left">
-                    <i className="fa-solid fa-bolt-lightning text-danger"></i>
-                    <span className="stock-mkt-label">Status:</span>
-                  </div>
-                  <span className="stock-mkt-badge badge-available" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
-                    <strong>Ready Stock</strong>
-                  </span>
-                </div>
-
-                {/* Price Box */}
-                <div className="product-price-box" style={{ padding: '0 20px 14px' }}>
-                  <div>
-                    <span className="price-label">Harga Satuan</span>
-                    <div className="current-price" style={{ color: '#f87171' }}>
-                      {formatRupiah(pkg.price)}
-                    </div>
-                  </div>
-                  <span className="price-unit">/ {pkg.symbol}</span>
-                </div>
-
-                {/* Action Button */}
-                <div className="card-actions" onClick={(e) => e.stopPropagation()} style={{ padding: '0 20px 20px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'center',
-                      background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
-                      borderColor: '#f87171',
-                      gap: '8px'
-                    }}
-                    onClick={() => handleOpenBuyModal(pkg.id)}
-                  >
-                    <i className="fa-solid fa-cube"></i>
-                    <span>Beli Robux ({formatRupiah(pkg.price)})</span>
-                    <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '4px' }}></i>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Modal Checkout Robux */}
+      {/* 3. Modal Checkout Robux */}
       <RobloxBuyModal
         isOpen={isRobloxModalOpen}
         onClose={() => setIsRobloxModalOpen(false)}

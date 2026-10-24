@@ -312,24 +312,24 @@ export default function RobloxBuyModal({
         </button>
 
         {/* Modal Header */}
-        <div className="modal-header-centered" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.25)', paddingBottom: '18px' }}>
+        <div className="modal-header-centered" style={{ borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '18px' }}>
           <div
             className="trx-header-icon-wrap"
             style={{
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(249, 115, 22, 0.25) 100%)',
-              borderColor: 'rgba(239, 68, 68, 0.5)',
-              color: '#f87171'
+              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%)',
+              borderColor: 'rgba(56, 189, 248, 0.5)',
+              color: '#38bdf8'
             }}
           >
             <i className="fa-solid fa-cube"></i>
           </div>
-          <span className="modal-tag" style={{ color: '#f87171' }}>
+          <span className="modal-tag" style={{ color: '#38bdf8' }}>
             TOP UP ROBUX VIA USERNAME RESMI
           </span>
           <h3 className="modal-title-centered" style={{ color: '#ffffff' }}>
             Checkout Saldo Robux Roblox
           </h3>
-          <p className="modal-desc" style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>
+          <p className="modal-desc" style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
             Isi saldo Robux legal dan bergaransi 100%. Cukup masukkan username akun Roblox kamu tanpa butuh password!
           </p>
         </div>
@@ -340,9 +340,9 @@ export default function RobloxBuyModal({
           <div className="steam-selector-section" style={{ marginBottom: '22px' }}>
             <label className="steam-field-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>
-                <i className="fa-solid fa-cube text-danger"></i> <strong>Pilih Jumlah Robux:</strong>
+                <i className="fa-solid fa-cube text-cyan"></i> <strong>Pilih Jumlah Robux:</strong>
               </span>
-              <span style={{ fontSize: '12px', color: '#f87171', fontFamily: 'monospace' }}>
+              <span style={{ fontSize: '12px', color: '#38bdf8', fontFamily: 'monospace' }}>
                 {currentPkg.decoSymbol}
               </span>
             </label>
@@ -359,8 +359,8 @@ export default function RobloxBuyModal({
                     style={{
                       padding: '12px 10px',
                       borderRadius: '10px',
-                      background: isSelected ? 'rgba(239, 68, 68, 0.16)' : 'rgba(255, 255, 255, 0.04)',
-                      border: `1.5px solid ${isSelected ? '#ef4444' : 'rgba(255, 255, 255, 0.08)'}`,
+                      background: isSelected ? 'rgba(56, 189, 248, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                      border: `1.5px solid ${isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}`,
                       textAlign: 'center',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
@@ -370,11 +370,11 @@ export default function RobloxBuyModal({
                     <div style={{ fontSize: '14px', fontWeight: 700, color: isSelected ? '#ffffff' : 'rgba(255,255,255,0.9)' }}>
                       {pkg.name}
                     </div>
-                    <div style={{ fontSize: '12px', color: isSelected ? '#fca5a5' : '#ef4444', fontWeight: 600, marginTop: '2px' }}>
+                    <div style={{ fontSize: '12px', color: isSelected ? '#fbbf24' : '#38bdf8', fontWeight: 700, marginTop: '2px' }}>
                       {formatRupiah(pkg.price)}
                     </div>
                     {isSelected && (
-                      <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', color: '#ef4444' }}>
+                      <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', color: '#38bdf8' }}>
                         <i className="fa-solid fa-circle-check"></i>
                       </span>
                     )}
@@ -390,13 +390,13 @@ export default function RobloxBuyModal({
             style={{
               padding: '16px 18px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(249, 115, 22, 0.08) 100%)',
-              border: '1.5px solid rgba(239, 68, 68, 0.45)',
+              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
+              border: '1.5px solid rgba(56, 189, 248, 0.45)',
               marginBottom: '22px'
             }}
           >
             <label className="steam-field-label" style={{ display: 'block', marginBottom: '6px', color: '#ffffff' }}>
-              <i className="fa-solid fa-user-ninja text-danger" style={{ marginRight: '6px' }}></i>
+              <i className="fa-solid fa-user-ninja text-cyan" style={{ marginRight: '6px' }}></i>
               <strong>Username Roblox Kamu (Wajib):</strong>
             </label>
             <div style={{ position: 'relative' }}>
@@ -412,7 +412,7 @@ export default function RobloxBuyModal({
                   padding: '12px 14px 12px 42px',
                   borderRadius: '10px',
                   background: 'rgba(0, 0, 0, 0.65)',
-                  border: '1.5px solid rgba(239, 68, 68, 0.4)',
+                  border: '1.5px solid rgba(56, 189, 248, 0.4)',
                   color: '#ffffff',
                   fontSize: '15px',
                   fontWeight: 600,
@@ -425,7 +425,7 @@ export default function RobloxBuyModal({
                   left: '14px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#ef4444',
+                  color: '#38bdf8',
                   fontSize: '16px'
                 }}
               >
@@ -700,7 +700,7 @@ export default function RobloxBuyModal({
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
               <span>Tujuan Username:</span>
-              <strong style={{ color: '#f87171' }}>{robloxUsername || '(Belum diisi)'}</strong>
+              <strong style={{ color: '#38bdf8' }}>{robloxUsername || '(Belum diisi)'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
               <span>Metode Pembayaran:</span>
@@ -708,7 +708,7 @@ export default function RobloxBuyModal({
             </div>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>Total Tagihan:</span>
-              <strong style={{ fontSize: '20px', color: '#f87171', fontWeight: 800 }}>{formatRupiah(totalPrice)}</strong>
+              <strong style={{ fontSize: '20px', color: '#fbbf24', fontWeight: 800 }}>{formatRupiah(totalPrice)}</strong>
             </div>
           </div>
 
@@ -722,13 +722,14 @@ export default function RobloxBuyModal({
               padding: '14px',
               fontSize: '15px',
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
-              borderColor: '#f87171',
+              background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
+              borderColor: '#38bdf8',
               borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '10px'
+              gap: '10px',
+              boxShadow: '0 8px 24px rgba(6, 182, 212, 0.25)'
             }}
           >
             {isSubmitting ? (

@@ -236,17 +236,17 @@ export default function TopUpPage({
                         background: svc.isSteamMenuTrigger
                           ? 'rgba(102, 192, 244, 0.18)'
                           : svc.isRobloxMenuTrigger
-                          ? 'rgba(239, 68, 68, 0.18)'
+                          ? 'rgba(56, 189, 248, 0.18)'
                           : undefined,
                         color: svc.isSteamMenuTrigger
                           ? '#66c0f4'
                           : svc.isRobloxMenuTrigger
-                          ? '#f87171'
+                          ? '#38bdf8'
                           : undefined,
                         borderColor: svc.isSteamMenuTrigger
                           ? 'rgba(102, 192, 244, 0.35)'
                           : svc.isRobloxMenuTrigger
-                          ? 'rgba(239, 68, 68, 0.35)'
+                          ? 'rgba(56, 189, 248, 0.35)'
                           : undefined
                       }}
                     >
@@ -327,7 +327,7 @@ export default function TopUpPage({
                         color: svc.isSteamMenuTrigger
                           ? '#66c0f4'
                           : svc.isRobloxMenuTrigger
-                          ? '#f87171'
+                          ? '#fbbf24'
                           : undefined
                       }}
                     >
@@ -363,9 +363,10 @@ export default function TopUpPage({
                       style={{
                         width: '100%',
                         justifyContent: 'center',
-                        background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
-                        borderColor: '#f87171',
-                        gap: '8px'
+                        background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
+                        borderColor: '#38bdf8',
+                        gap: '8px',
+                        boxShadow: '0 4px 16px rgba(6, 182, 212, 0.25)'
                       }}
                       onClick={() => handleCardClick(svc)}
                     >
