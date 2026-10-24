@@ -81,6 +81,14 @@ export default function TransactionModal({
                 <span className="meta-label">Tanggal Transaksi:</span>
                 <strong className="meta-val">{formattedDate} WIB</strong>
               </div>
+              {transaction.customerUsername && transaction.customerUsername !== '-' && (
+                <div className="meta-item">
+                  <span className="meta-label">Username Roblox / Akun:</span>
+                  <strong className="meta-val text-purple" style={{ color: '#c084fc' }}>
+                    <i className="fa-solid fa-at"></i> {transaction.customerUsername}
+                  </strong>
+                </div>
+              )}
               <div className="meta-item">
                 <span className="meta-label">Paket / Durasi:</span>
                 <strong className="meta-val text-cyan">{transaction.productDuration}</strong>

@@ -4,6 +4,7 @@ import { formatRupiah } from '../utils/format';
 export default function TopUpPage({
   onBackToStore,
   onOpenSteamMenu,
+  onOpenRobloxMenu,
   onShowToast,
   authUser,
   isBanned = false,
@@ -16,11 +17,11 @@ export default function TopUpPage({
   const categories = [
     { id: 'all', label: 'Semua Layanan Top Up', icon: 'fa-border-all' },
     { id: 'steam', label: 'Steam Games', icon: 'fa-brands fa-steam' },
-    { id: 'mobile', label: 'Game Mobile', icon: 'fa-mobile-screen' },
+    { id: 'roblox', label: 'Roblox & Robux', icon: 'fa-solid fa-cube' },
     { id: 'pc', label: 'PC Games & Voucher', icon: 'fa-gamepad' }
   ];
 
-  // Daftar Layanan Top Up (Steam dijadikan 1 Card Utama yang mengarah ke Menu Steam Lengkap)
+  // Daftar Layanan Top Up (Steam & Roblox dijadikan Menu Utama Lengkap)
   const TOPUP_SERVICES = [
     {
       id: 'steam-game-valve',
@@ -44,73 +45,25 @@ export default function TopUpPage({
       buttonIcon: 'fa-brands fa-steam'
     },
     {
-      id: 'topup-mlbb',
-      name: 'Mobile Legends: Bang Bang',
-      category: 'mobile',
-      badge: 'Segera Hadir',
-      badgeClass: 'badge-sealed',
-      image: null,
-      icon: 'fa-solid fa-gamepad',
-      iconColor: '#f59e0b',
-      desc: 'Top up Diamond Mobile Legends instan via User ID & Zone ID. Proses cepat & bebas antre.',
-      features: [
-        'Top Up Diamond Mobile Legends Resmi Moonton',
-        'Cukup Masukkan User ID & Zone ID Game',
-        'Proses Kilat Otomatis 1-3 Menit'
-      ],
-      price: 1500,
-      priceNote: 'Segera Hadir',
-      unit: 'dm',
-      stock: 0,
-      isComingSoon: true,
-      buttonText: 'Segera Hadir',
-      buttonIcon: 'fa-solid fa-clock'
-    },
-    {
-      id: 'topup-freefire',
-      name: 'Free Fire Max (FF)',
-      category: 'mobile',
-      badge: 'Segera Hadir',
-      badgeClass: 'badge-sealed',
-      image: null,
-      icon: 'fa-solid fa-fire',
-      iconColor: '#ef4444',
-      desc: 'Top up Diamond Free Fire resmi Garena langsung masuk ke akun FF Anda.',
-      features: [
-        'Top Up Diamond Free Fire Resmi Garena',
-        'Cukup Masukkan Player ID Akun Free Fire',
-        '100% Legal & Bergaransi Saldo Masuk'
-      ],
-      price: 1000,
-      priceNote: 'Segera Hadir',
-      unit: 'dm',
-      stock: 0,
-      isComingSoon: true,
-      buttonText: 'Segera Hadir',
-      buttonIcon: 'fa-solid fa-clock'
-    },
-    {
       id: 'topup-roblox',
       name: 'Roblox (Robux Instant)',
-      category: 'pc',
-      badge: 'Segera Hadir',
-      badgeClass: 'badge-sealed',
-      image: null,
-      icon: 'fa-solid fa-cube',
-      iconColor: '#ef4444',
-      desc: 'Layanan isi saldo Robux Roblox aman dan cepat untuk avatar & game pass favorit Anda.',
+      category: 'roblox',
+      badge: 'Robux Murah',
+      badgeClass: 'badge-bestseller',
+      image: 'roblox.png',
+      desc: 'Pusat isi saldo Robux Roblox via Username. Tersedia paket 50r hingga 500r proses cepat, aman & legal 100% tanpa password.',
       features: [
-        'Isi Saldo Robux Akun Roblox Legal',
-        'Garansi Transaksi Aman & Terpercaya',
-        'Bisa untuk Akun PC, Laptop & HP'
+        'Top Up Robux via Username (Tanpa Password)',
+        'Pilihan Lengkap 50r, 100r, 200r, 300r, 400r, 500r',
+        '100% Aman & Bergaransi Saldo Masuk'
       ],
-      price: 10000,
-      priceNote: 'Segera Hadir',
+      price: 11000,
+      priceNote: 'Mulai Rp 11.000',
       unit: 'robux',
-      stock: 0,
-      isComingSoon: true,
-      buttonText: 'Segera Hadir',
-      buttonIcon: 'fa-solid fa-clock'
+      stock: 2000,
+      isRobloxMenuTrigger: true,
+      buttonText: 'Buka Menu Roblox',
+      buttonIcon: 'fa-solid fa-cube'
     },
     {
       id: 'topup-valorant',
@@ -155,6 +108,12 @@ export default function TopUpPage({
         onOpenSteamMenu();
       } else {
         window.location.hash = 'steam';
+      }
+    } else if (service.isRobloxMenuTrigger) {
+      if (onOpenRobloxMenu) {
+        onOpenRobloxMenu();
+      } else {
+        window.location.hash = 'roblox';
       }
     } else if (service.isComingSoon) {
       onShowToast?.(`Layanan ${service.name} sedang dalam persiapan & segera hadir di ChaizStore!`, 'fa-clock text-warning');
@@ -274,12 +233,32 @@ export default function TopUpPage({
                       className="product-category-pill"
                       style={{
                         margin: 0,
-                        background: svc.isSteamMenuTrigger ? 'rgba(102, 192, 244, 0.18)' : undefined,
-                        color: svc.isSteamMenuTrigger ? '#66c0f4' : undefined,
-                        borderColor: svc.isSteamMenuTrigger ? 'rgba(102, 192, 244, 0.35)' : undefined
+                        background: svc.isSteamMenuTrigger
+                          ? 'rgba(102, 192, 244, 0.18)'
+                          : svc.isRobloxMenuTrigger
+                          ? 'rgba(239, 68, 68, 0.18)'
+                          : undefined,
+                        color: svc.isSteamMenuTrigger
+                          ? '#66c0f4'
+                          : svc.isRobloxMenuTrigger
+                          ? '#f87171'
+                          : undefined,
+                        borderColor: svc.isSteamMenuTrigger
+                          ? 'rgba(102, 192, 244, 0.35)'
+                          : svc.isRobloxMenuTrigger
+                          ? 'rgba(239, 68, 68, 0.35)'
+                          : undefined
                       }}
                     >
-                      <i className={svc.isSteamMenuTrigger ? 'fa-brands fa-steam' : 'fa-solid fa-gamepad'}></i>{' '}
+                      <i
+                        className={
+                          svc.isSteamMenuTrigger
+                            ? 'fa-brands fa-steam'
+                            : svc.isRobloxMenuTrigger
+                            ? 'fa-solid fa-cube'
+                            : 'fa-solid fa-gamepad'
+                        }
+                      ></i>{' '}
                       {svc.category.toUpperCase()}
                     </span>
                   </div>
@@ -342,14 +321,23 @@ export default function TopUpPage({
                 <div className="product-price-box">
                   <div>
                     <span className="price-label">Harga</span>
-                    <div className="current-price" style={{ color: svc.isSteamMenuTrigger ? '#66c0f4' : undefined }}>
+                    <div
+                      className="current-price"
+                      style={{
+                        color: svc.isSteamMenuTrigger
+                          ? '#66c0f4'
+                          : svc.isRobloxMenuTrigger
+                          ? '#f87171'
+                          : undefined
+                      }}
+                    >
                       {svc.priceNote ? svc.priceNote : formatRupiah(svc.price)}
                     </div>
                   </div>
                   <span className="price-unit">{svc.stock > 0 ? `/ ${svc.unit}` : ''}</span>
                 </div>
 
-                {/* Action Button: Buka Menu Steam atau Segera Hadir */}
+                {/* Action Button: Buka Menu Steam, Roblox, atau Segera Hadir */}
                 <div className="card-actions" onClick={(e) => e.stopPropagation()}>
                   {svc.isSteamMenuTrigger ? (
                     <button
@@ -366,6 +354,23 @@ export default function TopUpPage({
                     >
                       <i className="fa-brands fa-steam"></i>
                       <span>Buka Menu Steam</span>
+                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '4px' }}></i>
+                    </button>
+                  ) : svc.isRobloxMenuTrigger ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
+                        borderColor: '#f87171',
+                        gap: '8px'
+                      }}
+                      onClick={() => handleCardClick(svc)}
+                    >
+                      <i className="fa-solid fa-cube"></i>
+                      <span>Buka Menu Roblox</span>
                       <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '4px' }}></i>
                     </button>
                   ) : (

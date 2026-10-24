@@ -90,6 +90,11 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
     order.phone ||
     order.wa
   );
+  const customerUsername = sTrim(
+    data.username ||
+    order.customerUsername ||
+    order.username
+  );
   const note = sTrim(adminNote);
 
   const lines = [
@@ -101,6 +106,9 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
     `• Produk: *${productName}*${duration ? ` (${duration})` : ''}`
   ];
 
+  if (customerUsername && customerUsername !== '-') {
+    lines.push(`• Username Roblox / ID: *${customerUsername}*`);
+  }
   if (customerEmail && customerEmail !== '-') {
     lines.push(`• Nama Gmail Pelanggan: *${customerEmail}*`);
   }

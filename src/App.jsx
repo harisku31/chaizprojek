@@ -13,6 +13,7 @@ import ProductModal from './components/ProductModal';
 import TopUpModal from './components/TopUpModal';
 import TopUpPage from './components/TopUpPage';
 import SteamPage from './components/SteamPage';
+import RobloxPage from './components/RobloxPage';
 import TransactionsPage from './components/TransactionsPage';
 import CheckoutModal from './components/CheckoutModal';
 import CartDrawer from './components/CartDrawer';
@@ -77,9 +78,10 @@ export default function App() {
   const [currentCategory, setCurrentCategory] = useState('all');
   const [highlightedProductId, setHighlightedProductId] = useState(null);
 
-  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'transaksi'
+  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'roblox' (Menu Robux) | 'transaksi'
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.hash === '#steam') return 'steam';
+    if (window.location.hash === '#roblox') return 'roblox';
     if (window.location.hash === '#topup') return 'topup';
     return 'store';
   });
@@ -89,6 +91,8 @@ export default function App() {
     const handleHashChange = () => {
       if (window.location.hash === '#steam') {
         setActiveTab('steam');
+      } else if (window.location.hash === '#roblox') {
+        setActiveTab('roblox');
       } else if (window.location.hash === '#topup') {
         setActiveTab('topup');
       } else {
@@ -109,6 +113,14 @@ export default function App() {
       if (authUser) {
         recordUserActivity(authUser, 'VIEW_STEAM', 'Membuka menu Steam Key Game Resmi');
       }
+    } else if (tab === 'roblox') {
+      if (window.location.hash !== '#roblox') {
+        window.location.hash = 'roblox';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_ROBLOX', 'Membuka menu Robux Roblox');
+      }
     } else if (tab === 'topup') {
       if (window.location.hash !== '#topup') {
         window.location.hash = 'topup';
@@ -120,7 +132,7 @@ export default function App() {
     } else if (tab === 'transaksi') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      if (window.location.hash === '#topup' || window.location.hash === '#steam') {
+      if (window.location.hash === '#topup' || window.location.hash === '#steam' || window.location.hash === '#roblox') {
         history.pushState('', document.title, window.location.pathname + window.location.search);
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -638,10 +650,21 @@ export default function App() {
             onOpenLogin={() => setIsLoginOpen(true)}
             onOpenBannedModal={() => setIsBannedModalOpen(true)}
           />
+        ) : activeTab === 'roblox' ? (
+          <RobloxPage
+            onBackToTopUp={() => handleSwitchTab('topup')}
+            onBackToStore={() => handleSwitchTab('store')}
+            onShowToast={showToast}
+            authUser={authUser}
+            isBanned={isCurrentBanned}
+            onOpenLogin={() => setIsLoginOpen(true)}
+            onOpenBannedModal={() => setIsBannedModalOpen(true)}
+          />
         ) : activeTab === 'topup' ? (
           <TopUpPage
             onBackToStore={() => handleSwitchTab('store')}
             onOpenSteamMenu={() => handleSwitchTab('steam')}
+            onOpenRobloxMenu={() => handleSwitchTab('roblox')}
             onShowToast={showToast}
             authUser={authUser}
             isBanned={isCurrentBanned}
