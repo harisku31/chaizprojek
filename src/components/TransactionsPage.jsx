@@ -40,6 +40,10 @@ export default function TransactionsPage({
       const filtered = (fresh || []).filter((t) => isOrderOwnedByUser(t, authUser));
       setTransactions(filtered);
       markTransactionsAsRead(authUser);
+      setSelectedTrxDetail((curr) => {
+        if (!curr) return null;
+        return filtered.find((t) => t.id === curr.id) || curr;
+      });
       onShowToast?.('Status riwayat pesanan privat berhasil diperbarui!', 'fa-arrows-rotate text-cyan');
     } catch {
       onShowToast?.('Gagal menyegarkan status riwayat', 'fa-triangle-exclamation', 'warning');
@@ -61,15 +65,25 @@ export default function TransactionsPage({
     // 2. Tarik data paling baru dari node privat Firebase
     syncUserTransactionsFromCloud(authUser).then((fresh) => {
       if (Array.isArray(fresh)) {
-        setTransactions(fresh.filter((t) => isOrderOwnedByUser(t, authUser)));
+        const userOrders = fresh.filter((t) => isOrderOwnedByUser(t, authUser));
+        setTransactions(userOrders);
         markTransactionsAsRead(authUser);
+        setSelectedTrxDetail((curr) => {
+          if (!curr) return null;
+          return userOrders.find((t) => t.id === curr.id) || curr;
+        });
       }
     });
 
     // 3. Realtime Cloud Listener khusus node privat user ini di Firebase
     const unsubscribeCloud = listenToUserTransactions(authUser, (cloudList) => {
       if (Array.isArray(cloudList)) {
-        setTransactions(cloudList.filter((t) => isOrderOwnedByUser(t, authUser)));
+        const userOrders = cloudList.filter((t) => isOrderOwnedByUser(t, authUser));
+        setTransactions(userOrders);
+        setSelectedTrxDetail((curr) => {
+          if (!curr) return null;
+          return userOrders.find((t) => t.id === curr.id) || curr;
+        });
       }
     });
 
@@ -78,7 +92,12 @@ export default function TransactionsPage({
       if (typeof document !== 'undefined' && document.hidden) return;
       syncUserTransactionsFromCloud(authUser).then((fresh) => {
         if (Array.isArray(fresh)) {
-          setTransactions(fresh.filter((t) => isOrderOwnedByUser(t, authUser)));
+          const userOrders = fresh.filter((t) => isOrderOwnedByUser(t, authUser));
+          setTransactions(userOrders);
+          setSelectedTrxDetail((curr) => {
+            if (!curr) return null;
+            return userOrders.find((t) => t.id === curr.id) || curr;
+          });
         }
       });
     }, 15000);

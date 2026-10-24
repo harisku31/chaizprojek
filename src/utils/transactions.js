@@ -220,6 +220,7 @@ export function saveUserTransactions(user, transactions, options = { broadcast: 
 /**
  * Tarik data transaksi privat user langsung dari Firebase Cloud Database
  * Memastikan status riwayat privat database selalu sinkron tanpa lag
+ * Dilengkapi Self-Healing Reconciliation antara Global & Privat
  */
 export async function syncUserTransactionsFromCloud(user) {
   if (!user) return [];
@@ -231,7 +232,7 @@ export async function syncUserTransactionsFromCloud(user) {
   if (user?.email) {
     try {
       const sqlList = await fetchUserTransactionsFromSql(user.email);
-      if (Array.isArray(sqlList)) {
+      if (Array.isArray(sqlList) && sqlList.length > 0) {
         const filteredSql = sqlList.filter((t) => isOrderOwnedByUser(t, user));
         filteredSql.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         saveUserTransactions(user, filteredSql, { broadcast: false });
@@ -254,34 +255,50 @@ export async function syncUserTransactionsFromCloud(user) {
       userList = rawList.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
     }
 
-    // 2. Fallback HANYA jika node privat user kosong: periksa transactions global satu kali
-    if (userList.length === 0) {
-      try {
-        const globalData = await readFromFirebase(FIREBASE_PATH_TRX);
-        if (globalData) {
-          const globalList = Array.isArray(globalData)
-            ? globalData.filter(Boolean)
-            : Object.values(globalData).filter(Boolean);
+    // 2. Self-Healing Reconciliation Otomatis dengan Node Global Transaksi
+    // Memastikan jika Admin sudah menyelesaikan/menolak pesanan di global,
+    // data akun dan status di user tidak pernah stuck "menunggu proses"
+    try {
+      const globalData = await readFromFirebase(FIREBASE_PATH_TRX);
+      if (globalData) {
+        const globalList = Array.isArray(globalData)
+          ? globalData.filter(Boolean)
+          : Object.values(globalData).filter(Boolean);
 
-          const matched = globalList.filter((t) => isOrderOwnedByUser(t, user));
-          matched.forEach((t) => {
-            if (!userList.some((u) => u.id === t.id)) {
-              userList.push(t);
-              // Sinkronkan ke node privat user di Firebase
-              writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}/${t.id}`, t);
+        const matchedInGlobal = globalList.filter((t) => isOrderOwnedByUser(t, user));
+
+        matchedInGlobal.forEach((gt) => {
+          const idx = userList.findIndex((u) => u.id === gt.id);
+          if (idx === -1) {
+            // Pesanan ada di global tapi belum masuk node user -> sinkronkan
+            userList.push(gt);
+            writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}/${gt.id}`, gt);
+          } else {
+            // Pesanan ada di keduanya -> ambil status & kredensial terbaru jika ada perbedaan
+            const existing = userList[idx];
+            const isGlobalNewerStatus = (gt.status === 'completed' || gt.status === 'rejected') && existing.status === 'processing';
+            const hasNewerCredentials = gt.credentials && (gt.credentials.account || gt.credentials.password || gt.credentials.code) && (!existing.credentials || (!existing.credentials.account && !existing.credentials.code));
+            const hasNewerAdminNote = gt.adminNote && !existing.adminNote;
+            const hasNewerRating = gt.rating && !existing.rating;
+
+            if (isGlobalNewerStatus || hasNewerCredentials || hasNewerAdminNote || hasNewerRating) {
+              const merged = { ...existing, ...gt };
+              userList[idx] = merged;
+              // Sembuhkan node privat user secara otomatis di background
+              updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${key}/${gt.id}`, merged);
             }
-          });
-        }
-      } catch (globalErr) {
-        console.warn('Error fetching global trx in syncUser fallback:', globalErr);
+          }
+        });
       }
+    } catch (reconcileErr) {
+      console.warn('Reconcile error in syncUserTransactionsFromCloud:', reconcileErr);
     }
 
     // Filter ketat isolasi akun user aktif
     userList = userList.filter((t) => isOrderOwnedByUser(t, user));
     userList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     saveUserTransactions(user, userList, { broadcast: false });
-    return userList;
+    return purgeExpiredProofs(userList);
   } catch (err) {
     console.warn('Gagal sync transaksi user dari cloud:', err);
   }
@@ -312,7 +329,7 @@ export function listenToUserTransactions(user, callback) {
       filtered = filtered.filter((t) => isOrderOwnedByUser(t, user));
       filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       saveUserTransactions(user, filtered, { broadcast: false });
-      callback(filtered);
+      callback(purgeExpiredProofs(filtered));
     } catch (err) {
       console.warn('Error in listenToUserTransactions:', err);
     }
@@ -411,6 +428,36 @@ export async function syncTransactionsFromCloud() {
     console.warn('Gagal sync transaksi dari cloud:', err);
   }
   return getTransactions();
+}
+
+/**
+ * Langganan Realtime Firebase untuk Seluruh Transaksi Global (Admin App)
+ * Memakai native Server-Sent Events (SSE) dengan in-memory delta merging sub-50ms
+ */
+export function listenToAllTransactions(callback) {
+  if (typeof window === 'undefined' || typeof callback !== 'function') return () => {};
+
+  return listenToFirebase(FIREBASE_PATH_TRX, (cloudData) => {
+    if (cloudData === null || cloudData === undefined) {
+      saveTransactions([], { broadcast: false });
+      callback([]);
+      return;
+    }
+
+    try {
+      const list = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+
+      let filtered = list.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
+      filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+      saveTransactions(filtered, { broadcast: false });
+      callback(purgeExpiredProofs(filtered));
+    } catch (err) {
+      console.warn('Error in listenToAllTransactions:', err);
+    }
+  });
 }
 
 // ===================================================================

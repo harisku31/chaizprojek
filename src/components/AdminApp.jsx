@@ -35,7 +35,8 @@ import {
   deleteTransactionProof,
   getProofTimeRemaining,
   clearAllTransactions,
-  syncTransactionsFromCloud
+  syncTransactionsFromCloud,
+  listenToAllTransactions
 } from '../utils/transactions';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
@@ -396,12 +397,19 @@ export default function AdminApp() {
 
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
 
+    // Native Firebase SSE streaming untuk seluruh pesanan (sub-50ms instant delta)
+    const unsubscribeAllTrx = listenToAllTransactions((liveOrders) => {
+      if (Array.isArray(liveOrders)) {
+        setOrdersList(liveOrders);
+      }
+    });
+
     // Auto poll gentle heartbeat countdown timer
     const interval = setInterval(() => {
       setTick((t) => t + 1);
     }, 1000);
 
-    // Gentle cloud poll every 20s when page is active
+    // Gentle cloud poll fallback every 20s when page is active
     const cloudPollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       syncTransactionsFromCloud().then((fresh) => {
@@ -412,6 +420,7 @@ export default function AdminApp() {
     }, 20000);
 
     return () => {
+      if (unsubscribeAllTrx) unsubscribeAllTrx();
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
       if (bc) bc.close();
