@@ -98,12 +98,29 @@ export default function TransactionsPage({
           const myKey = authUser?.id || getUserKey(authUser);
 
           if (!userKey || userKey === myKey) {
-            loadData();
+            const updated = ev.data?.data?.updatedTrx || ev.data?.updatedTrx;
+            if (updated && isOrderOwnedByUser(updated, authUser)) {
+              setTransactions((prev) => {
+                const exists = prev.some((t) => t.id === updated.id);
+                if (exists) {
+                  return prev.map((t) => (t.id === updated.id ? updated : t));
+                }
+                return [updated, ...prev];
+              });
+              if (selectedTrxDetail && selectedTrxDetail.id === updated.id) {
+                setSelectedTrxDetail(updated);
+              }
+            } else {
+              loadData();
+            }
+
             if (type === 'TRANSACTION_FULFILLED') {
               onShowToast?.(
                 '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
                 'fa-circle-check text-success'
               );
+            } else if (type === 'TRANSACTION_REJECTED') {
+              onShowToast?.('Pesanan Anda telah ditolak oleh Admin.', 'fa-circle-xmark text-danger');
             }
           }
         };
@@ -119,12 +136,29 @@ export default function TransactionsPage({
       const userKey = e.detail?.data?.userKey || e.detail?.userKey;
       const myKey = authUser?.id || getUserKey(authUser);
       if (!userKey || userKey === myKey) {
-        loadData();
+        const updated = e.detail?.data?.updatedTrx || e.detail?.updatedTrx;
+        if (updated && isOrderOwnedByUser(updated, authUser)) {
+          setTransactions((prev) => {
+            const exists = prev.some((t) => t.id === updated.id);
+            if (exists) {
+              return prev.map((t) => (t.id === updated.id ? updated : t));
+            }
+            return [updated, ...prev];
+          });
+          if (selectedTrxDetail && selectedTrxDetail.id === updated.id) {
+            setSelectedTrxDetail(updated);
+          }
+        } else {
+          loadData();
+        }
+
         if (e.detail?.type === 'TRANSACTION_FULFILLED') {
           onShowToast?.(
             '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
             'fa-circle-check text-success'
           );
+        } else if (e.detail?.type === 'TRANSACTION_REJECTED') {
+          onShowToast?.('Pesanan Anda telah ditolak oleh Admin.', 'fa-circle-xmark text-danger');
         }
       }
     };

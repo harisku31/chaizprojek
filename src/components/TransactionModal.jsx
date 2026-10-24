@@ -15,6 +15,14 @@ export default function TransactionModal({
   const isCompleted = transaction.status === 'completed';
   const isRejected = transaction.status === 'rejected';
   const creds = transaction.credentials || {};
+  const hasAnyCreds = !!(
+    creds.account ||
+    creds.password ||
+    creds.username ||
+    creds.pin ||
+    creds.profile ||
+    creds.code
+  );
 
   const handleCopy = async (text, label) => {
     if (!text) return;
@@ -166,6 +174,14 @@ export default function TransactionModal({
                     Pesanan Anda sedang diproses oleh admin. Akun/key Anda akan langsung muncul di kolom ini begitu proses selesai (estimasi 1–5 menit).
                   </p>
                 </div>
+              </div>
+            ) : !hasAnyCreds ? (
+              <div className="trx-completed-notice-card" style={{ padding: '16px 20px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '12px', textAlign: 'center', margin: '10px 0' }}>
+                <i className="fa-solid fa-circle-check text-emerald" style={{ fontSize: '26px', marginBottom: '8px', display: 'block' }}></i>
+                <strong style={{ color: '#ffffff', display: 'block', fontSize: '15px' }}>Pesanan Berhasil Diproses</strong>
+                <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px', margin: '4px 0 0', lineHeight: 1.5 }}>
+                  Pesanan Anda telah diselesaikan oleh Admin ChaizStore. Silakan ikuti panduan pada catatan admin di bawah untuk mengakses layanan Anda.
+                </p>
               </div>
             ) : (
               <div className="trx-creds-grid">

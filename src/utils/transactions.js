@@ -344,7 +344,7 @@ export function getTransactions() {
 /**
  * Simpan Transaksi Global ke LocalStorage Admin
  */
-export function saveTransactions(transactions) {
+export function saveTransactions(transactions, options = { broadcast: true }) {
   const filtered = (transactions || []).filter(
     (t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2'
   );
@@ -359,7 +359,11 @@ export function saveTransactions(transactions) {
       localStorage.setItem(STORAGE_KEY_TRX, JSON.stringify(stripped));
     } catch (inner) {}
   }
-  broadcastSync('TRANSACTIONS_UPDATED', filtered);
+
+  const shouldBroadcast = options !== false && (typeof options !== 'object' || options.broadcast !== false);
+  if (shouldBroadcast) {
+    broadcastSync('TRANSACTIONS_UPDATED', filtered);
+  }
 }
 
 /**
@@ -372,7 +376,7 @@ export async function syncTransactionsFromCloud() {
     if (Array.isArray(sqlAll) && sqlAll.length > 0) {
       const filtered = sqlAll.filter((t) => t && t.id !== 'TRX-20261003-CANVA1' && t.id !== 'TRX-20261003-NETFLIX2');
       filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      saveTransactions(filtered);
+      saveTransactions(filtered, { broadcast: false });
       return purgeExpiredProofs(filtered);
     }
   } catch (sqlErr) {
@@ -401,7 +405,6 @@ export async function syncTransactionsFromCloud() {
           console.warn('LocalStorage quota exceeded in syncTransactionsFromCloud:', innerErr);
         }
       }
-      broadcastSync('TRANSACTIONS_UPDATED', filtered);
       return filtered;
     }
   } catch (err) {
@@ -661,12 +664,14 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
       ? getUserKey({ email: existing.customerEmail, name: existing.customerName })
       : null);
 
+  const deliveryMethod = extraMeta.deliveryMethod || (extraMeta.sendViaWhatsApp ? 'whatsapp' : 'web');
   const updatedTrx = {
     ...(existing || {}),
     id,
     userId: userKey || existing?.userId || null,
     userKey: userKey || existing?.userKey || null,
     status: 'completed',
+    deliveryMethod,
     productDuration: extraMeta.duration || credentials?.duration || existing?.productDuration || 'Reguler',
     warrantyPeriod: extraMeta.warranty || credentials?.warranty || existing?.warrantyPeriod || 'Garansi Penuh',
     credentials: {
@@ -685,7 +690,7 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     isRead: false
   };
 
-  // 1. Simpan di Global Admin List
+  // 1. Simpan di Global Admin List (tanpa memicu broadcast loop)
   let foundInList = false;
   const updatedList = transactions.map((trx) => {
     if (trx.id === id) {
@@ -699,9 +704,9 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     updatedList.unshift(updatedTrx);
   }
 
-  saveTransactions(updatedList);
+  saveTransactions(updatedList, { broadcast: false });
 
-  // 2. Simpan di Private User List
+  // 2. Simpan di Private User List (tanpa memicu broadcast loop)
   if (userKey) {
     const userTrxList = getUserTransactions({ id: userKey, email: updatedTrx.customerEmail });
     let foundInUser = false;
@@ -715,12 +720,13 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
     if (!foundInUser) {
       updatedUserList.unshift(updatedTrx);
     }
-    saveUserTransactions({ id: userKey }, updatedUserList);
+    saveUserTransactions({ id: userKey }, updatedUserList, { broadcast: false });
   }
 
   // 3. Sinkronisasi atomic ke Firebase Realtime Database
   const patchData = {
     status: 'completed',
+    deliveryMethod,
     productDuration: updatedTrx.productDuration,
     warrantyPeriod: updatedTrx.warrantyPeriod,
     credentials: updatedTrx.credentials,
@@ -730,9 +736,11 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
   };
 
   try {
-    await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patchData);
+    const res = await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patchData);
+    if (!res || !res.success) {
+      await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
+    }
   } catch (patchErr) {
-    console.warn('Update in Firebase patch fallback to put:', patchErr);
     try {
       await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
     } catch (writeErr) {
@@ -743,7 +751,10 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
   // Juga perbarui node privat database user di Firebase
   if (userKey) {
     try {
-      await updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patchData);
+      const resUser = await updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patchData);
+      if (!resUser || !resUser.success) {
+        await writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, updatedTrx);
+      }
     } catch (userPatchErr) {
       try {
         await writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, updatedTrx);
@@ -755,6 +766,7 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
   updateTransactionInSql({
     id,
     status: 'completed',
+    deliveryMethod,
     productDuration: updatedTrx.productDuration,
     warrantyPeriod: updatedTrx.warrantyPeriod,
     credentials: updatedTrx.credentials,
@@ -814,7 +826,7 @@ export async function rejectTransaction(id, rejectReason = 'Pesanan tidak dapat 
     updatedList.unshift(updatedTrx);
   }
 
-  saveTransactions(updatedList);
+  saveTransactions(updatedList, { broadcast: false });
 
   // 2. Simpan di Private User List
   if (userKey) {
@@ -830,7 +842,7 @@ export async function rejectTransaction(id, rejectReason = 'Pesanan tidak dapat 
     if (!foundInUser) {
       updatedUserList.unshift(updatedTrx);
     }
-    saveUserTransactions({ id: userKey }, updatedUserList);
+    saveUserTransactions({ id: userKey }, updatedUserList, { broadcast: false });
   }
 
   // 3. Sinkronisasi atomic ke Firebase Realtime Database
@@ -843,7 +855,10 @@ export async function rejectTransaction(id, rejectReason = 'Pesanan tidak dapat 
   };
 
   try {
-    await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patchData);
+    const res = await updateInFirebase(`${FIREBASE_PATH_TRX}/${id}`, patchData);
+    if (!res || !res.success) {
+      await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
+    }
   } catch (patchErr) {
     try {
       await writeToFirebase(`${FIREBASE_PATH_TRX}/${id}`, updatedTrx);
@@ -852,7 +867,10 @@ export async function rejectTransaction(id, rejectReason = 'Pesanan tidak dapat 
 
   if (userKey) {
     try {
-      await updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patchData);
+      const resUser = await updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, patchData);
+      if (!resUser || !resUser.success) {
+        await writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, updatedTrx);
+      }
     } catch (userPatchErr) {
       try {
         await writeToFirebase(`${FIREBASE_PATH_USER_TRX}/${userKey}/${id}`, updatedTrx);

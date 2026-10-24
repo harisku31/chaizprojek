@@ -320,20 +320,45 @@ export default function AdminApp() {
       try {
         bc = new BroadcastChannel('chaiz_admin_sync');
         bc.onmessage = (ev) => {
-          reloadAllData();
-          if (ev.data?.type === 'USERS_UPDATED') {
+          const type = ev.data?.type;
+          if (type === 'USERS_UPDATED') {
+            setRegisteredUsers(getRegisteredUsers());
             showToast('Daftar status pengguna diperbarui realtime!', 'fa-bolt', 'info');
-          } else if (ev.data?.type === 'ACTIVITIES_UPDATED') {
+          } else if (type === 'ACTIVITIES_UPDATED') {
+            setActivityLogs(getActivityLogs());
             showToast('Aktivitas baru pengguna baru saja tercatat!', 'fa-clock-rotate-left', 'info');
-          } else if (ev.data?.type === 'USER_BANNED') {
+          } else if (type === 'USER_BANNED') {
+            setRegisteredUsers(getRegisteredUsers());
             showToast('Sanksi Banned pengguna berhasil diterapkan!', 'fa-ban', 'warning');
-          } else if (ev.data?.type === 'USER_UNBANNED') {
+          } else if (type === 'USER_UNBANNED') {
+            setRegisteredUsers(getRegisteredUsers());
             showToast('Sanksi Banned pengguna telah dicabut!', 'fa-circle-check', 'success');
-          } else if (ev.data?.type === 'NEW_TRANSACTION') {
+          } else if (type === 'NEW_TRANSACTION') {
+            const newTrx = ev.data?.data?.newTrx || ev.data?.newTrx;
+            if (newTrx && newTrx.id) {
+              setOrdersList((prev) => {
+                if (prev.some((o) => o.id === newTrx.id)) return prev;
+                return [newTrx, ...prev];
+              });
+            } else {
+              setOrdersList(getTransactions());
+            }
             showToast('Pesanan baru masuk dari pelanggan!', 'fa-receipt', 'success');
-          } else if (ev.data?.type === 'TRANSACTION_FULFILLED') {
+          } else if (type === 'TRANSACTION_FULFILLED') {
+            const updated = ev.data?.data?.updatedTrx || ev.data?.updatedTrx;
+            if (updated && updated.id) {
+              setOrdersList((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+            } else {
+              setOrdersList(getTransactions());
+            }
             showToast('Pesanan berhasil diproses & akun terkirim!', 'fa-circle-check', 'success');
-          } else if (ev.data?.type === 'TRANSACTION_RATED') {
+          } else if (type === 'TRANSACTION_REJECTED') {
+            const updated = ev.data?.data?.updatedTrx || ev.data?.updatedTrx;
+            if (updated && updated.id) {
+              setOrdersList((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+            }
+          } else if (type === 'TRANSACTION_RATED') {
+            setOrdersList(getTransactions());
             showToast('Pelanggan telah memberikan rating bintang!', 'fa-star', 'info');
           }
         };
@@ -344,25 +369,54 @@ export default function AdminApp() {
 
     // Cloud Event Listeners (Firebase Cloud Realtime Updates)
     const handleCustomTrx = (e) => {
-      reloadAllData();
-      if (e.detail?.type === 'NEW_TRANSACTION') {
+      const type = e.detail?.type;
+      if (type === 'USER_TRANSACTIONS_UPDATED' || type === 'NOTIFICATIONS_READ') {
+        return;
+      }
+      if (type === 'TRANSACTION_FULFILLED') {
+        const updated = e.detail?.data?.updatedTrx || e.detail?.updatedTrx;
+        if (updated && updated.id) {
+          setOrdersList((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+        }
+        return;
+      }
+      if (type === 'NEW_TRANSACTION') {
+        const newTrx = e.detail?.data?.newTrx || e.detail?.newTrx;
+        if (newTrx && newTrx.id) {
+          setOrdersList((prev) => {
+            if (prev.some((o) => o.id === newTrx.id)) return prev;
+            return [newTrx, ...prev];
+          });
+        } else {
+          setOrdersList(getTransactions());
+        }
         showToast('Pesanan baru masuk dari pelanggan!', 'fa-receipt', 'success');
       }
     };
 
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
 
-    // Auto poll every 3 seconds for live online/offline heartbeat detection & countdown
+    // Auto poll gentle heartbeat countdown timer
     const interval = setInterval(() => {
-      reloadAllData();
       setTick((t) => t + 1);
-    }, 3000);
+    }, 1000);
+
+    // Gentle cloud poll every 20s when page is active
+    const cloudPollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      syncTransactionsFromCloud().then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setOrdersList(fresh);
+        }
+      });
+    }, 20000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
       if (bc) bc.close();
       clearInterval(interval);
+      clearInterval(cloudPollInterval);
     };
   }, []);
 
@@ -838,7 +892,9 @@ export default function AdminApp() {
         selectedOrderForFulfill,
         {
           duration: sTrim(fulfillDuration),
-          warranty: sTrim(fulfillWarranty)
+          warranty: sTrim(fulfillWarranty),
+          deliveryMethod: sendViaWhatsApp ? 'whatsapp' : 'web',
+          sendViaWhatsApp
         }
       );
 
@@ -858,7 +914,7 @@ export default function AdminApp() {
       recordUserActivity(
         adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
         'ORDER_FULFILLED',
-        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - Mode: ${fulfillMode} (Stok otomatis terpotong)`
+        `Memproses pesanan #${selectedOrderForFulfill.id} (${selectedOrderForFulfill.productName}) untuk ${selectedOrderForFulfill.customerName} - Mode: ${fulfillMode} (${sendViaWhatsApp ? 'WhatsApp' : 'Web Saja'})`
       );
 
       setOrdersList((prev) =>
@@ -878,8 +934,8 @@ export default function AdminApp() {
         );
       } else {
         showToast(
-          `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & disimpan di Web!${stockNote}`,
-          'fa-circle-check',
+          `Pesanan #${selectedOrderForFulfill.id} berhasil diproses & disimpan di Web! Kredensial aktif.${stockNote}`,
+          'fa-circle-check text-success',
           'success'
         );
       }
@@ -2909,9 +2965,16 @@ export default function AdminApp() {
                                   <span>Ditolak</span>
                                 </span>
                               ) : (
-                                <span className="admin-status-badge badge-completed">
-                                  <i className="fa-brands fa-whatsapp"></i>
-                                  <span>Telah Dikirim WA</span>
+                                <span
+                                  className="admin-status-badge badge-completed"
+                                  style={
+                                    order.deliveryMethod === 'web'
+                                      ? { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.35)' }
+                                      : undefined
+                                  }
+                                >
+                                  <i className={order.deliveryMethod === 'web' ? 'fa-solid fa-circle-check text-emerald' : 'fa-brands fa-whatsapp'}></i>
+                                  <span>{order.deliveryMethod === 'web' ? 'Selesai di Web' : 'Telah Dikirim WA'}</span>
                                 </span>
                               )}
 
