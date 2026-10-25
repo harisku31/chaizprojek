@@ -6,7 +6,7 @@ export default function Hero({ onSwitchTab }) {
   const touchEndXRef = useRef(null);
 
   const SLIDES_COUNT = 4;
-  const SLIDE_INTERVAL = 3600; // Bergulir otomatis setiap 3.6 detik
+  const SLIDE_INTERVAL = 3600; // Bergulir otomatis setiap 3.6 detik nonstop
 
   // Auto slide bergulir otomatis tiap 3.6 detik secara nonstop
   useEffect(() => {
@@ -51,12 +51,14 @@ export default function Hero({ onSwitchTab }) {
   };
 
   const slides = [
-    // Slide 1: Akun Premium Promo
+    // Slide 1: Akun Premium AI Generated Banner
     {
       id: 1,
       themeClass: 'banner-theme-premium',
-      badgeIcon: 'fa-solid fa-fire text-warning',
-      badgeText: 'PROMO SPESIAL S/D 80% • RESMI',
+      bgImage: '/banner-premium-ai.png',
+      fallbackImage: '/banner.jpg',
+      badgeIcon: 'fa-solid fa-crown text-warning',
+      badgeText: 'AKUN PREMIUM RESMI AI GENERATED • 100% LEGAL',
       title: 'Beli Akun Premium Murah, Legal & Bergaransi Penuh',
       desc: 'Streaming Netflix 4K, Spotify Musik, YouTube No-Ads, Canva Pro & AI Tools tanpa gangguan. Proses kilat 1-5 menit langsung aktif bergaransi resmi!',
       perks: [
@@ -80,10 +82,12 @@ export default function Hero({ onSwitchTab }) {
       visualType: 'apps-grid'
     },
 
-    // Slide 2: Top Up Robux Roblox
+    // Slide 2: Top Up Robux Roblox (Background Foto Roblox Asli)
     {
       id: 2,
       themeClass: 'banner-theme-roblox',
+      bgImage: '/roblox.png',
+      fallbackImage: '/banner.jpg',
       badgeIcon: 'fa-solid fa-cube text-danger',
       badgeText: 'TOP UP ROBLOX KILAT • RATE TERMURAH',
       title: 'Top Up Robux Roblox Murah, Proses 1-3 Menit Langsung Masuk',
@@ -106,10 +110,12 @@ export default function Hero({ onSwitchTab }) {
       visualType: 'roblox'
     },
 
-    // Slide 3: Steam Key Random Game Original Valve
+    // Slide 3: Steam Key Random Game Original Valve (Background Foto Steam)
     {
       id: 3,
       themeClass: 'banner-theme-steam',
+      bgImage: '/banner-steam.png',
+      fallbackImage: '/topup-banner.jpg',
       badgeIcon: 'fa-brands fa-steam text-cyan',
       badgeText: 'STEAM GAME RESMI VALVE • DISKON S/D 90%',
       title: 'Steam Key Game Original PC Mulai Rp 1.500 Saja!',
@@ -132,33 +138,35 @@ export default function Hero({ onSwitchTab }) {
       visualType: 'steam'
     },
 
-    // Slide 4: Voucher Promo & Full Gratis
+    // Slide 4: Promo Spesial Netflix Rp 25.000 (Background banner-netflix.png)
     {
       id: 4,
-      themeClass: 'banner-theme-voucher',
-      badgeIcon: 'fa-solid fa-gift text-warning',
-      badgeText: 'PROMO VOUCHER & CASHBACK • FULL GRATIS',
-      title: 'Klaim Kupon Diskon Spesial & Voucher Belanja Gratis',
-      desc: 'Gunakan kode promo saat checkout untuk potongan harga langsung hingga voucher belanja full 100% gratis Rp 0 tanpa biaya admin!',
+      themeClass: 'banner-theme-netflix',
+      bgImage: '/banner-netflix.png',
+      fallbackImage: '/netflix.png',
+      badgeIcon: 'fa-solid fa-fire text-danger',
+      badgeText: 'PROMO SPESIAL NETFLIX • HANYA RP 25.000',
+      title: 'Langganan Netflix Premium Ultra HD 4K Hanya Rp 25.000!',
+      desc: 'Nonton ribuan film, serial & drakor favorit kualitas 4K Ultra HD tanpa batas. Akun resmi anti-hold, garansi penuh selama durasi pemakaian!',
       perks: [
-        { icon: 'fa-ticket text-warning', text: 'Diskon Langsung di Checkout' },
-        { icon: 'fa-crown text-amber', text: 'Voucher Full Gratis (Rp 0)' },
-        { icon: 'fa-shield-heart text-success', text: 'Garansi Resmi 100%' }
+        { icon: 'fa-tv text-danger', text: 'Kualitas 4K UHD & HDR' },
+        { icon: 'fa-shield-halved text-success', text: '100% Legal & Bergaransi' },
+        { icon: 'fa-bolt text-warning', text: 'Aktivasi Kilat 1-5 Menit' }
       ],
       primaryBtn: {
-        text: 'Klaim Promo & Belanja',
-        icon: 'fa-gift',
+        text: 'Beli Netflix Rp 25.000',
+        icon: 'fa-play',
         action: () => {
           const el = document.getElementById('katalog');
           el?.scrollIntoView({ behavior: 'smooth' });
         }
       },
       secondaryBtn: {
-        text: 'Panduan Voucher',
-        icon: 'fa-circle-question',
+        text: 'Cara Pemesanan',
+        icon: 'fa-list-check',
         action: openHowToOrder
       },
-      visualType: 'voucher'
+      visualType: 'netflix'
     }
   ];
 
@@ -182,8 +190,21 @@ export default function Hero({ onSwitchTab }) {
                 key={slide.id}
                 className={`landscape-banner-slide ${slide.themeClass} ${currentSlide === idx ? 'active-slide' : ''}`}
               >
-                {/* Background glowing glow */}
-                <div className="banner-slide-glow"></div>
+                {/* Background Foto Banner Asli (Bukan flat color) */}
+                <div className="banner-bg-photo-wrap">
+                  <img
+                    src={slide.bgImage}
+                    alt={slide.title}
+                    className="banner-bg-photo"
+                    loading="eager"
+                    onError={(e) => {
+                      if (slide.fallbackImage && e.currentTarget.src !== slide.fallbackImage) {
+                        e.currentTarget.src = slide.fallbackImage;
+                      }
+                    }}
+                  />
+                  <div className="banner-photo-overlay"></div>
+                </div>
 
                 <div className="banner-slide-body">
                   {/* Left Column: Text & CTAs */}
@@ -286,21 +307,19 @@ export default function Hero({ onSwitchTab }) {
                       </div>
                     )}
 
-                    {slide.visualType === 'voucher' && (
-                      <div className="visual-voucher-card">
-                        <div className="voucher-ticket-visual">
-                          <div className="ticket-top">
-                            <i className="fa-solid fa-crown text-warning"></i>
-                            <span>CHAIZSTORE PROMO</span>
-                          </div>
-                          <div className="ticket-body">
-                            <h3>DISKON 100%</h3>
-                            <p>Voucher Full Bebas Biaya</p>
-                          </div>
-                          <div className="ticket-cutout"></div>
+                    {slide.visualType === 'netflix' && (
+                      <div className="visual-netflix-card">
+                        <div className="netflix-logo-box">
+                          <img src="/netflix.png" alt="Netflix Premium" className="netflix-badge-img" />
+                          <span className="netflix-4k-tag">4K ULTRA HD</span>
                         </div>
-                        <div className="voucher-floating-badge">
-                          <i className="fa-solid fa-fire text-warning"></i> Auto Claim di Checkout
+                        <div className="netflix-price-badge">
+                          <small>PROMO SPESIAL</small>
+                          <strong>Rp 25.000</strong>
+                          <span>/ 1 Bulan Penuh</span>
+                        </div>
+                        <div className="netflix-feature-pill">
+                          <i className="fa-solid fa-circle-check text-success"></i> Full Garansi Anti Hold
                         </div>
                       </div>
                     )}
