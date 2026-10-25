@@ -13,8 +13,8 @@ const ADMIN_SESSION_KEY = 'chaiz_admin_session';
 
 // Default Admin Credentials
 export const DEFAULT_ADMIN_CREDENTIALS = {
-  username: 'admin',
-  password: 'adminchaiz123',
+  username: 'chaiz',
+  password: '34313431',
   adminName: 'Owner ChaizStore'
 };
 
@@ -662,7 +662,14 @@ export function clearAllUsersDirectory() {
 export function getAdminCredentials() {
   try {
     const saved = localStorage.getItem(ADMIN_AUTH_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_ADMIN_CREDENTIALS;
+    if (!saved) return DEFAULT_ADMIN_CREDENTIALS;
+    const parsed = JSON.parse(saved);
+    // Jika masih memakai kredensial default lama, otomatis migrasi ke kredensial baru
+    if (parsed.username === 'admin' && parsed.password === 'adminchaiz123') {
+      localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(DEFAULT_ADMIN_CREDENTIALS));
+      return DEFAULT_ADMIN_CREDENTIALS;
+    }
+    return parsed;
   } catch {
     return DEFAULT_ADMIN_CREDENTIALS;
   }

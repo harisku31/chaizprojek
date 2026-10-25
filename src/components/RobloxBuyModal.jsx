@@ -82,6 +82,7 @@ export default function RobloxBuyModal({
   onOpenLogin,
   onOpenBannedModal,
   onShowToast,
+  onGoToTransactions,
   initialPackageId = '50r'
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(initialPackageId);
@@ -316,42 +317,17 @@ export default function RobloxBuyModal({
       playUserNoticeSound();
 
       onShowToast?.(
-        `🎉 Pesanan Robux #${newTrx.id} berhasil dibuat! Admin segera memproses saldo ke akun @${cleanRobloxUser}`,
+        `🎉 Pesanan Robux #${newTrx.id} berhasil dibuat! Membuka daftar transaksi akun Anda...`,
         'fa-circle-check text-success'
       );
 
-      // Konfirmasi WhatsApp Otomatis ke CS
-      const waText = [
-        `*ORDER ROBUX ROBLOX - CHAIZSTORE*`,
-        ``,
-        `🎮 *Paket Robux:* ${currentPkg.name} (${currentPkg.symbol})`,
-        `👤 *Username Roblox:* *${cleanRobloxUser}*`,
-        robloxProfile?.displayName && robloxProfile.displayName !== cleanRobloxUser
-          ? `🏷️ *Display Name:* ${robloxProfile.displayName}`
-          : '',
-        robloxProfile?.id ? `🆔 *Roblox User ID:* ${robloxProfile.id}` : '',
-        robloxProfile?.avatarUrl ? `🖼️ *Avatar Headshot:* ${robloxProfile.avatarUrl}` : '',
-        `💰 *Total Tagihan:* *${formatRupiah(totalPrice)}*`,
-        `💳 *Metode Bayar:* ${paymentName}`,
-        ``,
-        `📋 *Data Pemesan:*`,
-        `• Nama: ${name}`,
-        `• No. WA: ${wa}`,
-        `• Email: ${email}`,
-        `• ID Pesanan: #${newTrx.id}`,
-        ``,
-        `Halo Admin ChaizStore, saya sudah melakukan pembayaran dan melampirkan bukti transfer untuk pengisian Robux ke akun Roblox saya di atas. Profil avatar sudah saya pastikan benar. Mohon segera diproses ya kak!`
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      const waUrl = `https://wa.me/6281809730331?text=${encodeURIComponent(waText)}`;
-
-      setTimeout(() => {
-        window.open(waUrl, '_blank');
-      }, 700);
-
       onClose();
+
+      if (typeof onGoToTransactions === 'function') {
+        setTimeout(() => {
+          onGoToTransactions();
+        }, 150);
+      }
     } catch (err) {
       console.error('Error creating Roblox transaction:', err);
       onShowToast?.('Gagal membuat pesanan Robux, coba sesaat lagi.', 'fa-triangle-exclamation', 'danger');

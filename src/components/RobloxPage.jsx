@@ -9,7 +9,8 @@ export default function RobloxPage({
   authUser,
   isBanned = false,
   onOpenLogin,
-  onOpenBannedModal
+  onOpenBannedModal,
+  onGoToTransactions
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -431,6 +432,7 @@ export default function RobloxPage({
         onOpenLogin={onOpenLogin}
         onOpenBannedModal={onOpenBannedModal}
         onShowToast={onShowToast}
+        onGoToTransactions={onGoToTransactions}
         initialPackageId={modalPackageId}
       />
     </div>

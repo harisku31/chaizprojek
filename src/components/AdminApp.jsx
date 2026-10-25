@@ -1606,12 +1606,13 @@ export default function AdminApp() {
           </form>
 
           <div className="admin-login-footer">
-            <div className="admin-credentials-hint">
-              <i className="fa-solid fa-circle-info text-cyan"></i>
+            <div className="admin-credentials-hint" style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+              <i className="fa-solid fa-shield-halved text-cyan"></i>
               <div>
-                <strong>Info Akun Bawaan (Default):</strong>
-                <p>Username: <code>admin</code> • Password: <code>adminchaiz123</code></p>
-                <small>Bisa diubah kapan saja di menu pengaturan dashboard setelah login.</small>
+                <strong>Portal Keamanan Administrator:</strong>
+                <p style={{ margin: '3px 0 0', color: 'rgba(255, 255, 255, 0.7)', fontSize: '11.5px' }}>
+                  Akses dibatasi hanya untuk staf Admin ChaizStore resmi. Semua aktivitas login tercatat di database keamanan.
+                </p>
               </div>
             </div>
 

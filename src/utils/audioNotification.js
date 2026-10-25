@@ -222,11 +222,25 @@ export function playUserRejectSound() {
   unlockAudio();
 
   try {
+    const audio = new Audio('/sounds/rejected.wav');
+    audio.volume = 1.0;
+    const p = audio.play();
+    if (p !== undefined) {
+      p.catch(() => {
+        const ctx = getAudioContext();
+        if (ctx) {
+          const now = ctx.currentTime;
+          playToneSynth(349.23, now, 0.30, 'triangle', 0.85);
+          playToneSynth(261.63, now + 0.25, 0.50, 'sine', 0.90);
+        }
+      });
+    }
+  } catch (err) {
     const ctx = getAudioContext();
     if (ctx) {
       const now = ctx.currentTime;
-      playToneSynth(440.00, now, 0.22, 'triangle', 0.7);
-      playToneSynth(349.23, now + 0.20, 0.40, 'sine', 0.75);
+      playToneSynth(349.23, now, 0.30, 'triangle', 0.85);
+      playToneSynth(261.63, now + 0.25, 0.50, 'sine', 0.90);
     }
-  } catch (err) {}
+  }
 }

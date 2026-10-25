@@ -340,15 +340,14 @@ export default function App() {
   useEffect(() => {
     if (!authUser) return;
 
-    const handleGlobalOrderEvent = (e) => {
-      const type = e.detail?.type;
+    const handleEventData = (type, detail) => {
       if (type !== 'TRANSACTION_FULFILLED' && type !== 'TRANSACTION_REJECTED') return;
 
-      const userKey = e.detail?.data?.userKey || e.detail?.userKey;
+      const userKey = detail?.userKey || detail?.data?.userKey;
       const myKey = authUser.id || getUserKey(authUser);
       if (userKey && userKey !== myKey) return;
 
-      const updated = e.detail?.data?.updatedTrx || e.detail?.updatedTrx;
+      const updated = detail?.data?.updatedTrx || detail?.updatedTrx;
       // If we are currently on the 'transaksi' tab, TransactionsPage handles its own sounds
       if (activeTab === 'transaksi') return;
 
@@ -367,8 +366,26 @@ export default function App() {
       }
     };
 
+    const handleGlobalOrderEvent = (e) => {
+      handleEventData(e.detail?.type, e.detail);
+    };
+
     window.addEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
-    return () => window.removeEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
+
+    let bc = null;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('chaiz_admin_sync');
+        bc.onmessage = (ev) => {
+          handleEventData(ev.data?.type, ev.data);
+        };
+      }
+    } catch {}
+
+    return () => {
+      window.removeEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
+      if (bc) bc.close();
+    };
   }, [authUser, activeTab]);
 
   // Save auth user & record login for admin dashboard monitoring
@@ -695,6 +712,7 @@ export default function App() {
             isBanned={isCurrentBanned}
             onOpenLogin={() => setIsLoginOpen(true)}
             onOpenBannedModal={() => setIsBannedModalOpen(true)}
+            onGoToTransactions={() => handleSwitchTab('transaksi')}
           />
         ) : activeTab === 'topup' ? (
           <TopUpPage

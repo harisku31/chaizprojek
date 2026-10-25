@@ -213,6 +213,12 @@ export default function TransactionsPage({
             '🎉 Pesanan Anda telah selesai diproses Admin! Akun & kredensial telah siap di bawah.',
             'fa-circle-check text-success'
           );
+        } else if (updated.status === 'rejected' && selectedTrxDetail.status !== 'rejected') {
+          playUserRejectSound();
+          onShowToast?.(
+            `Pesanan #${updated.id} ditolak oleh Admin: "${updated.rejectReason || 'Silakan hubungi Admin via WhatsApp'}"`,
+            'fa-circle-xmark text-danger'
+          );
         }
       }
     }
