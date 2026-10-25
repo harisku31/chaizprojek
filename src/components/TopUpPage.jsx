@@ -205,6 +205,28 @@ export default function TopUpPage({
             </p>
           </div>
 
+          {/* Pilihan Khusus di Atas: [ Akun Premium ] vs [ Top Up ] */}
+          <div className="main-service-toggle-wrapper">
+            <div className="main-service-toggle">
+              <button
+                type="button"
+                className="service-toggle-btn"
+                onClick={onBackToStore}
+              >
+                <i className="fa-solid fa-crown text-warning"></i>
+                <span>Akun Premium</span>
+              </button>
+              <button
+                type="button"
+                className="service-toggle-btn active"
+              >
+                <i className="fa-solid fa-bolt text-cyan"></i>
+                <span>Top Up</span>
+                <span className="toggle-badge-kilat">KILAT</span>
+              </button>
+            </div>
+          </div>
+
           {/* Filter Categories Bar */}
           <div className="category-tabs" id="topupCategoryTabs">
             {categories.map((cat) => (

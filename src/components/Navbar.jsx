@@ -102,32 +102,8 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* Navigation Link Desktop: Tab Akun Premium & Tab Top Up (Pindah Tab / Halaman Khusus) */}
+        {/* Navigation Link Desktop: Riwayat Transaksi */}
         <nav className="nav-links desktop-only-nav" id="navLinks">
-          <a
-            href="#katalog"
-            className={`nav-item ${activeTab === 'store' ? 'active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              if (onSwitchTab) onSwitchTab('store');
-            }}
-            title="Katalog Akun Streaming & Aplikasi Premium"
-          >
-            <i className="fa-solid fa-layer-group"></i> Akun Premium
-          </a>
-          <a
-            href="#topup"
-            className={`nav-item nav-item-btn nav-item-topup-tab ${activeTab === 'topup' ? 'active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              if (onSwitchTab) onSwitchTab('topup');
-              else if (onOpenTopUp) onOpenTopUp();
-            }}
-            title="Pindah ke Halaman Khusus Top Up Akun & Games"
-          >
-            Top Up Akun & Games
-            <span className="nav-tab-badge">KILAT</span>
-          </a>
           <a
             href="#transaksi"
             className={`nav-item ${activeTab === 'transaksi' ? 'active' : ''}`}

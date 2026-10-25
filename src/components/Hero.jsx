@@ -1,117 +1,391 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function Hero() {
+export default function Hero({ onSwitchTab }) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartXRef = useRef(null);
+  const touchEndXRef = useRef(null);
+
+  const SLIDES_COUNT = 4;
+
+  // Auto slide every 4.8 seconds when not paused
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % SLIDES_COUNT);
+    }, 4800);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const handleNext = () => {
+    setCurrentSlide((prev) => (prev + 1) % SLIDES_COUNT);
+  };
+
+  const handlePrev = () => {
+    setCurrentSlide((prev) => (prev - 1 + SLIDES_COUNT) % SLIDES_COUNT);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartXRef.current !== null && touchEndXRef.current !== null) {
+      const distance = touchStartXRef.current - touchEndXRef.current;
+      if (distance > 50) {
+        handleNext(); // swipe left -> next
+      } else if (distance < -50) {
+        handlePrev(); // swipe right -> prev
+      }
+    }
+    touchStartXRef.current = null;
+    touchEndXRef.current = null;
+  };
+
+  const openHowToOrder = () => {
+    const btn = document.getElementById('floatingSettingBtn');
+    if (btn) btn.click();
+  };
+
+  const slides = [
+    // Slide 1: Akun Premium Promo
+    {
+      id: 1,
+      themeClass: 'banner-theme-premium',
+      badgeIcon: 'fa-solid fa-fire text-warning',
+      badgeText: 'PROMO SPESIAL S/D 80% • RESMI',
+      title: 'Beli Akun Premium Murah, Legal & Bergaransi Penuh',
+      desc: 'Streaming Netflix 4K, Spotify Musik, YouTube No-Ads, Canva Pro & AI Tools tanpa gangguan. Proses kilat 1-5 menit langsung aktif bergaransi resmi!',
+      perks: [
+        { icon: 'fa-shield-halved text-success', text: '100% Legal & Bergaransi' },
+        { icon: 'fa-bolt text-warning', text: 'Aktivasi Kilat 1-5 Menit' },
+        { icon: 'fa-qrcode text-cyan', text: 'QRIS & E-Wallet All Bank' }
+      ],
+      primaryBtn: {
+        text: 'Beli Akun Sekarang',
+        icon: 'fa-store',
+        action: () => {
+          const el = document.getElementById('katalog');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }
+      },
+      secondaryBtn: {
+        text: 'Cara Pemesanan',
+        icon: 'fa-list-check',
+        action: openHowToOrder
+      },
+      visualType: 'apps-grid'
+    },
+
+    // Slide 2: Top Up Robux Roblox
+    {
+      id: 2,
+      themeClass: 'banner-theme-roblox',
+      badgeIcon: 'fa-solid fa-cube text-danger',
+      badgeText: 'TOP UP ROBLOX KILAT • RATE TERMURAH',
+      title: 'Top Up Robux Roblox Murah, Proses 1-3 Menit Langsung Masuk',
+      desc: 'Cukup masukkan username Roblox tanpa butuh password akun. 100% aman anti-banned, stok selalu melimpah & rate paling hemat se-Indonesia!',
+      perks: [
+        { icon: 'fa-lock text-cyan', text: 'Tanpa Password Akun' },
+        { icon: 'fa-bolt text-warning', text: 'Masuk Kilat 1-3 Menit' },
+        { icon: 'fa-shield-check text-success', text: '100% Anti-Banned & Legal' }
+      ],
+      primaryBtn: {
+        text: 'Top Up Robux Kilat',
+        icon: 'fa-bolt',
+        action: () => onSwitchTab?.('roblox')
+      },
+      secondaryBtn: {
+        text: 'Katalog Top Up Games',
+        icon: 'fa-gamepad',
+        action: () => onSwitchTab?.('topup')
+      },
+      visualType: 'roblox'
+    },
+
+    // Slide 3: Steam Key Random Game Original Valve
+    {
+      id: 3,
+      themeClass: 'banner-theme-steam',
+      badgeIcon: 'fa-brands fa-steam text-cyan',
+      badgeText: 'STEAM GAME RESMI VALVE • DISKON S/D 90%',
+      title: 'Steam Key Game Original PC Mulai Rp 1.500 Saja!',
+      desc: 'Dapatkan game PC original legal resmi Valve langsung aktivasi di library Steam kamu! Varian Original Key, Epic Tier AAA, NSFW 18+ & Hanimetai.',
+      perks: [
+        { icon: 'fa-key text-amber', text: '100% Key Resmi Valve' },
+        { icon: 'fa-earth-americas text-cyan', text: 'Aktivasi Global Permanen' },
+        { icon: 'fa-tag text-success', text: 'Mulai Rp 1.500 Saja' }
+      ],
+      primaryBtn: {
+        text: 'Klaim Steam Key',
+        icon: 'fa-brands fa-steam',
+        action: () => onSwitchTab?.('steam')
+      },
+      secondaryBtn: {
+        text: 'Lihat Menu Game',
+        icon: 'fa-gamepad',
+        action: () => onSwitchTab?.('topup')
+      },
+      visualType: 'steam'
+    },
+
+    // Slide 4: Voucher Promo & Full Gratis
+    {
+      id: 4,
+      themeClass: 'banner-theme-voucher',
+      badgeIcon: 'fa-solid fa-gift text-warning',
+      badgeText: 'PROMO VOUCHER & CASHBACK • FULL GRATIS',
+      title: 'Klaim Kupon Diskon Spesial & Voucher Belanja Gratis',
+      desc: 'Gunakan kode promo saat checkout untuk potongan harga langsung hingga voucher belanja full 100% gratis Rp 0 tanpa biaya admin!',
+      perks: [
+        { icon: 'fa-ticket text-warning', text: 'Diskon Langsung di Checkout' },
+        { icon: 'fa-crown text-amber', text: 'Voucher Full Gratis (Rp 0)' },
+        { icon: 'fa-shield-heart text-success', text: 'Garansi Resmi 100%' }
+      ],
+      primaryBtn: {
+        text: 'Klaim Promo & Belanja',
+        icon: 'fa-gift',
+        action: () => {
+          const el = document.getElementById('katalog');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }
+      },
+      secondaryBtn: {
+        text: 'Panduan Voucher',
+        icon: 'fa-circle-question',
+        action: openHowToOrder
+      },
+      visualType: 'voucher'
+    }
+  ];
+
   return (
-    <section className="hero-section">
-      <div className="container hero-container">
-        <div className="hero-content">
-          <div className="hero-badge">
-            <i className="fa-solid fa-circle-check"></i> #1 Trusted Digital Store di Indonesia
-          </div>
-          <h1 className="hero-title">
-            Beli Akun Premium <span className="gradient-text">Murah, Legal</span> & Bergaransi Penuh
-          </h1>
-          <p className="hero-desc">
-            Nikmati hiburan streaming, musik, produktivitas, dan AI tanpa batasan iklan. Proses otomatis kilat 1-5 menit langsung aktif ke perangkat kamu.
-          </p>
-          
-          <div className="hero-buttons">
-            <a href="#katalog" className="btn btn-primary">
-              <i className="fa-solid fa-store"></i> Beli Sekarang
-            </a>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => {
-                const btn = document.getElementById('floatingSettingBtn');
-                if (btn) btn.click();
-              }}
-            >
-              <i className="fa-solid fa-list-check"></i> Cara Pemesanan
-            </button>
+    <section className="hero-landscape-section">
+      <div className="container">
+        {/* Landscape Carousel Container */}
+        <div
+          className="landscape-carousel-wrapper"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Slides Track */}
+          <div
+            className="landscape-carousel-track"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          >
+            {slides.map((slide, idx) => (
+              <div
+                key={slide.id}
+                className={`landscape-banner-slide ${slide.themeClass} ${currentSlide === idx ? 'active-slide' : ''}`}
+              >
+                {/* Background glowing glow */}
+                <div className="banner-slide-glow"></div>
+
+                <div className="banner-slide-body">
+                  {/* Left Column: Text & CTAs */}
+                  <div className="banner-slide-content">
+                    <div className="banner-slide-badge">
+                      <i className={slide.badgeIcon}></i>
+                      <span>{slide.badgeText}</span>
+                    </div>
+
+                    <h1 className="banner-slide-title">{slide.title}</h1>
+
+                    <p className="banner-slide-desc">{slide.desc}</p>
+
+                    <div className="banner-slide-perks">
+                      {slide.perks.map((p, pIdx) => (
+                        <span key={pIdx} className="banner-perk-chip">
+                          <i className={`fa-solid ${p.icon}`}></i> {p.text}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="banner-slide-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-banner-action"
+                        onClick={slide.primaryBtn.action}
+                      >
+                        <i className={`fa-solid ${slide.primaryBtn.icon}`}></i>{' '}
+                        <span>{slide.primaryBtn.text}</span>
+                        <i className="fa-solid fa-arrow-right btn-arrow-icon"></i>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-banner-secondary"
+                        onClick={slide.secondaryBtn.action}
+                      >
+                        <i className={`fa-solid ${slide.secondaryBtn.icon}`}></i>{' '}
+                        <span>{slide.secondaryBtn.text}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Dynamic Visual Showcase */}
+                  <div className="banner-slide-visual">
+                    {slide.visualType === 'apps-grid' && (
+                      <div className="visual-apps-floating">
+                        <div className="app-icon-bubble bubble-1" title="Netflix">
+                          <img src="/netflix.png" alt="Netflix" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          <span>Netflix 4K</span>
+                        </div>
+                        <div className="app-icon-bubble bubble-2" title="Spotify">
+                          <img src="/spotify.png" alt="Spotify" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          <span>Spotify</span>
+                        </div>
+                        <div className="app-icon-bubble bubble-3" title="YouTube Premium">
+                          <img src="/youtube.png" alt="YouTube" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          <span>YouTube</span>
+                        </div>
+                        <div className="app-icon-bubble bubble-4" title="Canva Pro">
+                          <img src="/canva.png" alt="Canva" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          <span>Canva Pro</span>
+                        </div>
+                        <div className="visual-badge-center">
+                          <i className="fa-solid fa-crown text-warning"></i>
+                          <strong>Akun Premium</strong>
+                          <small>100% Legal & Bergaransi</small>
+                        </div>
+                      </div>
+                    )}
+
+                    {slide.visualType === 'roblox' && (
+                      <div className="visual-roblox-card">
+                        <div className="visual-roblox-logo-wrap">
+                          <img src="/roblox.png" alt="Roblox Robux" className="roblox-hero-img" onError={(e) => { e.currentTarget.src = '/banner.jpg'; }} />
+                        </div>
+                        <div className="roblox-rate-tag">
+                          <i className="fa-solid fa-bolt text-warning"></i>
+                          <span>Rate Termurah 1-3 Menit</span>
+                        </div>
+                        <div className="roblox-floating-chip">
+                          <i className="fa-solid fa-cube text-danger"></i> 50r - 500r Instant
+                        </div>
+                      </div>
+                    )}
+
+                    {slide.visualType === 'steam' && (
+                      <div className="visual-steam-card">
+                        <div className="steam-visual-badge">
+                          <i className="fa-brands fa-steam"></i>
+                          <strong>VALVE OFFICIAL</strong>
+                        </div>
+                        <div className="steam-images-stack">
+                          <img src="/steam.png" alt="Steam Official" className="steam-main-icon" />
+                          <div className="steam-tier-pill">
+                            <i className="fa-solid fa-award text-amber"></i> Epic Tier & Original
+                          </div>
+                        </div>
+                        <span className="steam-price-label">Mulai <strong>Rp 1.500</strong></span>
+                      </div>
+                    )}
+
+                    {slide.visualType === 'voucher' && (
+                      <div className="visual-voucher-card">
+                        <div className="voucher-ticket-visual">
+                          <div className="ticket-top">
+                            <i className="fa-solid fa-crown text-warning"></i>
+                            <span>CHAIZSTORE PROMO</span>
+                          </div>
+                          <div className="ticket-body">
+                            <h3>DISKON 100%</h3>
+                            <p>Voucher Full Bebas Biaya</p>
+                          </div>
+                          <div className="ticket-cutout"></div>
+                        </div>
+                        <div className="voucher-floating-badge">
+                          <i className="fa-solid fa-fire text-warning"></i> Auto Claim di Checkout
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Quick Perks Highlights */}
-          <div className="hero-quick-perks">
-            <span><i className="fa-solid fa-circle-check text-success"></i> 100% Legal</span>
-            <span><i className="fa-solid fa-bolt text-warning"></i> Kilat 1-5 Menit</span>
-            <span><i className="fa-solid fa-shield-check text-cyan"></i> Full Garansi</span>
-            <span><i className="fa-solid fa-headset text-primary"></i> CS 24 Jam</span>
-          </div>
+          {/* Carousel Arrow Controls */}
+          <button
+            type="button"
+            className="carousel-arrow-btn carousel-prev"
+            onClick={handlePrev}
+            aria-label="Slide Sebelumnya"
+          >
+            <i className="fa-solid fa-chevron-left"></i>
+          </button>
+          <button
+            type="button"
+            className="carousel-arrow-btn carousel-next"
+            onClick={handleNext}
+            aria-label="Slide Berikutnya"
+          >
+            <i className="fa-solid fa-chevron-right"></i>
+          </button>
 
-          <div className="hero-stats">
-            <div className="stat-item">
-              <span className="stat-number">1.234+</span>
-              <span className="stat-label">Akun Terjual</span>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <span className="stat-number">4.9 / 5.0</span>
-              <span className="stat-label">Rating Pelanggan</span>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <span className="stat-number">100%</span>
-              <span className="stat-label">Garansi Aman</span>
-            </div>
+          {/* Indicators / Dots */}
+          <div className="carousel-indicators">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`carousel-dot ${currentSlide === idx ? 'active' : ''}`}
+                onClick={() => setCurrentSlide(idx)}
+                aria-label={`Buka Banner ${idx + 1}`}
+              >
+                <span className="dot-inner"></span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="hero-visual">
-          <div className="hero-card-glow"></div>
-          {/* Bingkai Poster Banner Kotak (1:1 Aspect Ratio) */}
-          <div className="banner-poster-frame">
-            <div className="banner-inner">
-              <img src="/banner.jpg" alt="ChaizStore Promo Akun Premium" className="banner-poster-img" id="heroBannerImg" />
-              <div className="banner-badge-corner">
-                <i className="fa-solid fa-fire text-warning"></i> PROMO SPESIAL
-              </div>
-              <div className="banner-floating-tag">
-                <i className="fa-solid fa-circle-check text-success"></i> Official & Bergaransi
-              </div>
+        {/* Horizontal Trust Bar (Ramping & Elegan di Bawah Banner Landscape) */}
+        <div className="hero-trust-bar">
+          <div className="trust-item">
+            <i className="fa-solid fa-circle-check text-success"></i>
+            <div>
+              <strong>100% Legal & Resmi</strong>
+              <small>Aman Anti Banned</small>
             </div>
           </div>
-
-          {/* Card Deskripsi & Kelebihan Promo Banner */}
-          <div className="banner-promo-desc-card">
-            <div className="promo-desc-header">
-              <span className="promo-pill-tag"><i className="fa-solid fa-bolt text-warning"></i> PROMO SPESIAL S/D 70%</span>
-              <span className="promo-live-badge"><i className="fa-solid fa-circle text-success pulse-dot"></i> Promo Aktif</span>
+          <div className="trust-divider"></div>
+          <div className="trust-item">
+            <i className="fa-solid fa-bolt text-warning"></i>
+            <div>
+              <strong>Proses Kilat 1-5 Menit</strong>
+              <small>Pengiriman Otomatis</small>
             </div>
-            <h4 className="promo-desc-title">Keunggulan & Kelebihan Beli di ChaizStore:</h4>
-            <div className="promo-perks-grid">
-              <div className="promo-perk-item">
-                <i className="fa-solid fa-shield-halved text-success"></i>
-                <div>
-                  <strong>Full Garansi Sesuai Durasi</strong>
-                  <small>Kena masalah atau hold? Diganti akun baru langsung tanpa ribet selama masa aktif.</small>
-                </div>
-              </div>
-              <div className="promo-perk-item">
-                <i className="fa-solid fa-bolt text-warning"></i>
-                <div>
-                  <strong>Aktivasi Kilat 1 - 5 Menit</strong>
-                  <small>Setelah pembayaran terverifikasi, pesanan otomatis dikirim dalam 1-5 menit via WhatsApp.</small>
-                </div>
-              </div>
-              <div className="promo-perk-item">
-                <i className="fa-solid fa-credit-card text-cyan"></i>
-                <div>
-                  <strong>Pembayaran Mudah & Lengkap</strong>
-                  <small>Support QRIS All Bank & E-Wallet instan (DANA, OVO, GoPay, ShopeePay, BCA, Mandiri).</small>
-                </div>
-              </div>
-              <div className="promo-perk-item">
-                <i className="fa-solid fa-headset text-primary"></i>
-                <div>
-                  <strong>CS Siap Bantu 24 Jam Nonstop</strong>
-                  <small>Ada kendala atau pertanyaan? Tim admin responsif kami siap membantu kapan pun.</small>
-                </div>
-              </div>
+          </div>
+          <div className="trust-divider"></div>
+          <div className="trust-item">
+            <i className="fa-solid fa-shield-halved text-cyan"></i>
+            <div>
+              <strong>Full Garansi Resmi</strong>
+              <small>Sesuai Masa Aktif</small>
             </div>
-            <div className="promo-desc-footer">
-              <i className="fa-solid fa-circle-check text-success"></i>
-              <span><strong>100% Legal & Aman:</strong> Akses resmi legal, bebas banned/suspend, dan panduan lengkap pemakaian!</span>
+          </div>
+          <div className="trust-divider"></div>
+          <div className="trust-item">
+            <i className="fa-solid fa-headset text-primary"></i>
+            <div>
+              <strong>CS Responsif 24 Jam</strong>
+              <small>Bantuan Siaga WhatsApp</small>
+            </div>
+          </div>
+          <div className="trust-divider"></div>
+          <div className="trust-item trust-stat-item">
+            <i className="fa-solid fa-star text-warning"></i>
+            <div>
+              <strong>4.9 / 5.0 (1.234+ Order)</strong>
+              <small>Kepuasan Pelanggan</small>
             </div>
           </div>
         </div>

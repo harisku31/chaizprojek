@@ -1125,6 +1125,708 @@ button, input {
 }
 
 /* ===================================================
+   HERO LANDSCAPE CAROUSEL (DESKTOP & MOBILE RESPONSIVE)
+   =================================================== */
+.hero-landscape-section {
+  padding: 24px 0 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.landscape-carousel-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 35px rgba(99, 102, 241, 0.15);
+  background: #0b0f19;
+}
+
+.landscape-carousel-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
+}
+
+.landscape-banner-slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  position: relative;
+  overflow: hidden;
+  min-height: 350px;
+  display: flex;
+  align-items: center;
+}
+
+/* Theme Gradients */
+.banner-theme-premium {
+  background: radial-gradient(circle at 85% 30%, rgba(147, 51, 234, 0.35) 0%, transparent 60%),
+              linear-gradient(135deg, #0b0f19 0%, #15182e 45%, #2e1065 100%);
+}
+
+.banner-theme-roblox {
+  background: radial-gradient(circle at 85% 30%, rgba(239, 68, 68, 0.35) 0%, transparent 60%),
+              linear-gradient(135deg, #0b0f19 0%, #2a0808 45%, #7f1d1d 100%);
+}
+
+.banner-theme-steam {
+  background: radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.35) 0%, transparent 60%),
+              linear-gradient(135deg, #0b0f19 0%, #082f49 45%, #0369a1 100%);
+}
+
+.banner-theme-voucher {
+  background: radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.35) 0%, transparent 60%),
+              linear-gradient(135deg, #0b0f19 0%, #3a1a03 45%, #92400e 100%);
+}
+
+.banner-slide-glow {
+  position: absolute;
+  right: 5%;
+  top: 10%;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  filter: blur(75px);
+  pointer-events: none;
+  opacity: 0.35;
+  background: var(--grad-primary);
+}
+
+.banner-slide-body {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.35fr 0.85fr;
+  align-items: center;
+  gap: 28px;
+  padding: 34px 44px;
+}
+
+.banner-slide-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: 0.03em;
+}
+
+.banner-slide-title {
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #ffffff;
+  margin-bottom: 10px;
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.banner-slide-desc {
+  font-size: 0.94rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  max-width: 580px;
+}
+
+.banner-slide-perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.banner-perk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.banner-slide-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-banner-action {
+  padding: 12px 22px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.45);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-banner-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.65);
+}
+
+.btn-banner-action .btn-arrow-icon {
+  font-size: 0.82rem;
+  transition: transform 0.2s ease;
+}
+
+.btn-banner-action:hover .btn-arrow-icon {
+  transform: translateX(4px);
+}
+
+.btn-banner-secondary {
+  padding: 12px 18px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-banner-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Visual Showcase on Right */
+.banner-slide-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visual-apps-floating {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}
+
+.app-icon-bubble {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  padding: 7px 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  animation: floatSlow 3.8s ease-in-out infinite alternate;
+}
+
+.app-icon-bubble img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.bubble-1 { top: 10px; left: 20px; animation-delay: 0s; }
+.bubble-2 { top: 15px; right: 20px; animation-delay: 0.8s; }
+.bubble-3 { bottom: 15px; left: 10px; animation-delay: 1.6s; }
+.bubble-4 { bottom: 10px; right: 25px; animation-delay: 2.4s; }
+
+.visual-badge-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(168, 85, 247, 0.3) 100%);
+  border: 1.5px solid rgba(168, 85, 247, 0.5);
+  border-radius: 18px;
+  padding: 16px 20px;
+  text-align: center;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+}
+
+.visual-badge-center i {
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.visual-badge-center strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.visual-badge-center small {
+  display: block;
+  font-size: 0.72rem;
+  color: #c7d2fe;
+}
+
+@keyframes floatSlow {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-7px); }
+}
+
+/* Roblox Visual */
+.visual-roblox-card {
+  position: relative;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 30px rgba(239, 68, 68, 0.25);
+}
+
+.roblox-hero-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  object-fit: cover;
+  margin: 0 auto 10px;
+  display: block;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.roblox-rate-tag {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 5px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.roblox-floating-chip {
+  font-size: 0.75rem;
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+/* Steam Visual */
+.visual-steam-card {
+  position: relative;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1.5px solid rgba(6, 182, 212, 0.35);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 30px rgba(6, 182, 212, 0.25);
+}
+
+.steam-main-icon {
+  width: 75px;
+  height: 75px;
+  border-radius: 16px;
+  margin: 0 auto 10px;
+  display: block;
+}
+
+.steam-visual-badge {
+  font-size: 0.78rem;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.steam-tier-pill {
+  background: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #67e8f9;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+.steam-price-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.steam-price-label strong {
+  color: #38bdf8;
+  font-size: 0.95rem;
+}
+
+/* Voucher Visual */
+.visual-voucher-card {
+  position: relative;
+  text-align: center;
+}
+
+.voucher-ticket-visual {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.2) 100%);
+  border: 1.5px dashed rgba(245, 158, 11, 0.6);
+  border-radius: 16px;
+  padding: 20px 24px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.25);
+}
+
+.ticket-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 8px;
+}
+
+.ticket-body h3 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin-bottom: 4px;
+  font-weight: 800;
+}
+
+.ticket-body p {
+  font-size: 0.78rem;
+  color: #fef3c7;
+  margin: 0;
+}
+
+.voucher-floating-badge {
+  margin-top: 10px;
+  font-size: 0.74rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* Carousel Controls */
+.carousel-arrow-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.carousel-arrow-btn:hover {
+  background: rgba(99, 102, 241, 0.85);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.carousel-prev { left: 14px; }
+.carousel-next { right: 14px; }
+
+.carousel-indicators {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 5;
+}
+
+.carousel-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.carousel-dot.active {
+  width: 28px;
+  background: #38bdf8;
+  box-shadow: 0 0 12px #38bdf8;
+}
+
+/* Horizontal Trust Bar */
+.hero-trust-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 24px;
+  margin-top: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.trust-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.trust-item i {
+  font-size: 1.15rem;
+}
+
+.trust-item strong {
+  display: block;
+  color: #fff;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.trust-item small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.trust-divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ===================================================
+   MAIN SERVICE SWITCHER: [ AKUN PREMIUM ] vs [ TOP UP ]
+   =================================================== */
+.main-service-toggle-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 28px;
+  position: relative;
+  z-index: 5;
+}
+
+.main-service-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.15);
+  gap: 6px;
+}
+
+.service-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #94a3b8;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.service-toggle-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.service-toggle-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(79, 70, 229, 0.98) 100%);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5), 0 0 15px rgba(99, 102, 241, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.toggle-badge-kilat {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #06b6d4, #0284c7);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+  margin-left: 2px;
+}
+
+/* Responsive Mobile Screen Rules for Banner & Switcher */
+@media (max-width: 768px) {
+  .hero-landscape-section {
+    padding: 14px 0 8px;
+  }
+
+  .landscape-carousel-wrapper {
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  }
+
+  .landscape-banner-slide {
+    min-height: 200px;
+  }
+
+  .banner-slide-body {
+    grid-template-columns: 1fr;
+    padding: 16px 14px 22px;
+    gap: 8px;
+  }
+
+  .banner-slide-visual {
+    display: none;
+  }
+
+  .banner-slide-badge {
+    font-size: 0.68rem;
+    padding: 3px 9px;
+    margin-bottom: 6px;
+  }
+
+  .banner-slide-title {
+    font-size: 1.15rem;
+    line-height: 1.25;
+    margin-bottom: 6px;
+  }
+
+  .banner-slide-desc {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .banner-slide-perks {
+    gap: 5px;
+    margin-bottom: 12px;
+  }
+
+  .banner-perk-chip {
+    font-size: 0.68rem;
+    padding: 2px 7px;
+  }
+
+  .banner-slide-actions {
+    gap: 8px;
+  }
+
+  .btn-banner-action {
+    font-size: 0.78rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+  }
+
+  .btn-banner-secondary {
+    font-size: 0.75rem;
+    padding: 8px 11px;
+    border-radius: 8px;
+  }
+
+  .carousel-arrow-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.76rem;
+  }
+
+  .carousel-prev { left: 8px; }
+  .carousel-next { right: 8px; }
+
+  .hero-trust-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-top: 10px;
+  }
+
+  .trust-divider {
+    display: none;
+  }
+
+  .trust-item {
+    font-size: 0.72rem;
+    flex: 1 1 45%;
+    gap: 6px;
+  }
+
+  .trust-item i {
+    font-size: 0.95rem;
+  }
+
+  .trust-item strong {
+    font-size: 0.74rem;
+  }
+
+  .trust-item small {
+    font-size: 0.66rem;
+  }
+
+  .trust-stat-item {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .main-service-toggle {
+    width: 100%;
+    max-width: 340px;
+    padding: 4px;
+  }
+
+  .service-toggle-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 0.84rem;
+    gap: 6px;
+  }
+}
+
+/* ===================================================
    PRODUCT CATALOG SECTION
    =================================================== */
 .katalog-section {

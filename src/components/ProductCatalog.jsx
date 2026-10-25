@@ -10,7 +10,9 @@ export default function ProductCatalog({
   onOpenProductModal,
   onShowToast,
   highlightedProductId,
-  onOpenSteamMenu
+  onOpenSteamMenu,
+  activeTab = 'store',
+  onSwitchTab
 }) {
   const categories = [
     { id: 'all', label: 'Semua Akun', icon: 'fa-border-all' },
@@ -51,6 +53,29 @@ export default function ProductCatalog({
           </span>
           <h2>Pilih Layanan Premium Favoritmu</h2>
           <p>Tersedia akun Sharing maupun Private dengan harga bersahabat dan garansi penuh.</p>
+        </div>
+
+        {/* Pilihan Khusus di Atas: [ Akun Premium ] vs [ Top Up ] */}
+        <div className="main-service-toggle-wrapper">
+          <div className="main-service-toggle">
+            <button
+              type="button"
+              className={`service-toggle-btn ${activeTab === 'store' ? 'active' : ''}`}
+              onClick={() => onSwitchTab?.('store')}
+            >
+              <i className="fa-solid fa-crown text-warning"></i>
+              <span>Akun Premium</span>
+            </button>
+            <button
+              type="button"
+              className={`service-toggle-btn ${activeTab === 'topup' ? 'active' : ''}`}
+              onClick={() => onSwitchTab?.('topup')}
+            >
+              <i className="fa-solid fa-bolt text-cyan"></i>
+              <span>Top Up</span>
+              <span className="toggle-badge-kilat">KILAT</span>
+            </button>
+          </div>
         </div>
 
         {/* Categories Filter Tabs */}

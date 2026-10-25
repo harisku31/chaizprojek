@@ -735,7 +735,7 @@ export default function App() {
           />
         ) : (
           <>
-            <Hero />
+            <Hero onSwitchTab={handleSwitchTab} />
 
             <ProductCatalog
               products={products}
@@ -756,6 +756,8 @@ export default function App() {
               onOpenSteamMenu={() => handleSwitchTab('steam')}
               onShowToast={showToast}
               highlightedProductId={highlightedProductId}
+              activeTab={activeTab}
+              onSwitchTab={handleSwitchTab}
             />
 
             <HowToOrder />
