@@ -1146,7 +1146,7 @@ button, input {
 .landscape-carousel-track {
   display: flex;
   width: 100%;
-  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 
@@ -1574,20 +1574,36 @@ button, input {
 }
 
 .carousel-dot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.3);
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: width 0.35s ease, background 0.3s ease;
   padding: 0;
+  overflow: hidden;
+  position: relative;
 }
 
 .carousel-dot.active {
-  width: 28px;
-  background: #38bdf8;
-  box-shadow: 0 0 12px #38bdf8;
+  width: 36px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+}
+
+.dot-fill-progress {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  box-shadow: 0 0 10px #38bdf8;
+  animation: progressFill 3.6s linear forwards;
+}
+
+@keyframes progressFill {
+  0% { width: 0%; }
+  100% { width: 100%; }
 }
 
 /* Horizontal Trust Bar */

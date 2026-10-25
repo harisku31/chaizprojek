@@ -102,21 +102,6 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* Navigation Link Desktop: Riwayat Transaksi */}
-        <nav className="nav-links desktop-only-nav" id="navLinks">
-          <a
-            href="#transaksi"
-            className={`nav-item ${activeTab === 'transaksi' ? 'active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              if (onSwitchTab) onSwitchTab('transaksi');
-            }}
-            title="Riwayat Pesanan & Transaksi Anda"
-          >
-            <i className="fa-solid fa-receipt text-cyan"></i> Transaksi
-          </a>
-        </nav>
-
         {/* Navigation Actions (Kanan): Urutan: [Pencarian] -> [Keranjang] -> [WhatsApp] -> [Profil di Pojok Kanan Atas] */}
         <div className="nav-actions">
           {/* 1. Pencarian Desktop (digeser ke kanan deket keranjang) */}

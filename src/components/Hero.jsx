@@ -2,20 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export default function Hero({ onSwitchTab }) {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
   const touchStartXRef = useRef(null);
   const touchEndXRef = useRef(null);
 
   const SLIDES_COUNT = 4;
+  const SLIDE_INTERVAL = 3600; // Bergulir otomatis setiap 3.6 detik
 
-  // Auto slide every 4.8 seconds when not paused
+  // Auto slide bergulir otomatis tiap 3.6 detik secara nonstop
   useEffect(() => {
-    if (isPaused) return;
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % SLIDES_COUNT);
-    }, 4800);
-    return () => clearInterval(interval);
-  }, [isPaused]);
+    }, SLIDE_INTERVAL);
+    return () => clearInterval(timer);
+  }, [currentSlide]);
 
   const handleNext = () => {
     setCurrentSlide((prev) => (prev + 1) % SLIDES_COUNT);
@@ -169,8 +168,6 @@ export default function Hero({ onSwitchTab }) {
         {/* Landscape Carousel Container */}
         <div
           className="landscape-carousel-wrapper"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -331,7 +328,7 @@ export default function Hero({ onSwitchTab }) {
             <i className="fa-solid fa-chevron-right"></i>
           </button>
 
-          {/* Indicators / Dots */}
+          {/* Indicators / Dots dengan progress bar geser otomatis */}
           <div className="carousel-indicators">
             {slides.map((_, idx) => (
               <button
@@ -341,7 +338,11 @@ export default function Hero({ onSwitchTab }) {
                 onClick={() => setCurrentSlide(idx)}
                 aria-label={`Buka Banner ${idx + 1}`}
               >
-                <span className="dot-inner"></span>
+                {currentSlide === idx ? (
+                  <span key={`progress-${currentSlide}`} className="dot-fill-progress"></span>
+                ) : (
+                  <span className="dot-inner"></span>
+                )}
               </button>
             ))}
           </div>
