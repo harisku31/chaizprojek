@@ -38,6 +38,8 @@ import {
   syncTransactionsFromCloud,
   listenToAllTransactions
 } from '../utils/transactions';
+import { compressImageFile } from '../utils/format';
+import { playAdminOrderSound, isSoundEnabled, setSoundEnabled } from '../utils/audioNotification';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -190,6 +192,12 @@ const formatWhatsAppFulfillMessage = (order, mode = 'premium_account', data = {}
     }
   }
 
+  if (data.adminProofUrl || data.hasAdminProof) {
+    lines.push(`📸 *FOTO BUKTI PENGIRIMAN:*`);
+    lines.push(`Foto screenshot bukti aktivasi/pengiriman telah dilampirkan oleh Admin dan dapat Anda lihat langsung di menu rincian transaksi akun website ChaizStore.`);
+    lines.push(``);
+  }
+
   lines.push(`🛡️ *GARANSI RESMI CHAIZSTORE:*`);
   lines.push(`Pesanan ini bergaransi penuh 100%. Jika ada pertanyaan atau kendala aktivasi/login, silakan langsung balas chat WhatsApp ini ya kak!`);
   lines.push(``);
@@ -248,6 +256,11 @@ export default function AdminApp() {
   const [copyWaSuccess, setCopyWaSuccess] = useState(false);
   const [showFulfillPassword, setShowFulfillPassword] = useState(false);
   const [showExtraFields, setShowExtraFields] = useState(false);
+  const [fulfillProofPhoto, setFulfillProofPhoto] = useState(null); // Foto Bukti Kirim dari Admin (Opsional)
+  const fulfillFileInputRef = React.useRef(null);
+  const [adminSoundOn, setAdminSoundOn] = useState(() => isSoundEnabled());
+  const knownOrderIdsRef = React.useRef(new Set());
+  const isInitialLoadRef = React.useRef(true);
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
   const [proofImgError, setProofImgError] = useState(false);
   const [isFulfilling, setIsFulfilling] = useState(false);
@@ -392,6 +405,7 @@ export default function AdminApp() {
       if (type === 'NEW_TRANSACTION') {
         const newTrx = e.detail?.data?.newTrx || e.detail?.newTrx;
         if (newTrx && newTrx.id) {
+          knownOrderIdsRef.current.add(newTrx.id);
           setOrdersList((prev) => {
             if (prev.some((o) => o.id === newTrx.id)) return prev;
             return [newTrx, ...prev];
@@ -399,7 +413,8 @@ export default function AdminApp() {
         } else {
           setOrdersList(getTransactions());
         }
-        showToast('Pesanan baru masuk dari pelanggan!', 'fa-receipt', 'success');
+        playAdminOrderSound();
+        showToast('🔔 Pesanan baru masuk dari pelanggan!', 'fa-bell text-warning', 'success');
       }
     };
 
@@ -408,6 +423,19 @@ export default function AdminApp() {
     // Native Firebase SSE streaming untuk seluruh pesanan (sub-50ms instant delta)
     const unsubscribeAllTrx = listenToAllTransactions((liveOrders) => {
       if (Array.isArray(liveOrders)) {
+        if (isInitialLoadRef.current) {
+          liveOrders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+          isInitialLoadRef.current = false;
+        } else {
+          const hasNewOrder = liveOrders.some(
+            (o) => !knownOrderIdsRef.current.has(o.id) && (o.status === 'processing' || o.status === 'pending')
+          );
+          if (hasNewOrder) {
+            playAdminOrderSound();
+            showToast('🔔 Pesanan baru masuk dari pelanggan!', 'fa-bell text-warning', 'success');
+          }
+          liveOrders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+        }
         setOrdersList(liveOrders);
       }
     });
@@ -709,6 +737,32 @@ export default function AdminApp() {
           : `Layanan Akun ${order.productName || 'Premium'} sudah berhasil diproses dan diaktifkan. Garansi penuh ChaizStore aktif!`)
     );
     setShowFulfillPassword(false);
+    setFulfillProofPhoto(null);
+  };
+
+  const handleAdminProofChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Harap pilih file foto bukti pengiriman (JPG / PNG / WEBP)', 'fa-triangle-exclamation', 'warning');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      const compressedDataUrl = await compressImageFile(file, 900, 1200, 0.72);
+      const sizeKb = ((compressedDataUrl?.length || file.size) * 0.75 / 1024).toFixed(1);
+      setFulfillProofPhoto({
+        file,
+        name: file.name,
+        size: `${sizeKb} KB`,
+        dataUrl: compressedDataUrl
+      });
+      showToast('Foto bukti pengiriman admin berhasil diunggah!', 'fa-camera text-success', 'success');
+    } catch {
+      showToast('Gagal memproses foto bukti pengiriman', 'fa-triangle-exclamation', 'error');
+    }
   };
 
   // Ceklis Hijau: Selesaikan pesanan langsung & kirim konfirmasi WhatsApp ke pelanggan
@@ -872,7 +926,8 @@ export default function AdminApp() {
           warranty: fulfillWarranty,
           code: fulfillCode,
           email: fulfillAccount || selectedOrderForFulfill.customerEmail || selectedOrderForFulfill.userEmail || selectedOrderForFulfill.email,
-          phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa
+          phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa,
+          adminProofUrl: fulfillProofPhoto?.dataUrl || null
         },
         fulfillAdminNote
       );
@@ -911,7 +966,10 @@ export default function AdminApp() {
           duration: sTrim(fulfillDuration),
           warranty: sTrim(fulfillWarranty),
           deliveryMethod: sendViaWhatsApp ? 'whatsapp' : 'web',
-          sendViaWhatsApp
+          sendViaWhatsApp,
+          adminProofUrl: fulfillProofPhoto?.dataUrl || null,
+          adminProofFileName: fulfillProofPhoto?.name || null,
+          adminProofSize: fulfillProofPhoto?.size || null
         }
       );
 
@@ -935,7 +993,18 @@ export default function AdminApp() {
       );
 
       setOrdersList((prev) =>
-        prev.map((o) => (o.id === selectedOrderForFulfill.id ? { ...o, ...(fulfilled || {}), status: 'completed' } : o))
+        prev.map((o) =>
+          o.id === selectedOrderForFulfill.id
+            ? {
+                ...o,
+                ...(fulfilled || {}),
+                status: 'completed',
+                adminProofUrl: fulfillProofPhoto?.dataUrl || null,
+                adminProofFileName: fulfillProofPhoto?.name || null,
+                adminProofSize: fulfillProofPhoto?.size || null
+              }
+            : o
+        )
       );
       setProductsList(getDatabaseProducts());
 
@@ -978,7 +1047,8 @@ export default function AdminApp() {
         warranty: fulfillWarranty,
         code: fulfillCode,
         email: fulfillAccount || selectedOrderForFulfill.customerEmail || selectedOrderForFulfill.userEmail || selectedOrderForFulfill.email,
-        phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa
+        phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa,
+        adminProofUrl: fulfillProofPhoto?.dataUrl || null
       },
       fulfillAdminNote
     );
@@ -1572,6 +1642,34 @@ export default function AdminApp() {
               <span className="pulse-dot"></span>
               <span>Live Sync Online</span>
             </div>
+
+            <button
+              type="button"
+              className={`admin-nav-btn ${adminSoundOn ? 'btn-sound-active' : 'btn-sound-muted'}`}
+              onClick={() => {
+                const nextState = !adminSoundOn;
+                setAdminSoundOn(nextState);
+                setSoundEnabled(nextState);
+                if (nextState) {
+                  playAdminOrderSound();
+                  showToast('Suara notifikasi pesanan AKTIF! (Bel berbunyi)', 'fa-volume-high text-success', 'success');
+                } else {
+                  showToast('Suara notifikasi dibisukan (MUTE)', 'fa-volume-xmark text-muted', 'info');
+                }
+              }}
+              style={{
+                background: adminSoundOn ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.16)',
+                border: adminSoundOn ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(239, 68, 68, 0.4)',
+                color: adminSoundOn ? '#34d399' : '#fca5a5',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title={adminSoundOn ? 'Suara notifikasi pesanan aktif. Klik untuk matikan suara.' : 'Suara notifikasi pesanan nonaktif. Klik untuk menyalakan.'}
+            >
+              <i className={`fa-solid ${adminSoundOn ? 'fa-bell text-warning' : 'fa-bell-slash text-danger'}`}></i>
+              <span>{adminSoundOn ? 'Suara: ON' : 'Suara: OFF'}</span>
+            </button>
 
             <button
               type="button"
@@ -3062,6 +3160,17 @@ export default function AdminApp() {
                                 >
                                   <i className="fa-solid fa-paper-plane"></i>
                                 </button>
+                                {order.adminProofUrl && (
+                                  <button
+                                    type="button"
+                                    className="btn-admin-order-action-plane"
+                                    style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                                    onClick={() => window.open(order.adminProofUrl, '_blank')}
+                                    title="Lihat Foto Bukti Pengiriman yang Dikirim Admin"
+                                  >
+                                    <i className="fa-solid fa-camera"></i>
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -4828,6 +4937,127 @@ export default function AdminApp() {
                   </div>
                 )}
 
+                {/* 5. FITUR UNGGAH FOTO BUKTI PENGIRIMAN DARI ADMIN (OPSIONAL) */}
+                <div
+                  className="admin-form-group account-field-card primary-field-card"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)',
+                    border: '1.5px dashed rgba(56, 189, 248, 0.45)',
+                    borderRadius: 'var(--admin-radius-md)',
+                    padding: '16px',
+                    marginBottom: '16px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                    <label className="account-field-label" style={{ margin: 0, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-camera-retro text-cyan" style={{ fontSize: '15px' }}></i>
+                      <span>Unggah Foto Bukti / Screenshot Pengiriman (Opsional):</span>
+                    </label>
+                    <span style={{ fontSize: '11px', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      Otomatis Terkirim ke Pelanggan
+                    </span>
+                  </div>
+
+                  {fulfillProofPhoto ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px',
+                        background: 'rgba(15, 23, 42, 0.85)',
+                        border: '1px solid rgba(16, 185, 129, 0.45)',
+                        borderRadius: '10px',
+                        padding: '12px 14px'
+                      }}
+                    >
+                      <img
+                        src={fulfillProofPhoto.dataUrl}
+                        alt="Preview Bukti Admin"
+                        style={{
+                          width: '64px',
+                          height: '64px',
+                          borderRadius: '8px',
+                          objectFit: 'cover',
+                          border: '2px solid #10b981',
+                          boxShadow: '0 0 10px rgba(16, 185, 129, 0.35)',
+                          flexShrink: 0
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ color: '#ffffff', fontSize: '13px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {fulfillProofPhoto.name}
+                        </strong>
+                        <div style={{ fontSize: '11.5px', color: '#34d399', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <i className="fa-solid fa-circle-check"></i>
+                          <span>Foto berhasil diunggah ({fulfillProofPhoto.size})</span>
+                        </div>
+                        <small style={{ color: '#94a3b8', fontSize: '11px' }}>
+                          Foto ini akan tampil di menu rincian transaksi pembeli.
+                        </small>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFulfillProofPhoto(null);
+                          if (fulfillFileInputRef.current) fulfillFileInputRef.current.value = '';
+                        }}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          color: '#f87171',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                        title="Hapus foto bukti ini"
+                      >
+                        <i className="fa-solid fa-trash-can"></i> Hapus
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={fulfillFileInputRef}
+                        style={{ display: 'none' }}
+                        onChange={handleAdminProofChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fulfillFileInputRef.current?.click()}
+                        style={{
+                          width: '100%',
+                          padding: '14px',
+                          borderRadius: '10px',
+                          border: '1.5px dashed rgba(56, 189, 248, 0.45)',
+                          background: 'rgba(56, 189, 248, 0.08)',
+                          color: '#38bdf8',
+                          fontWeight: 600,
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '17px' }}></i>
+                        <span>Klik untuk Unggah Foto Bukti / Screenshot Selesai (JPG / PNG)</span>
+                      </button>
+                      <span style={{ display: 'block', fontSize: '11.5px', color: '#94a3b8', marginTop: '6px' }}>
+                        💡 Tidak wajib diisi. Jika diunggah, foto bukti akan otomatis dikirim dan bisa dilihat oleh pembeli.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* FITUR KIRIM LEWAT WHATSAPP (TAMPIL DI SEMUA MODE PENGIRIMAN) */}
                 <div className="fulfill-whatsapp-box">
                   <div className="fulfill-wa-header">
@@ -4913,7 +5143,8 @@ export default function AdminApp() {
                           warranty: fulfillWarranty,
                           code: fulfillCode,
                           email: fulfillAccount || selectedOrderForFulfill.customerEmail || selectedOrderForFulfill.userEmail || selectedOrderForFulfill.email,
-                          phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa
+                          phone: fulfillCustomerPhone || selectedOrderForFulfill.customerPhone || selectedOrderForFulfill.phone || selectedOrderForFulfill.wa,
+                          adminProofUrl: fulfillProofPhoto?.dataUrl || null
                         },
                         fulfillAdminNote
                       )}

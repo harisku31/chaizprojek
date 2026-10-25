@@ -168,6 +168,94 @@ export default function TransactionModal({
             </div>
           ) : null}
 
+          {/* Foto Bukti Pengiriman dari Admin (Jika Admin melampirkan foto saat kirim pesanan) */}
+          {transaction.adminProofUrl && (
+            <div
+              className="trx-proof-sent-box"
+              style={{
+                borderColor: 'rgba(16, 185, 129, 0.45)',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%)',
+                marginTop: '12px'
+              }}
+            >
+              <div className="proof-sent-header" style={{ color: '#34d399' }}>
+                <i className="fa-solid fa-camera-retro"></i>
+                <span>Foto Bukti Pengiriman / Aktivasi dari Admin:</span>
+              </div>
+              <div className="proof-sent-preview" style={{ alignItems: 'flex-start' }}>
+                <img
+                  src={transaction.adminProofUrl}
+                  alt="Bukti Pengiriman Admin"
+                  className="proof-sent-thumb"
+                  style={{
+                    width: '85px',
+                    height: '85px',
+                    borderRadius: '10px',
+                    objectFit: 'cover',
+                    border: '2px solid #10b981',
+                    boxShadow: '0 0 12px rgba(16, 185, 129, 0.35)',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => window.open(transaction.adminProofUrl, '_blank')}
+                  title="Klik untuk melihat foto ukuran penuh"
+                />
+                <div className="proof-sent-details" style={{ flex: 1 }}>
+                  <strong style={{ color: '#ffffff', fontSize: '13px' }}>
+                    {transaction.adminProofFileName || 'Bukti_Pengiriman_Admin.png'}
+                  </strong>
+                  {transaction.adminProofSize && (
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', display: 'block', marginTop: '2px' }}>
+                      Ukuran: {transaction.adminProofSize}
+                    </span>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => window.open(transaction.adminProofUrl, '_blank')}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        border: '1px solid rgba(16, 185, 129, 0.45)',
+                        color: '#34d399',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-up-right-from-square"></i> Lihat Ukuran Penuh
+                    </button>
+                    <a
+                      href={transaction.adminProofUrl}
+                      download={transaction.adminProofFileName || 'Bukti_Pengiriman_Admin.jpg'}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        color: '#38bdf8',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <i className="fa-solid fa-download"></i> Unduh Foto
+                    </a>
+                  </div>
+                  <small className="text-muted" style={{ display: 'block', marginTop: '6px', fontSize: '11px' }}>
+                    <i className="fa-solid fa-circle-check text-emerald"></i> Bukti screenshot resmi pengiriman yang dilampirkan langsung oleh Admin.
+                  </small>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 2. Kolom Kredensial / Akun yang Diberikan Admin */}
           <div className="trx-credentials-section">
             <div className="section-header-row">

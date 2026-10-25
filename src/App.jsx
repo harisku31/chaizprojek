@@ -37,6 +37,7 @@ import {
 } from './utils/productDatabase';
 import { getUserKey } from './utils/transactions';
 import { syncUserToSql } from './utils/sqlApi';
+import { playUserSuccessSound, playUserRejectSound } from './utils/audioNotification';
 
 export default function App() {
   // Product Database & Realtime Stock State
@@ -334,6 +335,41 @@ export default function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [authUser, bannedInfo, isBannedModalOpen]);
+
+  // Global sound & toast listener for order updates when browsing anywhere on the site
+  useEffect(() => {
+    if (!authUser) return;
+
+    const handleGlobalOrderEvent = (e) => {
+      const type = e.detail?.type;
+      if (type !== 'TRANSACTION_FULFILLED' && type !== 'TRANSACTION_REJECTED') return;
+
+      const userKey = e.detail?.data?.userKey || e.detail?.userKey;
+      const myKey = authUser.id || getUserKey(authUser);
+      if (userKey && userKey !== myKey) return;
+
+      const updated = e.detail?.data?.updatedTrx || e.detail?.updatedTrx;
+      // If we are currently on the 'transaksi' tab, TransactionsPage handles its own sounds
+      if (activeTab === 'transaksi') return;
+
+      if (type === 'TRANSACTION_FULFILLED') {
+        playUserSuccessSound();
+        showToast(
+          `🎉 Pesanan #${updated?.id || ''} telah selesai diproses Admin! Buka menu Riwayat Transaksi untuk melihat detail akun.`,
+          'fa-circle-check text-success'
+        );
+      } else if (type === 'TRANSACTION_REJECTED') {
+        playUserRejectSound();
+        showToast(
+          `Pesanan #${updated?.id || ''} ditolak oleh Admin. Buka menu Riwayat Transaksi untuk informasi lebih lanjut.`,
+          'fa-circle-xmark text-danger'
+        );
+      }
+    };
+
+    window.addEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
+    return () => window.removeEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
+  }, [authUser, activeTab]);
 
   // Save auth user & record login for admin dashboard monitoring
   const handleLoginSuccess = (user) => {

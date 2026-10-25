@@ -10,6 +10,7 @@ import {
 } from '../utils/transactions';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
+import { playUserSuccessSound, playUserRejectSound } from '../utils/audioNotification';
 
 export default function TransactionsPage({
   onBackToStore,
@@ -134,11 +135,13 @@ export default function TransactionsPage({
             }
 
             if (type === 'TRANSACTION_FULFILLED') {
+              playUserSuccessSound();
               onShowToast?.(
                 '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
                 'fa-circle-check text-success'
               );
             } else if (type === 'TRANSACTION_REJECTED') {
+              playUserRejectSound();
               onShowToast?.('Pesanan Anda telah ditolak oleh Admin.', 'fa-circle-xmark text-danger');
             }
           }
@@ -172,11 +175,13 @@ export default function TransactionsPage({
         }
 
         if (e.detail?.type === 'TRANSACTION_FULFILLED') {
+          playUserSuccessSound();
           onShowToast?.(
             '🎉 Pesanan Anda telah berhasil diproses oleh Admin! Akun Anda sudah siap dilihat.',
             'fa-circle-check text-success'
           );
         } else if (e.detail?.type === 'TRANSACTION_REJECTED') {
+          playUserRejectSound();
           onShowToast?.('Pesanan Anda telah ditolak oleh Admin.', 'fa-circle-xmark text-danger');
         }
       }
@@ -203,6 +208,7 @@ export default function TransactionsPage({
       ) {
         setSelectedTrxDetail(updated);
         if (updated.status === 'completed' && selectedTrxDetail.status !== 'completed') {
+          playUserSuccessSound();
           onShowToast?.(
             '🎉 Pesanan Anda telah selesai diproses Admin! Akun & kredensial telah siap di bawah.',
             'fa-circle-check text-success'
@@ -558,6 +564,21 @@ export default function TransactionsPage({
                               <i className="fa-solid fa-shield-halved text-cyan"></i> {trx.warrantyPeriod}
                             </span>
                             <span className="meta-pay">{trx.paymentMethod}</span>
+                            {trx.adminProofUrl && (
+                              <span
+                                className="meta-pill"
+                                style={{
+                                  background: 'rgba(16, 185, 129, 0.18)',
+                                  color: '#34d399',
+                                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <i className="fa-solid fa-camera"></i> Ada Bukti Admin
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

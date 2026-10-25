@@ -733,6 +733,9 @@ export async function fulfillTransaction(id, credentials = {}, adminNote = '', f
       adminNote ||
       existing?.adminNote ||
       'Pesanan Anda telah berhasil diproses oleh Admin ChaizStore. Selamat menikmati layanan kami!',
+    adminProofUrl: extraMeta.adminProofUrl || credentials?.adminProofUrl || existing?.adminProofUrl || null,
+    adminProofFileName: extraMeta.adminProofFileName || credentials?.adminProofFileName || existing?.adminProofFileName || null,
+    adminProofSize: extraMeta.adminProofSize || credentials?.adminProofSize || existing?.adminProofSize || null,
     processedAt: new Date().toISOString(),
     isRead: false
   };
