@@ -260,7 +260,10 @@ export default function RobloxBuyModal({
       return;
     }
     if (!wa) {
-      onShowToast?.('Silakan masukkan Nomor WhatsApp Anda!', 'fa-triangle-exclamation');
+      onShowToast?.('⚠️ Jangan lupa isi nomor telepon / WhatsApp kamu!', 'fa-phone text-warning', 'warning');
+      const el = document.getElementById('robloxBuyerWa');
+      el?.focus();
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     if (!selectedMethod) {
@@ -670,15 +673,30 @@ export default function RobloxBuyModal({
               </div>
 
               <div>
-                <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '4px' }}>No. WhatsApp:</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label htmlFor="robloxBuyerWa" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', display: 'block', margin: 0 }}>
+                    No. WhatsApp / HP:
+                  </label>
+                  {!buyerWa.trim() && (
+                    <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>*Jangan lupa isi</span>
+                  )}
+                </div>
                 <input
+                  id="robloxBuyerWa"
                   type="tel"
                   className="form-control"
                   placeholder="Contoh: 08123456789"
                   value={buyerWa}
                   onChange={(e) => setBuyerWa(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: !buyerWa.trim() ? '1px solid rgba(245, 158, 11, 0.55)' : '1px solid rgba(255,255,255,0.15)',
+                    color: '#fff'
+                  }}
                 />
               </div>
 

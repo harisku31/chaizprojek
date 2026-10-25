@@ -191,7 +191,10 @@ export default function SteamKeyModal({
       return;
     }
     if (!wa) {
-      onShowToast?.('Silakan masukkan Nomor WhatsApp Anda!', 'fa-triangle-exclamation');
+      onShowToast?.('⚠️ Jangan lupa isi nomor telepon / WhatsApp kamu!', 'fa-phone text-warning');
+      const el = document.getElementById('steamBuyerWa');
+      el?.focus();
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
@@ -444,22 +447,36 @@ export default function SteamKeyModal({
 
               {/* 4. Nomor WhatsApp */}
               <div className="clean-field-group">
-                <label htmlFor="steamBuyerWa" className="clean-field-label">
-                  <i className="fa-brands fa-whatsapp text-success"></i>
-                  <span>Nomor WhatsApp</span>
-                  <span className="clean-field-badge badge-req">*Wajib</span>
+                <label htmlFor="steamBuyerWa" className="clean-field-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-brands fa-whatsapp text-success"></i>
+                    <span>Nomor Telepon / WhatsApp Aktif</span>
+                  </div>
+                  {!buyerWa.trim() ? (
+                    <span className="clean-field-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.5)', fontWeight: 700, fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px' }}>
+                      <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i>Jangan Lupa Diisi
+                    </span>
+                  ) : (
+                    <span className="clean-field-badge badge-req" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                      <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Sudah Terisi
+                    </span>
+                  )}
                 </label>
-                <div className="clean-input-wrapper">
+                <div className="clean-input-wrapper" style={!buyerWa.trim() ? { borderColor: 'rgba(245, 158, 11, 0.65)', boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.15)' } : {}}>
                   <i className="fa-brands fa-whatsapp clean-input-lead-icon text-success"></i>
                   <input
                     type="tel"
                     id="steamBuyerWa"
                     required
                     className="clean-field-control"
-                    placeholder="Contoh: 081234567890"
+                    placeholder="Contoh: 081234567890 (Wajib diisi)"
                     value={buyerWa}
                     onChange={(e) => setBuyerWa(e.target.value)}
                   />
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '0.78rem', color: !buyerWa.trim() ? '#fbbf24' : 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className={!buyerWa.trim() ? 'fa-solid fa-bullhorn text-warning' : 'fa-solid fa-circle-info'}></i>
+                  <span><strong>Arahan:</strong> Jangan lupa isi nomor telepon kamu agar Admin dapat mengirimkan kode Steam Key!</span>
                 </div>
               </div>
             </div>

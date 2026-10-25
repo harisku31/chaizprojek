@@ -205,6 +205,36 @@ export default function CheckoutModal({
   };
 
   const handleSubmitOrder = async () => {
+    const username = buyerUsername.trim();
+    const name = buyerName.trim();
+    const wa = buyerWa.trim();
+    const email = buyerEmail.trim() || '-';
+
+    if (!name) {
+      onShowToast('Silakan masukkan Nama Lengkap Anda terlebih dahulu!', 'fa-triangle-exclamation');
+      const inputEl = document.getElementById('checkoutBuyerName');
+      inputEl?.focus();
+      inputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    if (!wa) {
+      onShowToast('⚠️ Jangan lupa isi nomor telepon / WhatsApp kamu!', 'fa-phone text-warning');
+      const inputEl = document.getElementById('checkoutBuyerWa');
+      inputEl?.focus();
+      inputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const cleanWaDigits = wa.replace(/[^0-9]/g, '');
+    if (cleanWaDigits.length < 8) {
+      onShowToast('Nomor telepon / WhatsApp kamu terlalu pendek! Minimal 8-15 digit (contoh: 081234567890).', 'fa-triangle-exclamation');
+      const inputEl = document.getElementById('checkoutBuyerWa');
+      inputEl?.focus();
+      inputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     if (finalTotal > 0 && !selectedMethod) {
       onShowToast('Silakan klik salah satu metode pembayaran terlebih dahulu!', 'fa-triangle-exclamation');
       return;
@@ -212,21 +242,6 @@ export default function CheckoutModal({
 
     if (finalTotal > 0 && !uploadedProof) {
       onShowToast('Harap upload foto bukti transfer terlebih dahulu!', 'fa-triangle-exclamation');
-      return;
-    }
-
-    const username = buyerUsername.trim();
-    const name = buyerName.trim();
-    const wa = buyerWa.trim();
-    const email = buyerEmail.trim() || '-';
-
-    if (!name) {
-      onShowToast('Silakan masukkan Nama Lengkap Anda', 'fa-triangle-exclamation');
-      return;
-    }
-
-    if (!wa) {
-      onShowToast('Silakan masukkan No. WhatsApp Anda', 'fa-triangle-exclamation');
       return;
     }
 
@@ -556,23 +571,37 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
               </div>
 
               {/* 4. Nomor WhatsApp */}
-              <div className="clean-field-group">
-                <label htmlFor="checkoutBuyerWa" className="clean-field-label">
-                  <i className="fa-brands fa-whatsapp text-success"></i>
-                  <span>Nomor WhatsApp Aktif</span>
-                  <span className="clean-field-badge badge-req">*Wajib</span>
+              <div className={`clean-field-group ${!buyerWa.trim() ? 'field-highlight-wa' : ''}`}>
+                <label htmlFor="checkoutBuyerWa" className="clean-field-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-brands fa-whatsapp text-success"></i>
+                    <span>Nomor Telepon / WhatsApp Aktif</span>
+                  </div>
+                  {!buyerWa.trim() ? (
+                    <span className="clean-field-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.5)', fontWeight: 700, fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px' }}>
+                      <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i>Jangan Lupa Diisi
+                    </span>
+                  ) : (
+                    <span className="clean-field-badge badge-req" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                      <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Sudah Terisi
+                    </span>
+                  )}
                 </label>
-                <div className="clean-input-wrapper">
+                <div className="clean-input-wrapper" style={!buyerWa.trim() ? { borderColor: 'rgba(245, 158, 11, 0.65)', boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.15)' } : {}}>
                   <i className="fa-brands fa-whatsapp clean-input-lead-icon text-success"></i>
                   <input
                     type="tel"
                     id="checkoutBuyerWa"
                     required
                     className="clean-field-control"
-                    placeholder="Contoh: 081234567890"
+                    placeholder="Contoh: 081234567890 (Wajib diisi)"
                     value={buyerWa}
                     onChange={(e) => setBuyerWa(e.target.value)}
                   />
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '0.78rem', color: !buyerWa.trim() ? '#fbbf24' : 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className={!buyerWa.trim() ? 'fa-solid fa-bullhorn text-warning' : 'fa-solid fa-circle-info'}></i>
+                  <span><strong>Arahan:</strong> Jangan lupa isi nomor telepon / WhatsApp kamu agar admin dapat mengirimkan detail akun & informasi pesanan!</span>
                 </div>
               </div>
 
@@ -607,6 +636,62 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
               <i className="fa-solid fa-wallet text-warning"></i> Metode Pembayaran
             </h4>
             <p className="checkout-section-desc">Pilih salah satu metode pembayaran di bawah ini:</p>
+
+            {/* Arahan Pengingat Nomor HP jika belum diisi */}
+            {!buyerWa.trim() && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(234, 88, 12, 0.08))',
+                  border: '1.5px dashed rgba(245, 158, 11, 0.55)',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', flexShrink: 0, fontSize: '0.95rem' }}>
+                    <i className="fa-solid fa-phone-volume"></i>
+                  </div>
+                  <div>
+                    <strong style={{ color: '#fbbf24', fontSize: '0.86rem', display: 'block' }}>
+                      Pengingat: Jangan lupa isi nomor telepon kamu!
+                    </strong>
+                    <span style={{ color: '#cbd5e1', fontSize: '0.78rem' }}>
+                      Nomor telepon di bagian atas belum terisi. Harap diisi agar pesanan kamu dapat diproses dengan cepat.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('checkoutBuyerWa');
+                    el?.focus();
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  style={{
+                    background: '#f59e0b',
+                    color: '#0f172a',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <i className="fa-solid fa-pen-to-square"></i> Isi Nomor
+                </button>
+              </div>
+            )}
+
             <div className="checkout-methods-grid">
               {/* QRIS */}
               <label
@@ -845,6 +930,51 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
           {/* 5. Submit Order Button */}
           {(uploadedProof || finalTotal === 0) && (
             <div className="checkout-order-actions">
+              {!buyerWa.trim() && (
+                <div
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: '10px',
+                    padding: '9px 13px',
+                    marginBottom: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    color: '#fca5a5',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-circle-exclamation text-danger" style={{ fontSize: '1rem' }}></i>
+                    <span>
+                      <strong>Perhatian:</strong> Jangan lupa isi nomor telepon kamu di formulir atas sebelum mengirim pesanan!
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('checkoutBuyerWa');
+                      el?.focus();
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      border: '1px solid rgba(239, 68, 68, 0.5)',
+                      color: '#fecaca',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Isi Nomor
+                  </button>
+                </div>
+              )}
               <button
                 type="button"
                 className={`btn btn-submit-order ${finalTotal === 0 ? 'btn-order-free' : ''}`}
