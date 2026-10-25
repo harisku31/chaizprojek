@@ -39,7 +39,7 @@ import {
   listenToAllTransactions
 } from '../utils/transactions';
 import { compressImageFile } from '../utils/format';
-import { playAdminOrderSound, isSoundEnabled, setSoundEnabled } from '../utils/audioNotification';
+import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled } from '../utils/audioNotification';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -331,8 +331,21 @@ export default function AdminApp() {
 
   // Real-time synchronization (Storage & BroadcastChannel & Polling)
   useEffect(() => {
-    const handleStorageChange = () => {
+    const handleStorageChange = (e) => {
       reloadAllData();
+      if (e && e.key === 'chaiz_transactions') {
+        try {
+          const fresh = JSON.parse(e.newValue || '[]');
+          const hasNew = fresh.some(
+            (o) => !knownOrderIdsRef.current.has(o.id) && (o.status === 'processing' || o.status === 'pending')
+          );
+          if (hasNew) {
+            playAdminOrderSound();
+            showToast('🔔 Pesanan baru masuk dari pelanggan!', 'fa-bell text-warning', 'success');
+          }
+          fresh.forEach((o) => knownOrderIdsRef.current.add(o.id));
+        } catch {}
+      }
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -358,6 +371,7 @@ export default function AdminApp() {
           } else if (type === 'NEW_TRANSACTION') {
             const newTrx = ev.data?.data?.newTrx || ev.data?.newTrx;
             if (newTrx && newTrx.id) {
+              knownOrderIdsRef.current.add(newTrx.id);
               setOrdersList((prev) => {
                 if (prev.some((o) => o.id === newTrx.id)) return prev;
                 return [newTrx, ...prev];
@@ -365,7 +379,8 @@ export default function AdminApp() {
             } else {
               setOrdersList(getTransactions());
             }
-            showToast('Pesanan baru masuk dari pelanggan!', 'fa-receipt', 'success');
+            playAdminOrderSound();
+            showToast('🔔 Pesanan baru masuk dari pelanggan!', 'fa-bell text-warning', 'success');
           } else if (type === 'TRANSACTION_FULFILLED') {
             const updated = ev.data?.data?.updatedTrx || ev.data?.updatedTrx;
             if (updated && updated.id) {
@@ -819,6 +834,7 @@ export default function AdminApp() {
         prev.map((o) => (o.id === order.id ? { ...o, ...(fulfilled || {}), status: 'completed' } : o))
       );
       setProductsList(getDatabaseProducts());
+      playUserSuccessSound();
 
       if (hasPhone) {
         if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
@@ -1007,6 +1023,7 @@ export default function AdminApp() {
         )
       );
       setProductsList(getDatabaseProducts());
+      playUserSuccessSound();
 
       const stockNote = stockResult
         ? ` • Sisa stok ${stockResult.product?.name || 'produk'}: ${stockResult.newStock} akun`
