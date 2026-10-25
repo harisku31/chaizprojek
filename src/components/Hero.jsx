@@ -59,7 +59,9 @@ export default function Hero({ onSwitchTab }) {
       fallbackImage: '/banner.jpg',
       badgeIcon: 'fa-solid fa-crown text-warning',
       badgeText: 'AKUN PREMIUM RESMI AI GENERATED • 100% LEGAL',
+      mobileBadge: '👑 Akun Premium 100% Legal',
       title: 'Beli Akun Premium Murah, Legal & Bergaransi Penuh',
+      mobileTitle: 'Beli Akun Premium Murah & Legal',
       desc: 'Streaming Netflix 4K, Spotify Musik, YouTube No-Ads, Canva Pro & AI Tools tanpa gangguan. Proses kilat 1-5 menit langsung aktif bergaransi resmi!',
       perks: [
         { icon: 'fa-shield-halved text-success', text: '100% Legal & Bergaransi' },
@@ -68,6 +70,7 @@ export default function Hero({ onSwitchTab }) {
       ],
       primaryBtn: {
         text: 'Beli Akun Sekarang',
+        mobileText: 'Beli Sekarang',
         icon: 'fa-store',
         action: () => {
           const el = document.getElementById('katalog');
@@ -90,7 +93,9 @@ export default function Hero({ onSwitchTab }) {
       fallbackImage: '/banner.jpg',
       badgeIcon: 'fa-solid fa-cube text-danger',
       badgeText: 'TOP UP ROBLOX KILAT • RATE TERMURAH',
+      mobileBadge: '⚡ Robux Rate Termurah',
       title: 'Top Up Robux Roblox Murah, Proses 1-3 Menit Langsung Masuk',
+      mobileTitle: 'Top Up Robux Kilat 1-3 Menit',
       desc: 'Cukup masukkan username Roblox tanpa butuh password akun. 100% aman anti-banned, stok selalu melimpah & rate paling hemat se-Indonesia!',
       perks: [
         { icon: 'fa-lock text-cyan', text: 'Tanpa Password Akun' },
@@ -99,6 +104,7 @@ export default function Hero({ onSwitchTab }) {
       ],
       primaryBtn: {
         text: 'Top Up Robux Kilat',
+        mobileText: 'Top Up Robux',
         icon: 'fa-bolt',
         action: () => onSwitchTab?.('roblox')
       },
@@ -110,15 +116,17 @@ export default function Hero({ onSwitchTab }) {
       visualType: 'roblox'
     },
 
-    // Slide 3: Steam Key Random Game Original Valve (Background Foto Steam)
+    // Slide 3: Steam Key Random Game Original Valve (Background Foto Steam Asli)
     {
       id: 3,
       themeClass: 'banner-theme-steam',
       bgImage: '/banner-steam.png',
-      fallbackImage: '/topup-banner.jpg',
+      fallbackImage: '/steamori.png',
       badgeIcon: 'fa-brands fa-steam text-cyan',
       badgeText: 'STEAM GAME RESMI VALVE • DISKON S/D 90%',
+      mobileBadge: '🎮 Game Resmi Valve',
       title: 'Steam Key Game Original PC Mulai Rp 1.500 Saja!',
+      mobileTitle: 'Steam Key Original Mulai Rp 1.500',
       desc: 'Dapatkan game PC original legal resmi Valve langsung aktivasi di library Steam kamu! Varian Original Key, Epic Tier AAA, NSFW 18+ & Hanimetai.',
       perks: [
         { icon: 'fa-key text-amber', text: '100% Key Resmi Valve' },
@@ -127,6 +135,7 @@ export default function Hero({ onSwitchTab }) {
       ],
       primaryBtn: {
         text: 'Klaim Steam Key',
+        mobileText: 'Klaim Steam Key',
         icon: 'fa-brands fa-steam',
         action: () => onSwitchTab?.('steam')
       },
@@ -146,7 +155,9 @@ export default function Hero({ onSwitchTab }) {
       fallbackImage: '/netflix.png',
       badgeIcon: 'fa-solid fa-fire text-danger',
       badgeText: 'PROMO SPESIAL NETFLIX • HANYA RP 25.000',
+      mobileBadge: '🔥 Promo Netflix Rp 25.000',
       title: 'Langganan Netflix Premium Ultra HD 4K Hanya Rp 25.000!',
+      mobileTitle: 'Netflix Premium 4K Rp 25.000',
       desc: 'Nonton ribuan film, serial & drakor favorit kualitas 4K Ultra HD tanpa batas. Akun resmi anti-hold, garansi penuh selama durasi pemakaian!',
       perks: [
         { icon: 'fa-tv text-danger', text: 'Kualitas 4K UHD & HDR' },
@@ -155,6 +166,7 @@ export default function Hero({ onSwitchTab }) {
       ],
       primaryBtn: {
         text: 'Beli Netflix Rp 25.000',
+        mobileText: 'Beli Rp 25rb',
         icon: 'fa-play',
         action: () => {
           const el = document.getElementById('katalog');
@@ -211,10 +223,14 @@ export default function Hero({ onSwitchTab }) {
                   <div className="banner-slide-content">
                     <div className="banner-slide-badge">
                       <i className={slide.badgeIcon}></i>
-                      <span>{slide.badgeText}</span>
+                      <span className="badge-desktop-text">{slide.badgeText}</span>
+                      <span className="badge-mobile-text">{slide.mobileBadge}</span>
                     </div>
 
-                    <h1 className="banner-slide-title">{slide.title}</h1>
+                    <h1 className="banner-slide-title">
+                      <span className="title-desktop">{slide.title}</span>
+                      <span className="title-mobile">{slide.mobileTitle}</span>
+                    </h1>
 
                     <p className="banner-slide-desc">{slide.desc}</p>
 
@@ -233,7 +249,8 @@ export default function Hero({ onSwitchTab }) {
                         onClick={slide.primaryBtn.action}
                       >
                         <i className={`fa-solid ${slide.primaryBtn.icon}`}></i>{' '}
-                        <span>{slide.primaryBtn.text}</span>
+                        <span className="btn-text-desktop">{slide.primaryBtn.text}</span>
+                        <span className="btn-text-mobile">{slide.primaryBtn.mobileText}</span>
                         <i className="fa-solid fa-arrow-right btn-arrow-icon"></i>
                       </button>
 

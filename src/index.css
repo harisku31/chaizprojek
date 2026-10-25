@@ -1155,7 +1155,8 @@ button, input {
   min-width: 100%;
   position: relative;
   overflow: hidden;
-  min-height: 350px;
+  min-height: 320px;
+  max-height: 390px;
   display: flex;
   align-items: center;
 }
@@ -1175,15 +1176,26 @@ button, input {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 30%;
-  transform: scale(1.02);
-  transition: transform 6s cubic-bezier(0.25, 1, 0.5, 1);
+  object-position: center center;
+  transform: none;
   display: block;
-  filter: brightness(0.85) contrast(1.08);
+  filter: brightness(1.1) contrast(1.03) saturate(1.15);
 }
 
-.active-slide .banner-bg-photo {
-  transform: scale(1.06);
+.banner-theme-roblox .banner-bg-photo {
+  object-position: center 28%;
+}
+
+.banner-theme-steam .banner-bg-photo {
+  object-position: center 35%;
+}
+
+.banner-theme-netflix .banner-bg-photo {
+  object-position: center center;
+}
+
+.banner-theme-premium .banner-bg-photo {
+  object-position: center center;
 }
 
 .banner-photo-overlay {
@@ -1194,12 +1206,37 @@ button, input {
   height: 100%;
   background: linear-gradient(
     90deg,
-    rgba(11, 15, 25, 0.94) 0%,
-    rgba(11, 15, 25, 0.85) 48%,
-    rgba(11, 15, 25, 0.52) 80%,
-    rgba(11, 15, 25, 0.65) 100%
+    rgba(10, 15, 28, 0.72) 0%,
+    rgba(10, 15, 28, 0.45) 45%,
+    rgba(10, 15, 28, 0.1) 75%,
+    rgba(10, 15, 28, 0.22) 100%
   );
-  backdrop-filter: blur(1.5px);
+  pointer-events: none;
+}
+
+/* Visibility helpers for Desktop vs Mobile */
+.title-desktop {
+  display: inline;
+}
+
+.title-mobile {
+  display: none;
+}
+
+.badge-desktop-text {
+  display: inline;
+}
+
+.badge-mobile-text {
+  display: none;
+}
+
+.btn-text-desktop {
+  display: inline;
+}
+
+.btn-text-mobile {
+  display: none;
 }
 
 /* Theme Gradients Fallback */
@@ -1239,16 +1276,16 @@ button, input {
   display: grid;
   grid-template-columns: 1.35fr 0.85fr;
   align-items: center;
-  gap: 28px;
-  padding: 34px 44px;
+  gap: 24px;
+  padding: 28px 40px;
 }
 
 .banner-slide-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(10px);
   padding: 5px 12px;
   border-radius: 999px;
@@ -1257,24 +1294,27 @@ button, input {
   color: #fff;
   margin-bottom: 12px;
   letter-spacing: 0.03em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .banner-slide-title {
-  font-size: 2.1rem;
+  font-size: 2.05rem;
   font-weight: 800;
   line-height: 1.2;
   color: #ffffff;
   margin-bottom: 10px;
   font-family: 'Outfit', sans-serif;
   letter-spacing: -0.02em;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.92);
 }
 
 .banner-slide-desc {
   font-size: 0.94rem;
-  color: #cbd5e1;
+  color: #f1f5f9;
   line-height: 1.5;
   margin-bottom: 16px;
   max-width: 580px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
 }
 
 .banner-slide-perks {
@@ -1791,87 +1831,103 @@ button, input {
   .landscape-carousel-wrapper {
     border-radius: 14px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+    min-height: 155px;
   }
 
   .landscape-banner-slide {
-    min-height: 200px;
+    min-height: 155px;
   }
 
   .banner-slide-body {
     grid-template-columns: 1fr;
-    padding: 16px 14px 22px;
-    gap: 8px;
+    padding: 16px 14px;
+    gap: 0;
+    min-height: 155px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
   }
 
   .banner-slide-visual {
-    display: none;
+    display: none !important;
   }
 
   .banner-photo-overlay {
     background: linear-gradient(
       180deg,
-      rgba(11, 15, 25, 0.92) 0%,
-      rgba(11, 15, 25, 0.84) 50%,
-      rgba(11, 15, 25, 0.95) 100%
+      rgba(10, 15, 28, 0.55) 0%,
+      rgba(10, 15, 28, 0.35) 45%,
+      rgba(10, 15, 28, 0.72) 100%
     );
+  }
+
+  .title-desktop {
+    display: none !important;
+  }
+
+  .title-mobile {
+    display: block !important;
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 3px 0 8px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+  }
+
+  .badge-desktop-text {
+    display: none !important;
+  }
+
+  .badge-mobile-text {
+    display: inline !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .btn-text-desktop {
+    display: none !important;
+  }
+
+  .btn-text-mobile {
+    display: inline !important;
+    font-size: 0.8rem;
+    font-weight: 700;
   }
 
   .banner-slide-badge {
     font-size: 0.68rem;
     padding: 3px 9px;
-    margin-bottom: 6px;
-  }
-
-  .banner-slide-title {
-    font-size: 1.15rem;
-    line-height: 1.25;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .banner-slide-desc {
-    font-size: 0.78rem;
-    line-height: 1.35;
-    margin-bottom: 10px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    display: none !important;
   }
 
   .banner-slide-perks {
-    gap: 5px;
-    margin-bottom: 12px;
-  }
-
-  .banner-perk-chip {
-    font-size: 0.68rem;
-    padding: 2px 7px;
+    display: none !important;
   }
 
   .banner-slide-actions {
-    gap: 8px;
+    gap: 0;
   }
 
   .btn-banner-action {
     font-size: 0.78rem;
-    padding: 8px 14px;
+    padding: 7px 14px;
     border-radius: 8px;
   }
 
   .btn-banner-secondary {
-    font-size: 0.75rem;
-    padding: 8px 11px;
-    border-radius: 8px;
+    display: none !important;
   }
 
   .carousel-arrow-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 0.76rem;
+    display: none !important;
   }
-
-  .carousel-prev { left: 8px; }
-  .carousel-next { right: 8px; }
 
   .hero-trust-bar {
     flex-wrap: wrap;
