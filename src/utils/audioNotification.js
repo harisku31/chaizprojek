@@ -1,53 +1,84 @@
-// Utilitas Notifikasi Suara Menggunakan Web Audio API (100% Bebas Dependensi Eksternal & Tidak Pernah 404)
+// Utilitas Notifikasi Suara ChaizStore (Loud, Jernih & Kompatibel Semua Browser)
 
-let audioCtx = null;
+let audioContext = null;
 let isAudioUnlocked = false;
+
+// Audio elements cache
+let adminAudioEl = null;
+let userAudioEl = null;
+let noticeAudioEl = null;
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
 
-  if (!audioCtx) {
-    audioCtx = new AudioContextClass();
+  if (!audioContext) {
+    audioContext = new AudioCtx();
   }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
   }
-  return audioCtx;
-}
-
-// Buka kunci AudioContext saat ada interaksi pertama dari pengguna di browser
-if (typeof window !== 'undefined') {
-  const unlockAudio = () => {
-    const ctx = getAudioContext();
-    if (ctx) {
-      if (ctx.state === 'suspended') {
-        ctx.resume().then(() => {
-          isAudioUnlocked = true;
-        }).catch(() => {});
-      } else {
-        isAudioUnlocked = true;
-      }
-    }
-    window.removeEventListener('click', unlockAudio);
-    window.removeEventListener('touchstart', unlockAudio);
-    window.removeEventListener('keydown', unlockAudio);
-  };
-
-  window.addEventListener('click', unlockAudio, { passive: true });
-  window.addEventListener('touchstart', unlockAudio, { passive: true });
-  window.addEventListener('keydown', unlockAudio, { passive: true });
+  return audioContext;
 }
 
 /**
- * Cek apakah suara notifikasi aktif di preferensi pengguna / admin
+ * Membuka izin audio browser (AudioContext & HTML5 Audio) dengan interaksi pengguna
+ */
+export function unlockAudio() {
+  if (typeof window === 'undefined') return;
+
+  // 1. Unlock AudioContext
+  try {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        isAudioUnlocked = true;
+      }).catch(() => {});
+    } else if (ctx) {
+      isAudioUnlocked = true;
+    }
+  } catch (e) {}
+
+  // 2. Pre-warm HTML5 Audio elements
+  try {
+    if (!adminAudioEl) {
+      adminAudioEl = new Audio('/sounds/admin-order.wav');
+      adminAudioEl.volume = 1.0;
+    }
+    if (!userAudioEl) {
+      userAudioEl = new Audio('/sounds/user-success.wav');
+      userAudioEl.volume = 1.0;
+    }
+    if (!noticeAudioEl) {
+      noticeAudioEl = new Audio('/sounds/notice.wav');
+      noticeAudioEl.volume = 1.0;
+    }
+  } catch (e) {}
+}
+
+// Pasang listener interaksi global agar audio langsung terbuka saat user klik atau sentuh layar
+if (typeof window !== 'undefined') {
+  const handleInteraction = () => {
+    unlockAudio();
+    window.removeEventListener('click', handleInteraction);
+    window.removeEventListener('touchstart', handleInteraction);
+    window.removeEventListener('keydown', handleInteraction);
+  };
+
+  window.addEventListener('click', handleInteraction, { passive: true });
+  window.addEventListener('touchstart', handleInteraction, { passive: true });
+  window.addEventListener('keydown', handleInteraction, { passive: true });
+}
+
+/**
+ * Cek preferensi suara aktif / mute
  */
 export function isSoundEnabled() {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return true;
   try {
     const val = localStorage.getItem('chaiz_sound_enabled');
-    return val !== 'false'; // default true
+    return val !== 'false'; // default aktif (true)
   } catch {
     return true;
   }
@@ -65,9 +96,9 @@ export function setSoundEnabled(enabled) {
 }
 
 /**
- * Helper memainkan nada tunggal dengan oscillator + envelope
+ * Sintesis Nada Web Audio API Cadangan (Jika file audio belum terload / offline)
  */
-function playTone(freq, startTime, duration, type = 'sine', gainLevel = 0.28) {
+function playToneSynth(freq, startTime, duration, type = 'sine', gainLevel = 0.5) {
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -79,7 +110,7 @@ function playTone(freq, startTime, duration, type = 'sine', gainLevel = 0.28) {
     osc.frequency.setValueAtTime(freq, startTime);
 
     gain.gain.setValueAtTime(0.001, startTime);
-    gain.gain.exponentialRampToValueAtTime(gainLevel, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(gainLevel, startTime + 0.03);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
     osc.connect(gain);
@@ -87,91 +118,119 @@ function playTone(freq, startTime, duration, type = 'sine', gainLevel = 0.28) {
 
     osc.start(startTime);
     osc.stop(startTime + duration + 0.05);
-  } catch (err) {
-    console.warn('Gagal memutar audio tone:', err);
-  }
+  } catch (err) {}
+}
+
+function playAdminSynthFallback() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    playToneSynth(783.99, now, 0.25, 'triangle', 0.6); // G5
+    playToneSynth(1046.50, now + 0.12, 0.30, 'sine', 0.7); // C6
+    playToneSynth(1318.51, now + 0.24, 0.35, 'triangle', 0.7); // E6
+    playToneSynth(1567.98, now + 0.36, 0.60, 'sine', 0.8); // G6 bell
+  } catch (e) {}
+}
+
+function playUserSynthFallback() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    playToneSynth(523.25, now, 0.30, 'sine', 0.6); // C5
+    playToneSynth(659.25, now + 0.12, 0.35, 'triangle', 0.65); // E5
+    playToneSynth(783.99, now + 0.24, 0.40, 'sine', 0.7); // G5
+    playToneSynth(1046.50, now + 0.36, 0.75, 'sine', 0.85); // C6
+  } catch (e) {}
 }
 
 /**
- * 🔔 Suara Notifikasi Khusus ADMIN (Pesanan Baru Masuk)
- * Karakter: Nada Chime Ting-Dong-Ring cepat & profesional (D5 -> A5 -> D6)
+ * 🔔 Mainkan Suara Notifikasi Pesanan Baru (Khusus ADMIN)
+ * Memainkan file /sounds/admin-order.wav dengan fallback Web Audio synthesizer
  */
 export function playAdminOrderSound() {
   if (!isSoundEnabled()) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  unlockAudio();
 
+  let played = false;
   try {
-    const now = ctx.currentTime;
-    // Nada 1: D5 (587 Hz)
-    playTone(587.33, now, 0.12, 'sine', 0.25);
-    // Nada 2: A5 (880 Hz)
-    playTone(880.00, now + 0.11, 0.14, 'triangle', 0.3);
-    // Nada 3: D6 (1174 Hz) dengan sustain lebih panjang
-    playTone(1174.66, now + 0.23, 0.55, 'sine', 0.35);
-    // Harmonik pendukung (F#6) untuk efek ceria
-    playTone(1479.98, now + 0.24, 0.45, 'sine', 0.15);
-  } catch (e) {
-    console.warn('Error playing admin order sound:', e);
+    const audio = new Audio('/sounds/admin-order.wav');
+    audio.volume = 1.0;
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise
+        .then(() => {
+          played = true;
+        })
+        .catch(() => {
+          // Jika browser memblokir HTML5 Audio, fallback ke Web Audio synth
+          playAdminSynthFallback();
+        });
+    }
+  } catch (err) {
+    playAdminSynthFallback();
   }
 }
 
 /**
- * 🎉 Suara Notifikasi Khusus PENGGUNA / PELANGGAN (Pesanan Selesai / Dikirim Admin)
- * Karakter: Ceria, Nada Harpa Kemenangan Sukses (C5 -> E5 -> G5 -> C6)
+ * 🎉 Mainkan Suara Notifikasi Pesanan Selesai / Dikirim (Khusus PENGGUNA)
  */
 export function playUserSuccessSound() {
   if (!isSoundEnabled()) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  unlockAudio();
 
   try {
-    const now = ctx.currentTime;
-    // C5
-    playTone(523.25, now, 0.15, 'sine', 0.25);
-    // E5
-    playTone(659.25, now + 0.10, 0.16, 'sine', 0.28);
-    // G5
-    playTone(783.99, now + 0.20, 0.18, 'sine', 0.32);
-    // C6
-    playTone(1046.50, now + 0.32, 0.65, 'sine', 0.38);
-    // Harmonik kilau E6
-    playTone(1318.51, now + 0.34, 0.55, 'triangle', 0.18);
-  } catch (e) {
-    console.warn('Error playing user success sound:', e);
+    const audio = new Audio('/sounds/user-success.wav');
+    audio.volume = 1.0;
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise.catch(() => {
+        playUserSynthFallback();
+      });
+    }
+  } catch (err) {
+    playUserSynthFallback();
   }
 }
 
 /**
- * ℹ️ Suara Notifikasi Ringan Pengguna (Status Update / Catatan Masuk)
- * Karakter: Soft Waterdrop Ting (A5 -> E6)
+ * ℹ️ Mainkan Suara Notifikasi Ringan (Perhatian / Status Update)
  */
 export function playUserNoticeSound() {
   if (!isSoundEnabled()) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  unlockAudio();
 
   try {
-    const now = ctx.currentTime;
-    playTone(880.00, now, 0.12, 'sine', 0.25);
-    playTone(1318.51, now + 0.10, 0.35, 'triangle', 0.3);
-  } catch (e) {
-    console.warn('Error playing user notice sound:', e);
-  }
+    const audio = new Audio('/sounds/notice.wav');
+    audio.volume = 1.0;
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise.catch(() => {
+        const ctx = getAudioContext();
+        if (ctx) {
+          const now = ctx.currentTime;
+          playToneSynth(880.00, now, 0.15, 'sine', 0.5);
+          playToneSynth(1318.51, now + 0.12, 0.35, 'triangle', 0.6);
+        }
+      });
+    }
+  } catch (err) {}
 }
 
 /**
- * ❌ Suara Notifikasi Pesanan Ditolak / Perhatian
- * Karakter: Soft Alert Dua Nada (D4 -> Bb3)
+ * ❌ Mainkan Suara Notifikasi Pesanan Ditolak
  */
 export function playUserRejectSound() {
   if (!isSoundEnabled()) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  unlockAudio();
 
   try {
-    const now = ctx.currentTime;
-    playTone(440.00, now, 0.2, 'triangle', 0.25);
-    playTone(349.23, now + 0.18, 0.35, 'sine', 0.28);
-  } catch (e) {}
+    const ctx = getAudioContext();
+    if (ctx) {
+      const now = ctx.currentTime;
+      playToneSynth(440.00, now, 0.22, 'triangle', 0.6);
+      playToneSynth(349.23, now + 0.20, 0.40, 'sine', 0.65);
+    }
+  } catch (err) {}
 }

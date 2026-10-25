@@ -3,6 +3,7 @@ import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/forma
 import { PAYMENT_INFO } from '../data/config';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { fetchRobloxProfile } from '../utils/roblox';
+import { playUserNoticeSound } from '../utils/audioNotification';
 
 export const ROBUX_PACKAGES = [
   {
@@ -311,6 +312,8 @@ export default function RobloxBuyModal({
         proofSize: uploadedProof?.size || null,
         warrantyPeriod: 'Garansi Robux Masuk 100%'
       });
+
+      playUserNoticeSound();
 
       onShowToast?.(
         `🎉 Pesanan Robux #${newTrx.id} berhasil dibuat! Admin segera memproses saldo ke akun @${cleanRobloxUser}`,

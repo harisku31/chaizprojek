@@ -8,6 +8,7 @@ import {
   copyImageBlobToClipboard
 } from '../utils/format';
 import { createTransaction, getUserKey } from '../utils/transactions';
+import { playUserNoticeSound } from '../utils/audioNotification';
 
 export default function CheckoutModal({
   isOpen,
@@ -354,6 +355,7 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
     onOrderSuccess(source);
     onClose();
 
+    playUserNoticeSound();
     onShowToast('🎉 Pesanan berhasil dikirim ke Admin! Anda dapat memantau status pesanan di menu Transaksi.', 'fa-circle-check');
   };
 

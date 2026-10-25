@@ -1673,6 +1673,27 @@ export default function AdminApp() {
 
             <button
               type="button"
+              className="admin-nav-btn"
+              onClick={() => {
+                playAdminOrderSound();
+                showToast('🔔 Ting-Ting! Suara notifikasi pesanan berbunyi nyaring.', 'fa-volume-high text-cyan', 'info');
+              }}
+              style={{
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Klik untuk tes suara notifikasi pesanan sekarang"
+            >
+              <i className="fa-solid fa-volume-high"></i>
+              <span>Tes Suara</span>
+            </button>
+
+            <button
+              type="button"
               className="admin-nav-btn btn-store"
               onClick={() => window.open('/', '_blank')}
               title="Buka Website Toko Utama di Tab Baru"
@@ -2765,6 +2786,24 @@ export default function AdminApp() {
                   <span className="live-status-pulse"></span>
                   <span>Cloud Sync Aktif</span>
                 </div>
+
+                <button
+                  type="button"
+                  className="admin-action-btn"
+                  onClick={() => {
+                    playAdminOrderSound();
+                    showToast('🔔 Ting-Ting! Suara notifikasi pesanan masuk berbunyi nyaring.', 'fa-volume-high text-cyan', 'info');
+                  }}
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    borderColor: 'rgba(56, 189, 248, 0.35)',
+                    color: '#38bdf8'
+                  }}
+                  title="Klik untuk tes suara notifikasi pesanan masuk (Chime Bell)"
+                >
+                  <i className="fa-solid fa-volume-high text-cyan"></i>
+                  <span>Tes Suara Notif</span>
+                </button>
 
                 <button
                   type="button"
