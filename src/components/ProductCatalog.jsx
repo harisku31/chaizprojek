@@ -49,7 +49,7 @@ export default function ProductCatalog({
       {/* Background Banner Wallpaper Baru Khusus Katalog */}
       <div className="catalog-wallpaper-bg-wrap">
         <img
-          src="/catalog-wallpaper.png"
+          src="/catalog-wallpaper.png?v=2"
           alt="ChaizStore Catalog Wallpaper"
           className="catalog-wallpaper-img"
           loading="eager"
@@ -63,34 +63,121 @@ export default function ProductCatalog({
       </div>
 
       <div className="container">
-        <div className="section-title text-center">
-          <span className="subheading">
-            <i className="fa-solid fa-layer-group"></i> KATALOG LENGKAP
-          </span>
-          <h2>Pilih Layanan Premium Favoritmu</h2>
-          <p>Tersedia akun Sharing maupun Private dengan harga bersahabat dan garansi penuh.</p>
-        </div>
+        {/* =========================================================================
+            BANNER WALLPAPER BARU KHUSUS KATALOG (LANDSCAPE MIRIP BANNER DI ATAS)
+           ========================================================================= */}
+        <div className="catalog-hero-banner-card">
+          <div className="catalog-hero-banner-bg">
+            <img
+              src="/catalog-wallpaper.png?v=2"
+              alt="ChaizStore Catalog Banner Wallpaper"
+              className="catalog-hero-banner-img"
+              loading="eager"
+            />
+            <div className="catalog-hero-banner-overlay"></div>
+            <div className="catalog-hero-banner-glow"></div>
+          </div>
 
-        {/* Pilihan Khusus di Atas: [ Akun Premium ] vs [ Top Up ] */}
-        <div className="main-service-toggle-wrapper">
-          <div className="main-service-toggle">
-            <button
-              type="button"
-              className={`service-toggle-btn ${activeTab === 'store' ? 'active' : ''}`}
-              onClick={() => onSwitchTab?.('store')}
-            >
-              <i className="fa-solid fa-crown text-warning"></i>
-              <span>Akun Premium</span>
-            </button>
-            <button
-              type="button"
-              className={`service-toggle-btn ${activeTab === 'topup' ? 'active' : ''}`}
-              onClick={() => onSwitchTab?.('topup')}
-            >
-              <i className="fa-solid fa-bolt text-cyan"></i>
-              <span>Top Up</span>
-              <span className="toggle-badge-kilat">KILAT</span>
-            </button>
+          <div className="catalog-hero-banner-body">
+            <div className="catalog-hero-banner-left">
+              <div className="catalog-hero-banner-badge">
+                <i className="fa-solid fa-crown text-warning"></i>
+                <span className="badge-desktop-label">KATALOG RESMI CHAIZSTORE • 100% LEGAL & BERGARANSI</span>
+                <span className="badge-mobile-label">👑 Katalog Resmi 100% Legal</span>
+              </div>
+
+              <h2 className="catalog-hero-banner-title">
+                Pilih Layanan Premium Favoritmu
+              </h2>
+
+              <p className="catalog-hero-banner-desc">
+                Tersedia akun Sharing maupun Private dengan harga bersahabat dan garansi penuh selama berlangganan. Streaming film 4K, musik bebas iklan, editing VIP & AI canggih!
+              </p>
+
+              <div className="catalog-hero-banner-perks">
+                <span className="catalog-hero-perk">
+                  <i className="fa-solid fa-shield-halved text-success"></i> Garansi Penuh
+                </span>
+                <span className="catalog-hero-perk">
+                  <i className="fa-solid fa-bolt text-warning"></i> Aktivasi Kilat 1-5 Menit
+                </span>
+                <span className="catalog-hero-perk">
+                  <i className="fa-solid fa-gem text-cyan"></i> Harga Bersahabat
+                </span>
+              </div>
+
+              {/* Pilihan Khusus di Atas: [ Akun Premium ] vs [ Top Up ] */}
+              <div className="catalog-hero-banner-toggle-row">
+                <span className="catalog-toggle-label">
+                  <i className="fa-solid fa-sliders"></i> Pilihan Layanan:
+                </span>
+                <div className="main-service-toggle">
+                  <button
+                    type="button"
+                    className={`service-toggle-btn ${activeTab === 'store' ? 'active' : ''}`}
+                    onClick={() => onSwitchTab?.('store')}
+                  >
+                    <i className="fa-solid fa-crown text-warning"></i>
+                    <span>Akun Premium</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`service-toggle-btn ${activeTab === 'topup' ? 'active' : ''}`}
+                    onClick={() => onSwitchTab?.('topup')}
+                  >
+                    <i className="fa-solid fa-bolt text-cyan"></i>
+                    <span>Top Up</span>
+                    <span className="toggle-badge-kilat">KILAT</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Visual Floating Showcase Box */}
+            <div className="catalog-hero-banner-right">
+              <div className="catalog-visual-card">
+                <div className="catalog-visual-card-glow"></div>
+                <div className="catalog-visual-header">
+                  <span className="visual-badge-pill">
+                    <i className="fa-solid fa-shield-check text-cyan"></i> 100% Legal & Terpercaya
+                  </span>
+                </div>
+                <div className="catalog-visual-apps">
+                  <div className="catalog-v-app">
+                    <i className="fa-solid fa-film text-danger"></i>
+                    <span>Netflix</span>
+                  </div>
+                  <div className="catalog-v-app">
+                    <i className="fa-brands fa-spotify text-success"></i>
+                    <span>Spotify</span>
+                  </div>
+                  <div className="catalog-v-app">
+                    <i className="fa-brands fa-youtube text-danger"></i>
+                    <span>YouTube</span>
+                  </div>
+                  <div className="catalog-v-app">
+                    <i className="fa-solid fa-palette text-cyan"></i>
+                    <span>Canva</span>
+                  </div>
+                </div>
+                <div className="catalog-visual-stats">
+                  <div className="v-stat-col">
+                    <strong>15+</strong>
+                    <small>Produk</small>
+                  </div>
+                  <div className="v-stat-sep"></div>
+                  <div className="v-stat-col">
+                    <strong>100%</strong>
+                    <small>Garansi</small>
+                  </div>
+                  <div className="v-stat-sep"></div>
+                  <div className="v-stat-col">
+                    <strong>1-5 Mnt</strong>
+                    <small>Aktivasi</small>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
