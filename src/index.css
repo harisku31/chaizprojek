@@ -1979,10 +1979,171 @@ button, input {
 }
 
 /* ===================================================
-   PRODUCT CATALOG SECTION
+   PRODUCT CATALOG SECTION & LIVE VIDEO WALLPAPER
    =================================================== */
 .katalog-section {
+  position: relative;
+  overflow: hidden;
   padding: 50px 0 80px;
+}
+
+.katalog-section .container {
+  position: relative;
+  z-index: 2;
+}
+
+/* Background Live Video Wallpaper YouTube (Random 3 Iklan: Netflix, Disney+, Gaming) */
+.catalog-wallpaper-bg-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.catalog-wallpaper-iframe-scaler {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 135vw;
+  height: 135vh;
+  min-width: 100%;
+  min-height: 100%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.38;
+  filter: brightness(0.95) contrast(1.18) saturate(1.25);
+  transition: opacity 0.5s ease;
+}
+
+.catalog-wallpaper-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+}
+
+.catalog-wallpaper-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle at 50% 20%,
+    rgba(15, 23, 42, 0.72) 0%,
+    rgba(11, 15, 25, 0.88) 55%,
+    rgba(11, 15, 25, 0.96) 100%
+  );
+  backdrop-filter: blur(1.5px);
+  pointer-events: none;
+}
+
+/* Wallpaper Control Bar */
+.wallpaper-control-bar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 6px 16px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+.wallpaper-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+
+.live-wallpaper-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulseDot 2s infinite;
+}
+
+.live-wallpaper-pulse.off {
+  background: #64748b;
+  box-shadow: none;
+  animation: none;
+}
+
+.wallpaper-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-switch-wallpaper,
+.btn-toggle-wallpaper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-switch-wallpaper:hover {
+  background: rgba(6, 182, 212, 0.25);
+  border-color: rgba(6, 182, 212, 0.5);
+  color: #67e8f9;
+}
+
+.btn-toggle-wallpaper:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .wallpaper-control-bar {
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 14px;
+    padding: 10px 14px;
+    width: 100%;
+    max-width: 340px;
+    margin: 14px auto 0;
+  }
+  
+  .wallpaper-status-pill {
+    font-size: 0.74rem;
+  }
+
+  .wallpaper-btn-group {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-switch-wallpaper,
+  .btn-toggle-wallpaper {
+    font-size: 0.72rem;
+    padding: 5px 10px;
+  }
+
+  .catalog-wallpaper-iframe-scaler {
+    width: 180vw;
+    height: 180vh;
+    opacity: 0.32;
+  }
 }
 
 .section-title {
