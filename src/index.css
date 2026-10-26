@@ -2005,100 +2005,171 @@ button, input {
 }
 
 
-/* Living Motion Animation for Wallpaper Background */
+/* Living Motion Animation for Wallpaper Background (Percepat & Energetic) */
 .living-motion {
-  animation: wallpaperLivingMotion 20s ease-in-out infinite alternate !important;
+  animation: wallpaperLivingMotion 9s ease-in-out infinite alternate !important;
   will-change: transform, filter;
 }
 
 @keyframes wallpaperLivingMotion {
   0% {
     transform: scale(1) translate(0, 0);
-    filter: brightness(1.16) contrast(1.08) saturate(1.22);
+    filter: brightness(1.18) contrast(1.1) saturate(1.25);
   }
   35% {
-    transform: scale(1.04) translate(-8px, -6px);
-    filter: brightness(1.25) contrast(1.12) saturate(1.3);
+    transform: scale(1.05) translate(-10px, -7px);
+    filter: brightness(1.28) contrast(1.14) saturate(1.35);
   }
   70% {
-    transform: scale(1.06) translate(6px, -8px);
-    filter: brightness(1.19) contrast(1.1) saturate(1.26);
+    transform: scale(1.08) translate(8px, -10px);
+    filter: brightness(1.22) contrast(1.12) saturate(1.28);
   }
   100% {
     transform: scale(1) translate(0, 0);
-    filter: brightness(1.16) contrast(1.08) saturate(1.22);
+    filter: brightness(1.18) contrast(1.1) saturate(1.25);
   }
 }
 
-/* Animated Cyber Aurora Waves */
+/* Animated Cyber Aurora Waves (Cepat, Hidup & Menyala) */
 .catalog-fx-aurora-stream {
   position: absolute;
-  top: 15%;
-  left: -30%;
-  width: 160%;
-  height: 130px;
+  top: 10%;
+  left: -25%;
+  width: 150%;
+  height: 140px;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(56, 189, 248, 0.05) 15%,
-    rgba(14, 165, 233, 0.38) 45%,
-    rgba(129, 140, 248, 0.42) 65%,
-    rgba(56, 189, 248, 0.15) 85%,
+    rgba(56, 189, 248, 0.1) 15%,
+    rgba(14, 165, 233, 0.5) 45%,
+    rgba(129, 140, 248, 0.55) 65%,
+    rgba(56, 189, 248, 0.25) 85%,
     transparent 100%
   );
-  filter: blur(28px);
+  filter: blur(24px);
   transform: rotate(-5deg);
   pointer-events: none;
-  animation: cyberWaveFlow 8s ease-in-out infinite alternate;
+  animation: cyberWaveFlow 3.8s ease-in-out infinite alternate;
   z-index: 1;
 }
 
 @keyframes cyberWaveFlow {
   0% {
-    transform: rotate(-6deg) translate(-8%, -15px) scaleY(0.9);
-    opacity: 0.55;
+    transform: rotate(-6deg) translate(-10%, -18px) scaleY(0.9);
+    opacity: 0.65;
   }
   50% {
-    opacity: 0.95;
-    filter: blur(22px);
+    opacity: 1;
+    filter: blur(18px);
   }
   100% {
-    transform: rotate(-2deg) translate(8%, 15px) scaleY(1.2);
-    opacity: 0.65;
+    transform: rotate(-2deg) translate(10%, 18px) scaleY(1.3);
+    opacity: 0.75;
   }
 }
 
 .catalog-fx-aurora-secondary {
   position: absolute;
-  top: 42%;
-  left: -40%;
-  width: 180%;
-  height: 85px;
+  top: 38%;
+  left: -35%;
+  width: 170%;
+  height: 95px;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(34, 211, 238, 0.32) 50%,
+    rgba(34, 211, 238, 0.42) 50%,
     transparent 100%
   );
-  filter: blur(22px);
+  filter: blur(18px);
   transform: rotate(3deg);
   pointer-events: none;
-  animation: cyberShimmerFlow 6.5s ease-in-out infinite alternate-reverse;
+  animation: cyberShimmerFlow 3.2s ease-in-out infinite alternate-reverse;
   z-index: 1;
 }
 
 @keyframes cyberShimmerFlow {
   0% {
-    transform: rotate(2deg) translate(10%, -10px);
-    opacity: 0.4;
+    transform: rotate(2deg) translate(12%, -12px);
+    opacity: 0.45;
   }
   100% {
-    transform: rotate(5deg) translate(-10%, 10px);
-    opacity: 0.85;
+    transform: rotate(5deg) translate(-12%, 12px);
+    opacity: 0.95;
   }
 }
 
-/* Floating Cyber Particles Effect */
+.catalog-fx-aurora-tertiary {
+  position: absolute;
+  top: 55%;
+  left: -20%;
+  width: 140%;
+  height: 70px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(168, 85, 247, 0.35) 40%,
+    rgba(56, 189, 248, 0.4) 60%,
+    transparent 100%
+  );
+  filter: blur(16px);
+  pointer-events: none;
+  animation: cyberTertiaryFlow 2.8s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes cyberTertiaryFlow {
+  0% {
+    transform: scale(0.92) translate(-6%, -8px);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.15) translate(8%, 10px);
+    opacity: 0.9;
+  }
+}
+
+/* Traveling Laser Energy Beams */
+.catalog-fx-energy-beam {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.95), #fff, transparent);
+  box-shadow: 0 0 12px #38bdf8, 0 0 24px rgba(56, 189, 248, 0.8);
+  pointer-events: none;
+  border-radius: 999px;
+  z-index: 2;
+}
+
+.catalog-fx-energy-beam.beam-1 {
+  top: 28%;
+  left: -50%;
+  width: 40%;
+  transform: rotate(-4deg);
+  animation: beamShoot1 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.catalog-fx-energy-beam.beam-2 {
+  top: 68%;
+  left: -50%;
+  width: 50%;
+  transform: rotate(2deg);
+  animation: beamShoot2 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite 1.2s;
+}
+
+@keyframes beamShoot1 {
+  0% { left: -50%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { left: 130%; opacity: 0; }
+}
+
+@keyframes beamShoot2 {
+  0% { left: -50%; opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { left: 130%; opacity: 0; }
+}
+
+/* Dense Floating Cyber Particles Effect (Percepat 2.6s - 3.4s) */
 .catalog-fx-particles {
   position: absolute;
   top: 0;
@@ -2114,110 +2185,130 @@ button, input {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  animation: floatDrift 6s ease-in-out infinite alternate, particleTwinkle 3s ease-in-out infinite;
+  animation: floatDrift 3s ease-in-out infinite alternate, particleTwinkle 1.4s ease-in-out infinite;
   will-change: transform, opacity;
 }
 
 .particle-cyan {
   background: #38bdf8;
-  box-shadow: 0 0 10px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 10px #38bdf8, 0 0 24px rgba(56, 189, 248, 0.85);
 }
 
 .particle-blue {
   background: #60a5fa;
-  box-shadow: 0 0 10px #60a5fa, 0 0 20px rgba(96, 165, 250, 0.65);
+  box-shadow: 0 0 10px #60a5fa, 0 0 24px rgba(96, 165, 250, 0.85);
 }
 
 .particle-purple {
   background: #c084fc;
-  box-shadow: 0 0 10px #c084fc, 0 0 20px rgba(192, 132, 252, 0.65);
+  box-shadow: 0 0 10px #c084fc, 0 0 24px rgba(192, 132, 252, 0.85);
+}
+
+.particle-white {
+  background: #ffffff;
+  box-shadow: 0 0 12px #ffffff, 0 0 28px rgba(56, 189, 248, 0.95);
 }
 
 @keyframes floatDrift {
   0% {
-    transform: translate(0, 0) scale(0.9);
+    transform: translate(0, 0) scale(0.85);
   }
   50% {
-    transform: translate(12px, -18px) scale(1.15);
+    transform: translate(14px, -20px) scale(1.25);
   }
   100% {
-    transform: translate(-10px, -35px) scale(0.85);
+    transform: translate(-12px, -40px) scale(0.9);
   }
 }
 
 @keyframes particleTwinkle {
   0%, 100% {
-    opacity: 0.35;
+    opacity: 0.4;
   }
   50% {
     opacity: 1;
   }
 }
 
-/* Light Sheen Sweep across banner */
+/* Fast Dynamic Light Sheen Sweep (3.6s) */
 .catalog-fx-sheen {
   position: absolute;
   top: 0;
   left: -100%;
-  width: 60%;
+  width: 55%;
   height: 100%;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.04) 40%,
-    rgba(56, 189, 248, 0.22) 50%,
-    rgba(255, 255, 255, 0.04) 60%,
+    rgba(255, 255, 255, 0.05) 35%,
+    rgba(56, 189, 248, 0.28) 50%,
+    rgba(255, 255, 255, 0.05) 65%,
     transparent 100%
   );
   transform: skewX(-25deg);
   pointer-events: none;
-  animation: sheenTravel 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: sheenTravel 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   z-index: 2;
 }
 
 @keyframes sheenTravel {
-  0%, 45% {
+  0%, 35% {
     left: -100%;
     opacity: 0;
   }
-  50% {
+  45% {
     opacity: 1;
   }
-  80%, 100% {
+  75%, 100% {
     left: 200%;
     opacity: 0;
   }
 }
 
-/* Full Section Ambient Animated Cyber Aurora */
-.catalog-fx-section-aurora {
+/* Secondary Glow Orb di Bawah Kiri Banner */
+.catalog-hero-banner-glow-secondary {
   position: absolute;
-  top: 10%;
-  left: -20%;
-  width: 140%;
-  height: 350px;
-  background: radial-gradient(
-    ellipse at 50% 50%,
-    rgba(14, 165, 233, 0.22) 0%,
-    rgba(99, 102, 241, 0.16) 45%,
-    transparent 70%
-  );
+  bottom: -20%;
+  left: 8%;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.3) 0%, transparent 70%);
   filter: blur(50px);
   pointer-events: none;
-  animation: sectionAuroraWave 12s ease-in-out infinite alternate;
+  animation: catalogBannerPulse 3.8s ease-in-out infinite alternate 1.5s;
+}
+
+/* Full Section Ambient Animated Cyber Aurora (Percepat 5.5s) */
+.catalog-fx-section-aurora {
+  position: absolute;
+  top: 5%;
+  left: -20%;
+  width: 140%;
+  height: 380px;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(14, 165, 233, 0.28) 0%,
+    rgba(99, 102, 241, 0.2) 45%,
+    transparent 70%
+  );
+  filter: blur(45px);
+  pointer-events: none;
+  animation: sectionAuroraWave 5.5s ease-in-out infinite alternate;
   z-index: 1;
 }
 
 @keyframes sectionAuroraWave {
   0% {
-    transform: translate(-5%, -10px) rotate(-2deg);
-    opacity: 0.5;
+    transform: translate(-6%, -12px) rotate(-2deg);
+    opacity: 0.55;
   }
   100% {
-    transform: translate(5%, 20px) rotate(3deg);
-    opacity: 0.85;
+    transform: translate(6%, 22px) rotate(3deg);
+    opacity: 0.95;
   }
 }
+
 
 .catalog-wallpaper-img {
   width: 100%;

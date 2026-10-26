@@ -1,19 +1,56 @@
 import React from 'react';
 import ProductCard from './ProductCard';
 
-const CYBER_PARTICLES = [
-  { id: 1, left: '10%', top: '35%', size: 5, delay: '0s', dur: '5.5s', color: 'cyan' },
-  { id: 2, left: '24%', top: '65%', size: 4, delay: '1.2s', dur: '6.2s', color: 'blue' },
-  { id: 3, left: '38%', top: '25%', size: 6, delay: '2.5s', dur: '4.8s', color: 'purple' },
-  { id: 4, left: '52%', top: '70%', size: 4, delay: '0.8s', dur: '7.1s', color: 'cyan' },
-  { id: 5, left: '68%', top: '40%', size: 5, delay: '3.1s', dur: '5.9s', color: 'blue' },
-  { id: 6, left: '82%', top: '55%', size: 4, delay: '1.7s', dur: '6.5s', color: 'cyan' },
-  { id: 7, left: '16%', top: '75%', size: 3, delay: '4.0s', dur: '5.2s', color: 'purple' },
-  { id: 8, left: '46%', top: '48%', size: 5, delay: '2.0s', dur: '6.8s', color: 'cyan' },
-  { id: 9, left: '76%', top: '22%', size: 4, delay: '3.6s', dur: '5.4s', color: 'blue' },
-  { id: 10, left: '32%', top: '80%', size: 5, delay: '1.5s', dur: '6.0s', color: 'purple' },
-  { id: 11, left: '62%', top: '30%', size: 3, delay: '0.5s', dur: '7.5s', color: 'cyan' },
-  { id: 12, left: '92%', top: '62%', size: 5, delay: '2.8s', dur: '5.7s', color: 'blue' }
+const BANNER_PARTICLES = [
+  { id: 1, left: '6%', top: '32%', size: 5, delay: '0s', dur: '2.8s', color: 'cyan' },
+  { id: 2, left: '14%', top: '68%', size: 6, delay: '0.4s', dur: '3.2s', color: 'blue' },
+  { id: 3, left: '22%', top: '22%', size: 4, delay: '0.9s', dur: '2.4s', color: 'white' },
+  { id: 4, left: '29%', top: '75%', size: 7, delay: '1.3s', dur: '3.5s', color: 'purple' },
+  { id: 5, left: '36%', top: '38%', size: 5, delay: '0.2s', dur: '2.6s', color: 'cyan' },
+  { id: 6, left: '44%', top: '62%', size: 6, delay: '1.7s', dur: '3.1s', color: 'blue' },
+  { id: 7, left: '51%', top: '18%', size: 4, delay: '0.6s', dur: '2.5s', color: 'white' },
+  { id: 8, left: '58%', top: '80%', size: 7, delay: '2.1s', dur: '3.6s', color: 'purple' },
+  { id: 9, left: '65%', top: '45%', size: 5, delay: '0.8s', dur: '2.9s', color: 'cyan' },
+  { id: 10, left: '72%', top: '28%', size: 6, delay: '1.4s', dur: '3.3s', color: 'blue' },
+  { id: 11, left: '79%', top: '72%', size: 4, delay: '0.3s', dur: '2.4s', color: 'white' },
+  { id: 12, left: '86%', top: '35%', size: 7, delay: '1.8s', dur: '3.4s', color: 'purple' },
+  { id: 13, left: '93%', top: '65%', size: 5, delay: '0.5s', dur: '2.7s', color: 'cyan' },
+  { id: 14, left: '10%', top: '50%', size: 6, delay: '1.1s', dur: '3.0s', color: 'blue' },
+  { id: 15, left: '18%', top: '15%', size: 4, delay: '1.6s', dur: '2.5s', color: 'white' },
+  { id: 16, left: '26%', top: '85%', size: 5, delay: '0.7s', dur: '3.2s', color: 'cyan' },
+  { id: 17, left: '33%', top: '55%', size: 7, delay: '2.0s', dur: '3.7s', color: 'purple' },
+  { id: 18, left: '41%', top: '28%', size: 4, delay: '1.0s', dur: '2.6s', color: 'white' },
+  { id: 19, left: '48%', top: '70%', size: 6, delay: '0.3s', dur: '3.1s', color: 'blue' },
+  { id: 20, left: '55%', top: '42%', size: 5, delay: '1.5s', dur: '2.8s', color: 'cyan' },
+  { id: 21, left: '62%', top: '85%', size: 7, delay: '2.3s', dur: '3.6s', color: 'purple' },
+  { id: 22, left: '70%', top: '15%', size: 4, delay: '0.9s', dur: '2.4s', color: 'white' },
+  { id: 23, left: '77%', top: '60%', size: 6, delay: '1.2s', dur: '3.3s', color: 'blue' },
+  { id: 24, left: '84%', top: '25%', size: 5, delay: '0.4s', dur: '2.9s', color: 'cyan' },
+  { id: 25, left: '91%', top: '78%', size: 7, delay: '1.9s', dur: '3.5s', color: 'purple' },
+  { id: 26, left: '97%', top: '40%', size: 4, delay: '1.1s', dur: '2.5s', color: 'white' },
+  { id: 27, left: '15%', top: '40%', size: 5, delay: '1.4s', dur: '3.0s', color: 'cyan' },
+  { id: 28, left: '40%', top: '82%', size: 6, delay: '0.6s', dur: '3.2s', color: 'blue' },
+  { id: 29, left: '60%', top: '22%', size: 4, delay: '2.2s', dur: '2.6s', color: 'white' },
+  { id: 30, left: '85%', top: '50%', size: 6, delay: '1.3s', dur: '3.1s', color: 'cyan' }
+];
+
+const SECTION_PARTICLES = [
+  { id: 101, left: '8%', top: '15%', size: 6, delay: '0.2s', dur: '3.4s', color: 'cyan' },
+  { id: 102, left: '20%', top: '40%', size: 5, delay: '1.1s', dur: '3.8s', color: 'blue' },
+  { id: 103, left: '35%', top: '20%', size: 7, delay: '0.5s', dur: '3.2s', color: 'white' },
+  { id: 104, left: '50%', top: '60%', size: 6, delay: '1.8s', dur: '3.6s', color: 'purple' },
+  { id: 105, left: '65%', top: '25%', size: 5, delay: '0.9s', dur: '3.0s', color: 'cyan' },
+  { id: 106, left: '80%', top: '45%', size: 7, delay: '1.5s', dur: '3.5s', color: 'blue' },
+  { id: 107, left: '92%', top: '20%', size: 4, delay: '0.3s', dur: '2.8s', color: 'white' },
+  { id: 108, left: '15%', top: '75%', size: 6, delay: '2.0s', dur: '3.7s', color: 'purple' },
+  { id: 109, left: '30%', top: '85%', size: 5, delay: '0.7s', dur: '3.1s', color: 'cyan' },
+  { id: 110, left: '45%', top: '35%', size: 6, delay: '1.3s', dur: '3.3s', color: 'blue' },
+  { id: 111, left: '60%', top: '80%', size: 7, delay: '2.2s', dur: '3.9s', color: 'purple' },
+  { id: 112, left: '75%', top: '70%', size: 4, delay: '0.4s', dur: '2.9s', color: 'white' },
+  { id: 113, left: '88%', top: '85%', size: 6, delay: '1.6s', dur: '3.4s', color: 'cyan' },
+  { id: 114, left: '5%', top: '55%', size: 5, delay: '1.0s', dur: '3.2s', color: 'blue' },
+  { id: 115, left: '25%', top: '10%', size: 4, delay: '1.9s', dur: '2.7s', color: 'white' },
+  { id: 116, left: '70%', top: '90%', size: 6, delay: '0.8s', dur: '3.5s', color: 'purple' }
 ];
 
 export default function ProductCatalog({
@@ -61,7 +98,7 @@ export default function ProductCatalog({
 
   return (
     <section className="katalog-section" id="katalog">
-      {/* Background Banner Wallpaper Baru Khusus Katalog dengan Animasi Effect */}
+      {/* Background Banner Wallpaper Baru Khusus Katalog dengan Animasi Effect Kaya & Cepat */}
       <div className="catalog-wallpaper-bg-wrap">
         <img
           src="/catalog-wallpaper.png?v=2"
@@ -74,10 +111,13 @@ export default function ProductCatalog({
             }
           }}
         />
-        {/* Ambient Section Cyber Aurora & Floating Light Particles */}
+        {/* Ambient Section Cyber Aurora Waves */}
         <div className="catalog-fx-section-aurora"></div>
+        <div className="catalog-fx-aurora-secondary"></div>
+
+        {/* Ambient Floating Light Particles di Seluruh Section */}
         <div className="catalog-fx-particles section-ambient-particles">
-          {CYBER_PARTICLES.slice(0, 8).map((p) => (
+          {SECTION_PARTICLES.map((p) => (
             <span
               key={`sec-${p.id}`}
               className={`cyber-particle particle-${p.color}`}
@@ -97,7 +137,7 @@ export default function ProductCatalog({
 
       <div className="container">
         {/* =========================================================================
-            BANNER WALLPAPER BARU KHUSUS KATALOG (DENGAN ANIMASI EFEK CAHAYA & PARTIKEL)
+            BANNER WALLPAPER BARU KHUSUS KATALOG (DENGAN ENERGETIC CYBER EFFECTS)
            ========================================================================= */}
         <div className="catalog-hero-banner-card">
           <div className="catalog-hero-banner-bg">
@@ -107,13 +147,18 @@ export default function ProductCatalog({
               className="catalog-hero-banner-img living-motion"
               loading="eager"
             />
-            {/* Animated Cyber Aurora Light Stream */}
+            {/* Multiple Dynamic Aurora Light Streams */}
             <div className="catalog-fx-aurora-stream"></div>
             <div className="catalog-fx-aurora-secondary"></div>
+            <div className="catalog-fx-aurora-tertiary"></div>
 
-            {/* Animated Floating Cyber Particles */}
+            {/* Traveling Laser Energy Beams */}
+            <div className="catalog-fx-energy-beam beam-1"></div>
+            <div className="catalog-fx-energy-beam beam-2"></div>
+
+            {/* 30x Dense Animated Floating Cyber Particles */}
             <div className="catalog-fx-particles">
-              {CYBER_PARTICLES.map((p) => (
+              {BANNER_PARTICLES.map((p) => (
                 <span
                   key={p.id}
                   className={`cyber-particle particle-${p.color}`}
@@ -129,11 +174,12 @@ export default function ProductCatalog({
               ))}
             </div>
 
-            {/* Dynamic Light Sheen Sweep */}
+            {/* High-speed Light Sheen Sweep */}
             <div className="catalog-fx-sheen"></div>
 
             <div className="catalog-hero-banner-overlay"></div>
             <div className="catalog-hero-banner-glow"></div>
+            <div className="catalog-hero-banner-glow-secondary"></div>
           </div>
 
           <div className="catalog-hero-banner-body">
