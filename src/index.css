@@ -1825,27 +1825,24 @@ button, input {
 /* Responsive Mobile Screen Rules for Banner & Switcher */
 @media (max-width: 768px) {
   .hero-landscape-section {
-    padding: 12px 0 8px;
+    padding: 14px 0 8px;
   }
 
   .landscape-carousel-wrapper {
-    border-radius: 16px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-    min-height: 165px;
-    height: 175px;
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+    min-height: 155px;
   }
 
   .landscape-banner-slide {
-    min-height: 165px;
-    height: 175px;
+    min-height: 155px;
   }
 
   .banner-slide-body {
     grid-template-columns: 1fr;
-    padding: 14px 14px;
+    padding: 16px 14px;
     gap: 0;
-    min-height: 165px;
-    height: 100%;
+    min-height: 155px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -1858,27 +1855,11 @@ button, input {
 
   .banner-photo-overlay {
     background: linear-gradient(
-      90deg,
-      rgba(8, 12, 22, 0.86) 0%,
-      rgba(8, 12, 22, 0.6) 55%,
-      rgba(8, 12, 22, 0.15) 100%
+      180deg,
+      rgba(10, 15, 28, 0.55) 0%,
+      rgba(10, 15, 28, 0.35) 45%,
+      rgba(10, 15, 28, 0.72) 100%
     );
-  }
-
-  .banner-theme-roblox .banner-bg-photo {
-    object-position: 85% center !important;
-  }
-
-  .banner-theme-steam .banner-bg-photo {
-    object-position: 85% center !important;
-  }
-
-  .banner-theme-netflix .banner-bg-photo {
-    object-position: 82% center !important;
-  }
-
-  .banner-theme-premium .banner-bg-photo {
-    object-position: 80% center !important;
   }
 
   .title-desktop {
@@ -1890,7 +1871,7 @@ button, input {
     font-size: 1.15rem;
     font-weight: 800;
     line-height: 1.25;
-    margin: 2px 0 8px;
+    margin: 3px 0 8px;
     color: #fff;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
   }
@@ -1937,7 +1918,7 @@ button, input {
   .btn-banner-action {
     font-size: 0.78rem;
     padding: 7px 14px;
-    border-radius: 999px;
+    border-radius: 8px;
   }
 
   .btn-banner-secondary {
@@ -1948,16 +1929,11 @@ button, input {
     display: none !important;
   }
 
-  /* Trust Bar Rapi Symmetrical 3 Kolom di HP */
   .hero-trust-bar {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    padding: 8px 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
     margin-top: 10px;
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
   }
 
   .trust-divider {
@@ -1965,30 +1941,40 @@ button, input {
   }
 
   .trust-item {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 3px;
-    padding: 2px 4px;
+    font-size: 0.72rem;
+    flex: 1 1 45%;
+    gap: 6px;
   }
 
   .trust-item i {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
   }
 
   .trust-item strong {
-    font-size: 0.72rem;
-    line-height: 1.15;
-    color: #fff;
-    white-space: nowrap;
+    font-size: 0.74rem;
   }
 
   .trust-item small {
-    display: none;
+    font-size: 0.66rem;
   }
 
   .trust-stat-item {
-    display: flex;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .main-service-toggle {
+    width: 100%;
+    max-width: 340px;
+    padding: 4px;
+  }
+
+  .service-toggle-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 8px;
+    font-size: 0.84rem;
+    gap: 6px;
   }
 }
 
@@ -2016,6 +2002,221 @@ button, input {
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+}
+
+
+/* Living Motion Animation for Wallpaper Background */
+.living-motion {
+  animation: wallpaperLivingMotion 20s ease-in-out infinite alternate !important;
+  will-change: transform, filter;
+}
+
+@keyframes wallpaperLivingMotion {
+  0% {
+    transform: scale(1) translate(0, 0);
+    filter: brightness(1.16) contrast(1.08) saturate(1.22);
+  }
+  35% {
+    transform: scale(1.04) translate(-8px, -6px);
+    filter: brightness(1.25) contrast(1.12) saturate(1.3);
+  }
+  70% {
+    transform: scale(1.06) translate(6px, -8px);
+    filter: brightness(1.19) contrast(1.1) saturate(1.26);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+    filter: brightness(1.16) contrast(1.08) saturate(1.22);
+  }
+}
+
+/* Animated Cyber Aurora Waves */
+.catalog-fx-aurora-stream {
+  position: absolute;
+  top: 15%;
+  left: -30%;
+  width: 160%;
+  height: 130px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.05) 15%,
+    rgba(14, 165, 233, 0.38) 45%,
+    rgba(129, 140, 248, 0.42) 65%,
+    rgba(56, 189, 248, 0.15) 85%,
+    transparent 100%
+  );
+  filter: blur(28px);
+  transform: rotate(-5deg);
+  pointer-events: none;
+  animation: cyberWaveFlow 8s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes cyberWaveFlow {
+  0% {
+    transform: rotate(-6deg) translate(-8%, -15px) scaleY(0.9);
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+    filter: blur(22px);
+  }
+  100% {
+    transform: rotate(-2deg) translate(8%, 15px) scaleY(1.2);
+    opacity: 0.65;
+  }
+}
+
+.catalog-fx-aurora-secondary {
+  position: absolute;
+  top: 42%;
+  left: -40%;
+  width: 180%;
+  height: 85px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(34, 211, 238, 0.32) 50%,
+    transparent 100%
+  );
+  filter: blur(22px);
+  transform: rotate(3deg);
+  pointer-events: none;
+  animation: cyberShimmerFlow 6.5s ease-in-out infinite alternate-reverse;
+  z-index: 1;
+}
+
+@keyframes cyberShimmerFlow {
+  0% {
+    transform: rotate(2deg) translate(10%, -10px);
+    opacity: 0.4;
+  }
+  100% {
+    transform: rotate(5deg) translate(-10%, 10px);
+    opacity: 0.85;
+  }
+}
+
+/* Floating Cyber Particles Effect */
+.catalog-fx-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.cyber-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: floatDrift 6s ease-in-out infinite alternate, particleTwinkle 3s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.particle-cyan {
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.65);
+}
+
+.particle-blue {
+  background: #60a5fa;
+  box-shadow: 0 0 10px #60a5fa, 0 0 20px rgba(96, 165, 250, 0.65);
+}
+
+.particle-purple {
+  background: #c084fc;
+  box-shadow: 0 0 10px #c084fc, 0 0 20px rgba(192, 132, 252, 0.65);
+}
+
+@keyframes floatDrift {
+  0% {
+    transform: translate(0, 0) scale(0.9);
+  }
+  50% {
+    transform: translate(12px, -18px) scale(1.15);
+  }
+  100% {
+    transform: translate(-10px, -35px) scale(0.85);
+  }
+}
+
+@keyframes particleTwinkle {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Light Sheen Sweep across banner */
+.catalog-fx-sheen {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 40%,
+    rgba(56, 189, 248, 0.22) 50%,
+    rgba(255, 255, 255, 0.04) 60%,
+    transparent 100%
+  );
+  transform: skewX(-25deg);
+  pointer-events: none;
+  animation: sheenTravel 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  z-index: 2;
+}
+
+@keyframes sheenTravel {
+  0%, 45% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  80%, 100% {
+    left: 200%;
+    opacity: 0;
+  }
+}
+
+/* Full Section Ambient Animated Cyber Aurora */
+.catalog-fx-section-aurora {
+  position: absolute;
+  top: 10%;
+  left: -20%;
+  width: 140%;
+  height: 350px;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(14, 165, 233, 0.22) 0%,
+    rgba(99, 102, 241, 0.16) 45%,
+    transparent 70%
+  );
+  filter: blur(50px);
+  pointer-events: none;
+  animation: sectionAuroraWave 12s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes sectionAuroraWave {
+  0% {
+    transform: translate(-5%, -10px) rotate(-2deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(5%, 20px) rotate(3deg);
+    opacity: 0.85;
+  }
 }
 
 .catalog-wallpaper-img {
@@ -2077,8 +2278,8 @@ button, input {
   border-radius: 22px;
   overflow: hidden;
   margin-bottom: 34px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  box-shadow: 0 16px 45px rgba(2, 6, 23, 0.7), 0 0 35px rgba(14, 165, 233, 0.22);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 16px 45px rgba(2, 6, 23, 0.7), 0 0 35px rgba(14, 165, 233, 0.2);
   background: #090e1a;
 }
 
@@ -2112,63 +2313,6 @@ button, input {
   }
 }
 
-/* Live Video Wallpaper Container & Iframe 4K Looper */
-.catalog-banner-video-container {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 120%;
-  height: 220%;
-  min-width: 100%;
-  min-height: 100%;
-  transform: translate(-50%, -50%);
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.catalog-banner-video-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  pointer-events: none;
-  filter: brightness(1.15) contrast(1.08) saturate(1.25);
-  transform: scale(1.05);
-}
-
-/* Animated Cyber Aurora Waves (Real dynamic light motion across banner) */
-.catalog-animated-cyber-aurora {
-  position: absolute;
-  top: -30%;
-  left: -50%;
-  width: 200%;
-  height: 160%;
-  background: radial-gradient(
-    ellipse at 50% 50%,
-    rgba(56, 189, 248, 0.22) 0%,
-    rgba(99, 102, 241, 0.16) 40%,
-    transparent 70%
-  );
-  filter: blur(40px);
-  pointer-events: none;
-  z-index: 2;
-  animation: catalogAuroraFlow 9s ease-in-out infinite alternate;
-}
-
-@keyframes catalogAuroraFlow {
-  0% {
-    transform: translate(-10%, -5%) rotate(0deg) scale(0.95);
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 0.85;
-  }
-  100% {
-    transform: translate(10%, 8%) rotate(6deg) scale(1.1);
-    opacity: 0.65;
-  }
-}
-
 .catalog-hero-banner-overlay {
   position: absolute;
   top: 0;
@@ -2177,13 +2321,12 @@ button, input {
   height: 100%;
   background: linear-gradient(
     90deg,
-    rgba(8, 13, 24, 0.92) 0%,
-    rgba(8, 13, 24, 0.78) 45%,
-    rgba(8, 13, 24, 0.35) 78%,
-    rgba(8, 13, 24, 0.58) 100%
+    rgba(8, 13, 24, 0.9) 0%,
+    rgba(8, 13, 24, 0.75) 45%,
+    rgba(8, 13, 24, 0.38) 78%,
+    rgba(8, 13, 24, 0.6) 100%
   );
   pointer-events: none;
-  z-index: 2;
 }
 
 .catalog-hero-banner-glow {
@@ -2196,7 +2339,6 @@ button, input {
   background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
   filter: blur(55px);
   pointer-events: none;
-  z-index: 2;
   animation: catalogBannerPulse 4.5s ease-in-out infinite alternate;
 }
 
@@ -2213,27 +2355,19 @@ button, input {
 
 .catalog-hero-banner-body {
   position: relative;
-  z-index: 3;
+  z-index: 2;
   display: grid;
   grid-template-columns: 1.35fr 0.85fr;
   align-items: center;
   gap: 28px;
-  padding: 30px 36px;
-}
-
-.catalog-hero-banner-badge-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
+  padding: 32px 36px;
 }
 
 .catalog-hero-banner-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.88);
+  background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(56, 189, 248, 0.35);
   backdrop-filter: blur(10px);
   padding: 5px 14px;
@@ -2241,77 +2375,9 @@ button, input {
   font-size: 0.78rem;
   font-weight: 700;
   color: #e0f2fe;
+  margin-bottom: 12px;
   letter-spacing: 0.04em;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-}
-
-/* Kontrol Motion Live Video */
-.catalog-motion-ctrl-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  backdrop-filter: blur(10px);
-  padding: 4px 10px 4px 12px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-}
-
-.motion-dot-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.motion-dot-indicator.active {
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981;
-  animation: motionPulse 1.8s infinite;
-}
-
-.motion-dot-indicator.paused {
-  background: #64748b;
-}
-
-@keyframes motionPulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.6; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.motion-label-text {
-  font-weight: 700;
-  color: #38bdf8;
-  font-size: 0.75rem;
-}
-
-.btn-motion-action {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #f1f5f9;
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 999px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s ease;
-}
-
-.btn-motion-action:hover {
-  background: rgba(14, 165, 233, 0.3);
-  border-color: #38bdf8;
-  color: #fff;
-  transform: translateY(-1px);
-}
-
-.btn-motion-mode {
-  background: rgba(56, 189, 248, 0.15);
 }
 
 .badge-desktop-label {
@@ -2498,143 +2564,47 @@ button, input {
 @media (max-width: 768px) {
   .catalog-hero-banner-card {
     border-radius: 16px;
-    margin-bottom: 20px;
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-    background: #090e1a;
+    margin-bottom: 24px;
   }
 
   .catalog-hero-banner-body {
     grid-template-columns: 1fr;
-    padding: 14px 14px 16px;
-    gap: 0;
-  }
-
-  .catalog-hero-banner-badge-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 6px;
-    margin-bottom: 8px;
-    flex-wrap: nowrap;
-  }
-
-  .catalog-hero-banner-badge {
-    padding: 3px 9px;
-    font-size: 0.7rem;
-    gap: 5px;
-    margin-bottom: 0;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .catalog-motion-ctrl-pill {
-    padding: 2px 7px;
-    font-size: 0.68rem;
-    gap: 4px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .btn-motion-action {
-    padding: 2px 6px;
-    font-size: 0.68rem;
-    gap: 0;
-  }
-
-  .catalog-banner-video-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    height: 140%;
-    min-width: 100%;
-    min-height: 100%;
-    transform: translate(-50%, -50%);
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  .catalog-banner-video-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    pointer-events: none;
-    filter: brightness(1.15) contrast(1.08) saturate(1.25);
-    transform: scale(1.02);
-  }
-
-  .catalog-hero-banner-overlay {
-    background: linear-gradient(
-      90deg,
-      rgba(8, 13, 24, 0.88) 0%,
-      rgba(8, 13, 24, 0.72) 55%,
-      rgba(8, 13, 24, 0.28) 100%
-    );
+    padding: 18px 16px;
+    gap: 14px;
   }
 
   .catalog-hero-banner-title {
-    font-size: 1.25rem;
-    font-weight: 800;
-    line-height: 1.25;
-    margin: 2px 0 6px;
+    font-size: 1.45rem;
+    margin-bottom: 8px;
   }
 
   .catalog-hero-banner-desc {
-    display: none !important;
-  }
-
-  .catalog-hero-banner-perks {
-    display: none !important;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    line-height: 1.45;
   }
 
   .badge-desktop-label {
-    display: none !important;
+    display: none;
   }
 
   .badge-mobile-label {
-    display: inline !important;
+    display: inline;
   }
 
   .catalog-hero-banner-right {
-    display: none !important;
+    display: none;
   }
 
   .catalog-hero-banner-toggle-row {
-    margin-top: 10px;
     width: 100%;
-    display: flex;
     justify-content: center;
   }
 
   .catalog-toggle-label {
-    display: none !important;
-  }
-
-  .main-service-toggle {
     width: 100%;
-    max-width: 100%;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    padding: 4px;
-    background: rgba(11, 16, 29, 0.92);
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    border-radius: 12px;
-  }
-
-  .service-toggle-btn {
-    padding: 9px 8px;
-    font-size: 0.84rem;
-    font-weight: 700;
-    border-radius: 9px;
-    display: flex;
-    align-items: center;
+    text-align: center;
     justify-content: center;
-    gap: 6px;
-    white-space: nowrap;
   }
 }
 

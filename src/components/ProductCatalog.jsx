@@ -1,28 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ProductCard from './ProductCard';
 
-const WALLPAPER_VIDEOS = [
-  {
-    id: '8ugaeA-nMTc',
-    name: 'Cyberpunk Blue Neon 4K',
-    shortName: 'Cyber Neon 4K',
-    tag: 'Cyber Neon',
-    icon: 'fa-solid fa-bolt text-cyan'
-  },
-  {
-    id: 'b9EkMc79ZSU',
-    name: 'Netflix Cinema & Series 4K',
-    shortName: 'Netflix 4K',
-    tag: 'Netflix',
-    icon: 'fa-solid fa-film text-danger'
-  },
-  {
-    id: 'BoohroM_XdQ',
-    name: 'Disney+ Universe Movies 4K',
-    shortName: 'Disney+ 4K',
-    tag: 'Disney+',
-    icon: 'fa-solid fa-wand-magic-sparkles text-cyan'
-  }
+const CYBER_PARTICLES = [
+  { id: 1, left: '10%', top: '35%', size: 5, delay: '0s', dur: '5.5s', color: 'cyan' },
+  { id: 2, left: '24%', top: '65%', size: 4, delay: '1.2s', dur: '6.2s', color: 'blue' },
+  { id: 3, left: '38%', top: '25%', size: 6, delay: '2.5s', dur: '4.8s', color: 'purple' },
+  { id: 4, left: '52%', top: '70%', size: 4, delay: '0.8s', dur: '7.1s', color: 'cyan' },
+  { id: 5, left: '68%', top: '40%', size: 5, delay: '3.1s', dur: '5.9s', color: 'blue' },
+  { id: 6, left: '82%', top: '55%', size: 4, delay: '1.7s', dur: '6.5s', color: 'cyan' },
+  { id: 7, left: '16%', top: '75%', size: 3, delay: '4.0s', dur: '5.2s', color: 'purple' },
+  { id: 8, left: '46%', top: '48%', size: 5, delay: '2.0s', dur: '6.8s', color: 'cyan' },
+  { id: 9, left: '76%', top: '22%', size: 4, delay: '3.6s', dur: '5.4s', color: 'blue' },
+  { id: 10, left: '32%', top: '80%', size: 5, delay: '1.5s', dur: '6.0s', color: 'purple' },
+  { id: 11, left: '62%', top: '30%', size: 3, delay: '0.5s', dur: '7.5s', color: 'cyan' },
+  { id: 12, left: '92%', top: '62%', size: 5, delay: '2.8s', dur: '5.7s', color: 'blue' }
 ];
 
 export default function ProductCatalog({
@@ -38,26 +29,6 @@ export default function ProductCatalog({
   activeTab = 'store',
   onSwitchTab
 }) {
-  const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
-  const [isVideoMode, setIsVideoMode] = useState(true);
-
-  const activeVideo = WALLPAPER_VIDEOS[currentVideoIdx];
-
-  const handleNextVideo = () => {
-    const nextIdx = (currentVideoIdx + 1) % WALLPAPER_VIDEOS.length;
-    setCurrentVideoIdx(nextIdx);
-    setIsVideoMode(true);
-    onShowToast?.(`Ganti Wallpaper Video: ${WALLPAPER_VIDEOS[nextIdx].name}`, 'fa-film text-cyan');
-  };
-
-  const handleToggleVideoMode = () => {
-    const nextState = !isVideoMode;
-    setIsVideoMode(nextState);
-    onShowToast?.(
-      nextState ? 'Wallpaper Video Bergerak Dinyalakan' : 'Wallpaper Mode Foto Diaktifkan',
-      nextState ? 'fa-video text-success' : 'fa-image text-muted'
-    );
-  };
   const categories = [
     { id: 'all', label: 'Semua Akun', icon: 'fa-border-all' },
     { id: 'streaming', label: 'Streaming Video', icon: 'fa-tv' },
@@ -90,12 +61,12 @@ export default function ProductCatalog({
 
   return (
     <section className="katalog-section" id="katalog">
-      {/* Background Banner Wallpaper Baru Khusus Katalog */}
+      {/* Background Banner Wallpaper Baru Khusus Katalog dengan Animasi Effect */}
       <div className="catalog-wallpaper-bg-wrap">
         <img
           src="/catalog-wallpaper.png?v=2"
           alt="ChaizStore Catalog Wallpaper"
-          className="catalog-wallpaper-img"
+          className="catalog-wallpaper-img living-motion"
           loading="eager"
           onError={(e) => {
             if (!e.currentTarget.src.endsWith('banner.jpg')) {
@@ -103,78 +74,74 @@ export default function ProductCatalog({
             }
           }}
         />
+        {/* Ambient Section Cyber Aurora & Floating Light Particles */}
+        <div className="catalog-fx-section-aurora"></div>
+        <div className="catalog-fx-particles section-ambient-particles">
+          {CYBER_PARTICLES.slice(0, 8).map((p) => (
+            <span
+              key={`sec-${p.id}`}
+              className={`cyber-particle particle-${p.color}`}
+              style={{
+                left: p.left,
+                top: p.top,
+                width: `${p.size + 1}px`,
+                height: `${p.size + 1}px`,
+                animationDelay: p.delay,
+                animationDuration: p.dur
+              }}
+            />
+          ))}
+        </div>
         <div className="catalog-wallpaper-overlay"></div>
       </div>
 
       <div className="container">
         {/* =========================================================================
-            BANNER WALLPAPER BARU KHUSUS KATALOG (DENGAN LIVE VIDEO BERGERAK 4K)
+            BANNER WALLPAPER BARU KHUSUS KATALOG (DENGAN ANIMASI EFEK CAHAYA & PARTIKEL)
            ========================================================================= */}
         <div className="catalog-hero-banner-card">
           <div className="catalog-hero-banner-bg">
-            {/* Foto Background Wallpaper Dasar (Tetap ada sebagai fallback & base) */}
             <img
               src="/catalog-wallpaper.png?v=2"
               alt="ChaizStore Catalog Banner Wallpaper"
-              className="catalog-hero-banner-img"
+              className="catalog-hero-banner-img living-motion"
               loading="eager"
             />
+            {/* Animated Cyber Aurora Light Stream */}
+            <div className="catalog-fx-aurora-stream"></div>
+            <div className="catalog-fx-aurora-secondary"></div>
 
-            {/* Live Video Wallpaper Bergerak 4K (AutoPlay, Looping, Muted, No Controls) */}
-            {isVideoMode && (
-              <div className="catalog-banner-video-container">
-                <iframe
-                  key={activeVideo.id}
-                  src={`https://www.youtube-nocookie.com/embed/${activeVideo.id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${activeVideo.id}&playsinline=1&showinfo=0&rel=0&iv_load_policy=3&disablekb=1&modestbranding=1&enablejsapi=1`}
-                  title={activeVideo.name}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="catalog-banner-video-iframe"
+            {/* Animated Floating Cyber Particles */}
+            <div className="catalog-fx-particles">
+              {CYBER_PARTICLES.map((p) => (
+                <span
+                  key={p.id}
+                  className={`cyber-particle particle-${p.color}`}
+                  style={{
+                    left: p.left,
+                    top: p.top,
+                    width: `${p.size}px`,
+                    height: `${p.size}px`,
+                    animationDelay: p.delay,
+                    animationDuration: p.dur
+                  }}
                 />
-              </div>
-            )}
+              ))}
+            </div>
 
-            {/* Glowing Cyber Aurora Waves & Lighting Overlays */}
-            <div className="catalog-animated-cyber-aurora"></div>
+            {/* Dynamic Light Sheen Sweep */}
+            <div className="catalog-fx-sheen"></div>
+
             <div className="catalog-hero-banner-overlay"></div>
             <div className="catalog-hero-banner-glow"></div>
           </div>
 
           <div className="catalog-hero-banner-body">
             <div className="catalog-hero-banner-left">
-              <div className="catalog-hero-banner-badge-row">
-                <div className="catalog-hero-banner-badge">
-                  <i className="fa-solid fa-crown text-warning"></i>
-                  <span className="badge-desktop-label">KATALOG RESMI CHAIZSTORE • 100% LEGAL & BERGARANSI</span>
-                  <span className="badge-mobile-label">👑 Katalog Resmi 100% Legal</span>
-                </div>
-
-                {/* Kontrol Motion Video Bergerak */}
-                <div className="catalog-motion-ctrl-pill">
-                  <span className={`motion-dot-indicator ${isVideoMode ? 'active' : 'paused'}`}></span>
-                  <i className={activeVideo.icon}></i>
-                  <span className="motion-label-text">
-                    <span className="badge-desktop-label">{isVideoMode ? activeVideo.shortName : 'Mode Foto'}</span>
-                    <span className="badge-mobile-label">{isVideoMode ? activeVideo.tag : 'Foto'}</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-motion-action"
-                    onClick={handleNextVideo}
-                    title="Ganti Video Iklan Berikutnya"
-                  >
-                    <i className="fa-solid fa-shuffle"></i>
-                    <span className="btn-text-desktop">Ganti ({currentVideoIdx + 1}/3)</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-motion-action btn-motion-mode"
-                    onClick={handleToggleVideoMode}
-                    title={isVideoMode ? 'Ganti ke Foto Saja' : 'Nyalakan Video Bergerak'}
-                  >
-                    <i className={isVideoMode ? 'fa-solid fa-image' : 'fa-solid fa-video'}></i>
-                    <span className="btn-text-desktop">{isVideoMode ? 'Foto' : 'Video'}</span>
-                  </button>
-                </div>
+              <div className="catalog-hero-banner-badge">
+                <i className="fa-solid fa-crown text-warning"></i>
+                <span className="badge-desktop-label">KATALOG RESMI CHAIZSTORE • 100% LEGAL & BERGARANSI</span>
+                <span className="badge-mobile-label">👑 Katalog Resmi 100% Legal</span>
               </div>
 
               <h2 className="catalog-hero-banner-title">
