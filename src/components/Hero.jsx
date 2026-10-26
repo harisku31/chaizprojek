@@ -1,5 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+const HERO_PARTICLES = [
+  { id: 1, left: '8%', top: '30%', size: 5, delay: '0s', dur: '2.8s', color: 'cyan' },
+  { id: 2, left: '18%', top: '65%', size: 6, delay: '0.5s', dur: '3.2s', color: 'blue' },
+  { id: 3, left: '26%', top: '22%', size: 4, delay: '1.0s', dur: '2.5s', color: 'white' },
+  { id: 4, left: '34%', top: '78%', size: 7, delay: '1.4s', dur: '3.4s', color: 'purple' },
+  { id: 5, left: '42%', top: '35%', size: 5, delay: '0.3s', dur: '2.7s', color: 'cyan' },
+  { id: 6, left: '50%', top: '68%', size: 6, delay: '1.8s', dur: '3.1s', color: 'blue' },
+  { id: 7, left: '58%', top: '18%', size: 4, delay: '0.7s', dur: '2.4s', color: 'white' },
+  { id: 8, left: '66%', top: '82%', size: 7, delay: '2.1s', dur: '3.5s', color: 'purple' },
+  { id: 9, left: '74%', top: '42%', size: 5, delay: '0.9s', dur: '2.8s', color: 'cyan' },
+  { id: 10, left: '82%', top: '26%', size: 6, delay: '1.5s', dur: '3.3s', color: 'blue' },
+  { id: 11, left: '90%', top: '70%', size: 4, delay: '0.4s', dur: '2.5s', color: 'white' },
+  { id: 12, left: '95%', top: '38%', size: 6, delay: '1.9s', dur: '3.2s', color: 'cyan' },
+  { id: 13, left: '12%', top: '85%', size: 5, delay: '1.2s', dur: '3.0s', color: 'purple' },
+  { id: 14, left: '30%', top: '48%', size: 4, delay: '0.6s', dur: '2.6s', color: 'white' },
+  { id: 15, left: '62%', top: '58%', size: 6, delay: '1.7s', dur: '3.1s', color: 'blue' },
+  { id: 16, left: '86%', top: '85%', size: 5, delay: '0.8s', dur: '2.9s', color: 'cyan' }
+];
+
 export default function Hero({ onSwitchTab }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const touchStartXRef = useRef(null);
@@ -185,9 +204,9 @@ export default function Hero({ onSwitchTab }) {
   return (
     <section className="hero-landscape-section">
       <div className="container">
-        {/* Landscape Carousel Container */}
+        {/* Landscape Carousel Container with Dynamic Ambient Glow Transitions */}
         <div
-          className="landscape-carousel-wrapper"
+          className={`landscape-carousel-wrapper wrapper-${slides[currentSlide]?.themeClass || 'banner-theme-premium'}`}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -202,12 +221,12 @@ export default function Hero({ onSwitchTab }) {
                 key={slide.id}
                 className={`landscape-banner-slide ${slide.themeClass} ${currentSlide === idx ? 'active-slide' : ''}`}
               >
-                {/* Background Foto Banner Asli (Bukan flat color) */}
+                {/* Background Foto Banner Asli dengan Living Motion & Dynamic FX */}
                 <div className="banner-bg-photo-wrap">
                   <img
                     src={slide.bgImage}
                     alt={slide.title}
-                    className="banner-bg-photo"
+                    className="banner-bg-photo living-motion"
                     loading="eager"
                     onError={(e) => {
                       if (slide.fallbackImage && e.currentTarget.src !== slide.fallbackImage) {
@@ -215,6 +234,36 @@ export default function Hero({ onSwitchTab }) {
                       }
                     }}
                   />
+
+                  {/* Animated Thematic Aurora Waves per Slide */}
+                  <div className={`hero-fx-aurora-stream stream-${slide.themeClass}`}></div>
+                  <div className={`hero-fx-aurora-secondary stream-${slide.themeClass}`}></div>
+
+                  {/* Traveling Laser Energy Beams */}
+                  <div className="hero-fx-energy-beam beam-1"></div>
+                  <div className="hero-fx-energy-beam beam-2"></div>
+
+                  {/* Dense Floating Cyber Particles Layer */}
+                  <div className="hero-fx-particles">
+                    {HERO_PARTICLES.map((p) => (
+                      <span
+                        key={p.id}
+                        className={`cyber-particle particle-${p.color}`}
+                        style={{
+                          left: p.left,
+                          top: p.top,
+                          width: `${p.size}px`,
+                          height: `${p.size}px`,
+                          animationDelay: p.delay,
+                          animationDuration: p.dur
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Dynamic Light Sheen Sweep on Slide Transition */}
+                  <div className="hero-fx-sheen"></div>
+
                   <div className="banner-photo-overlay"></div>
                 </div>
 
