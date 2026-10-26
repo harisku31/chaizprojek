@@ -13,7 +13,8 @@ export default function Navbar({
   onOpenTopUp,
   activeTab = 'store',
   onSwitchTab,
-  isBanned = false
+  isBanned = false,
+  notificationCount = 0
 }) {
   const [isDesktopSearchOpen, setIsDesktopSearchOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -194,6 +195,20 @@ export default function Navbar({
             <i className="fa-solid fa-bag-shopping"></i>
             <span className="cart-label">Keranjang</span>
             {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
+          </button>
+
+          {/* 2b. Riwayat Transaksi & Notifikasi Admin */}
+          <button
+            type="button"
+            className={`cart-btn nav-trx-btn ${activeTab === 'transaksi' ? 'active' : ''}`}
+            title="Riwayat Pesanan & Notifikasi Admin"
+            onClick={() => onSwitchTab('transaksi')}
+          >
+            <i className="fa-solid fa-receipt"></i>
+            <span className="cart-label">Pesanan</span>
+            {notificationCount > 0 && (
+              <span className="cart-count nav-notif-pulse-count">{notificationCount}</span>
+            )}
           </button>
 
           {/* 3. PROFIL DI KANAN POJOK ATAS (JIKA SUDAH LOGIN: HANYA ADA PROFIL BISA DI-KLIK & ADA LOGOUT, TIDAK ADA TOMBOL LOGIN LAGI!) */}

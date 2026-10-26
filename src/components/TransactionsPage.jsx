@@ -16,13 +16,26 @@ export default function TransactionsPage({
   onBackToStore,
   onShowToast,
   authUser,
-  onOpenLogin
+  onOpenLogin,
+  autoOpenTrxId = null,
+  onClearAutoOpenTrxId
 }) {
   const [transactions, setTransactions] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'processing' | 'completed'
   const [selectedTrxDetail, setSelectedTrxDetail] = useState(null);
   const [selectedTrxRating, setSelectedTrxRating] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-open modal jika diarahkan langsung dari popup notifikasi admin
+  useEffect(() => {
+    if (autoOpenTrxId && transactions.length > 0) {
+      const target = transactions.find((t) => t.id === autoOpenTrxId);
+      if (target) {
+        setSelectedTrxDetail(target);
+        onClearAutoOpenTrxId?.();
+      }
+    }
+  }, [autoOpenTrxId, transactions]);
 
   const loadData = () => {
     if (!authUser) {

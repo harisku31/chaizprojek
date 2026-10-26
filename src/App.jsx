@@ -22,6 +22,7 @@ import CsChatWidget from './components/CsChatWidget';
 import ToastContainer from './components/ToastContainer';
 import BannedNoticeModal from './components/BannedNoticeModal';
 import UnbannedNoticeModal from './components/UnbannedNoticeModal';
+import OrderNotificationModal from './components/OrderNotificationModal';
 import {
   recordUserLogin,
   recordUserLogout,
@@ -35,9 +36,23 @@ import {
   getDatabaseProducts,
   subscribeToProductChanges
 } from './utils/productDatabase';
-import { getUserKey } from './utils/transactions';
+import {
+  getUserKey,
+  getUserTransactions,
+  getRecentOrderIds,
+  isOrderBelongsToSession,
+  getActiveNotificationCount,
+  syncUserTransactionsFromCloud,
+  listenToUserTransactions
+} from './utils/transactions';
+import { listenToFirebase } from './utils/firebase';
 import { syncUserToSql } from './utils/sqlApi';
-import { playUserSuccessSound, playUserRejectSound } from './utils/audioNotification';
+import {
+  playUserSuccessSound,
+  playUserRejectSound,
+  triggerNotificationVibrate,
+  unlockAudio
+} from './utils/audioNotification';
 
 export default function App() {
   // Product Database & Realtime Stock State
@@ -73,6 +88,11 @@ export default function App() {
 
   // Toasts
   const [toasts, setToasts] = useState([]);
+
+  // Active Order Notification Modal state (Kiriman Sukses / Ditolak dari Admin)
+  const [activeOrderAlert, setActiveOrderAlert] = useState(null);
+  const [autoOpenTrxId, setAutoOpenTrxId] = useState(null);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(() => getActiveNotificationCount(authUser));
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -336,57 +356,174 @@ export default function App() {
     };
   }, [authUser, bannedInfo, isBannedModalOpen]);
 
-  // Global sound & toast listener for order updates when browsing anywhere on the site
+  // Realtime Order & Notification Watcher (Memantau respon Admin secara instan via Firebase RTDB, BroadcastChannel & Storage)
   useEffect(() => {
-    if (!authUser) return;
-
-    const handleEventData = (type, detail) => {
-      if (type !== 'TRANSACTION_FULFILLED' && type !== 'TRANSACTION_REJECTED') return;
-
-      const userKey = detail?.userKey || detail?.data?.userKey;
-      const myKey = authUser.id || getUserKey(authUser);
-      if (userKey && userKey !== myKey) return;
-
-      const updated = detail?.data?.updatedTrx || detail?.updatedTrx;
-      // If we are currently on the 'transaksi' tab, TransactionsPage handles its own sounds
-      if (activeTab === 'transaksi') return;
-
-      if (type === 'TRANSACTION_FULFILLED') {
-        playUserSuccessSound();
-        showToast(
-          `🎉 Pesanan #${updated?.id || ''} telah selesai diproses Admin! Buka menu Riwayat Transaksi untuk melihat detail akun.`,
-          'fa-circle-check text-success'
-        );
-      } else if (type === 'TRANSACTION_REJECTED') {
-        playUserRejectSound();
-        showToast(
-          `Pesanan #${updated?.id || ''} ditolak oleh Admin. Buka menu Riwayat Transaksi untuk informasi lebih lanjut.`,
-          'fa-circle-xmark text-danger'
-        );
+    // A. Muat riwayat status yang sudah pernah dinotifikasikan dari localStorage
+    const getNotifiedMap = () => {
+      try {
+        const raw = localStorage.getItem('chaiz_notified_orders');
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
       }
     };
 
-    const handleGlobalOrderEvent = (e) => {
-      handleEventData(e.detail?.type, e.detail);
+    const saveNotifiedMap = (map) => {
+      try {
+        localStorage.setItem('chaiz_notified_orders', JSON.stringify(map));
+      } catch {}
     };
 
-    window.addEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
+    const notifiedMap = getNotifiedMap();
+    const knownStatuses = { ...notifiedMap };
 
+    // Sinkronkan hitungan badge awal
+    const updateBadge = () => {
+      setUnreadNotifCount(getActiveNotificationCount(authUser));
+    };
+    updateBadge();
+
+    // Handler pusat saat terdeteksi update status pesanan dari Admin
+    const handleOrderStatusChange = (trx, source = 'unknown') => {
+      if (!trx || !trx.id) return;
+      // Cek apakah pesanan ini milik user atau dibuat di perangkat ini
+      if (!isOrderBelongsToSession(trx, authUser)) return;
+
+      const id = trx.id;
+      const currentStatus = trx.status;
+
+      // Simpan status terbaru
+      knownStatuses[id] = currentStatus;
+
+      // Jika status adalah 'completed' dan belum pernah dinotifikasi untuk status ini
+      if (currentStatus === 'completed' && notifiedMap[id] !== 'completed') {
+        notifiedMap[id] = 'completed';
+        saveNotifiedMap(notifiedMap);
+
+        // WAJIB: Bunyikan suara kemenangan sukses & getarkan ponsel
+        playUserSuccessSound();
+        triggerNotificationVibrate('success');
+
+        // Tampilkan popup notifikasi dialog kiriman admin
+        setActiveOrderAlert(trx);
+
+        // Tampilkan toast notifikasi
+        showToast(
+          `🎉 Pesanan #${id} (${trx.productName}) telah SELESAI diproses Admin! Akun Anda sudah siap.`,
+          'fa-circle-check text-success',
+          'success'
+        );
+
+        updateBadge();
+      } else if (currentStatus === 'rejected' && notifiedMap[id] !== 'rejected') {
+        notifiedMap[id] = 'rejected';
+        saveNotifiedMap(notifiedMap);
+
+        // WAJIB: Bunyikan nada peringatan penolakan
+        playUserRejectSound();
+        triggerNotificationVibrate('rejected');
+
+        // Tampilkan popup notifikasi dialog penolakan admin
+        setActiveOrderAlert(trx);
+
+        // Tampilkan toast
+        showToast(
+          `⚠️ Pesanan #${id} (${trx.productName}) DITOLAK Admin: ${trx.rejectReason || trx.adminNote || 'Bukti transfer tidak valid'}`,
+          'fa-circle-xmark text-danger',
+          'warning'
+        );
+
+        updateBadge();
+      }
+    };
+
+    // 1. Firebase RTDB Watcher: Langganan node privat user jika login
+    let unsubscribeUserTrx = () => {};
+    if (authUser) {
+      unsubscribeUserTrx = listenToUserTransactions(authUser, (userList) => {
+        if (Array.isArray(userList)) {
+          userList.forEach((trx) => handleOrderStatusChange(trx, 'firebase_user_trx'));
+          updateBadge();
+        }
+      });
+    }
+
+    // 2. Firebase RTDB Watcher: Langganan langsung ke ID pesanan yang masih 'processing'
+    const unsubsOrders = [];
+    const recentIds = getRecentOrderIds();
+    recentIds.slice(0, 15).forEach((orderId) => {
+      if (notifiedMap[orderId] === 'completed' || notifiedMap[orderId] === 'rejected') return;
+      try {
+        const unsub = listenToFirebase(`transactions/${orderId}`, (cloudTrx) => {
+          if (cloudTrx && (cloudTrx.status === 'completed' || cloudTrx.status === 'rejected')) {
+            handleOrderStatusChange(cloudTrx, 'firebase_single_trx');
+          }
+        });
+        unsubsOrders.push(unsub);
+      } catch (e) {}
+    });
+
+    // 3. BroadcastChannel Watcher (Lintas tab browser)
     let bc = null;
     try {
-      if ('BroadcastChannel' in window) {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
         bc = new BroadcastChannel('chaiz_admin_sync');
         bc.onmessage = (ev) => {
-          handleEventData(ev.data?.type, ev.data);
+          const type = ev.data?.type;
+          const updated = ev.data?.data?.updatedTrx || ev.data?.updatedTrx;
+          if (updated && (type === 'TRANSACTION_FULFILLED' || type === 'TRANSACTION_REJECTED')) {
+            handleOrderStatusChange(updated, 'broadcast_channel');
+          } else {
+            updateBadge();
+          }
         };
       }
-    } catch {}
+    } catch (e) {}
+
+    // 4. Custom Window Events & Storage Events
+    const handleTrxCustomEvent = (e) => {
+      const type = e.detail?.type;
+      const updated = e.detail?.data?.updatedTrx || e.detail?.updatedTrx;
+      if (updated && (type === 'TRANSACTION_FULFILLED' || type === 'TRANSACTION_REJECTED')) {
+        handleOrderStatusChange(updated, 'custom_event');
+      } else {
+        updateBadge();
+      }
+    };
+    window.addEventListener('chaiz_trx_updated', handleTrxCustomEvent);
+    window.addEventListener('chaiz_notifications_read', updateBadge);
+
+    const handleStorage = (e) => {
+      if (e.key === 'chaiz_transactions' || (e.key && e.key.startsWith('chaiz_user_trx_'))) {
+        updateBadge();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // 5. Polling berkala (fallback setiap 8 detik) untuk memastikan zero-miss
+    const pollTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (authUser) {
+        syncUserTransactionsFromCloud(authUser).then((fresh) => {
+          if (Array.isArray(fresh)) {
+            fresh.forEach((t) => handleOrderStatusChange(t, 'poll'));
+          }
+        }).catch(() => {});
+      }
+    }, 8000);
 
     return () => {
-      window.removeEventListener('chaiz_trx_updated', handleGlobalOrderEvent);
+      unsubscribeUserTrx();
+      unsubsOrders.forEach((fn) => {
+        try { fn(); } catch {}
+      });
       if (bc) bc.close();
+      window.removeEventListener('chaiz_trx_updated', handleTrxCustomEvent);
+      window.removeEventListener('chaiz_notifications_read', updateBadge);
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(pollTimer);
     };
-  }, [authUser, activeTab]);
+  }, [authUser]);
 
   // Save auth user & record login for admin dashboard monitoring
   const handleLoginSuccess = (user) => {
@@ -690,6 +827,7 @@ export default function App() {
         activeTab={activeTab}
         onSwitchTab={handleSwitchTab}
         isBanned={isCurrentBanned}
+        notificationCount={unreadNotifCount}
       />
 
       <main>
@@ -732,6 +870,8 @@ export default function App() {
             onShowToast={showToast}
             authUser={authUser}
             onOpenLogin={() => setIsLoginOpen(true)}
+            autoOpenTrxId={autoOpenTrxId}
+            onClearAutoOpenTrxId={() => setAutoOpenTrxId(null)}
           />
         ) : (
           <>
@@ -857,6 +997,18 @@ export default function App() {
         isOpen={Boolean(unbannedNoticeData)}
         userName={unbannedNoticeData?.name || authUser?.name}
         onClose={() => setUnbannedNoticeData(null)}
+      />
+
+      {/* Popup Dialog Kiriman Notifikasi Admin (Sukses / Ditolak) */}
+      <OrderNotificationModal
+        isOpen={Boolean(activeOrderAlert)}
+        order={activeOrderAlert}
+        onClose={() => setActiveOrderAlert(null)}
+        onOpenOrderDetail={(order) => {
+          setActiveOrderAlert(null);
+          setAutoOpenTrxId(order?.id || null);
+          handleSwitchTab('transaksi');
+        }}
       />
     </>
   );

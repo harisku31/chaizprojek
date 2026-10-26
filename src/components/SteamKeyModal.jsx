@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/format';
 import { PAYMENT_INFO } from '../data/config';
 import { createTransaction, getUserKey } from '../utils/transactions';
+import { unlockAudio } from '../utils/audioNotification';
 
 export const STEAM_KEY_PACKAGES = [
   {
@@ -161,6 +162,7 @@ export default function SteamKeyModal({
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
+    unlockAudio();
 
     // 1. Cek status banned
     if (isBanned) {

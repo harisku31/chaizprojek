@@ -38,6 +38,28 @@ export const PROOF_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
 // ===================================================================
 
 /**
+ * ID pesanan terbaru yang dibuat di perangkat ini (untuk notifikasi & sinkronisasi instan)
+ */
+export function getRecentOrderIds() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('chaiz_recent_order_ids');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addRecentOrderId(id) {
+  if (!id || typeof window === 'undefined') return;
+  try {
+    const existing = getRecentOrderIds();
+    const updated = [id, ...existing.filter((x) => x !== id)].slice(0, 50);
+    localStorage.setItem('chaiz_recent_order_ids', JSON.stringify(updated));
+  } catch {}
+}
+
+/**
  * Generate atau ambil ID unik user yang konsisten berdasarkan email/ID
  */
 export function getUniqueUserId(user) {
@@ -97,6 +119,17 @@ export function isOrderOwnedByUser(trx, user) {
     return true;
   }
 
+  return false;
+}
+
+/**
+ * Cek apakah sebuah transaksi milik user aktif atau pernah dibuat di sesi perangkat ini
+ */
+export function isOrderBelongsToSession(trx, user) {
+  if (!trx) return false;
+  if (user && isOrderOwnedByUser(trx, user)) return true;
+  const recentIds = getRecentOrderIds();
+  if (recentIds.includes(trx.id)) return true;
   return false;
 }
 
@@ -542,6 +575,9 @@ export function createTransaction({
     rating: null,
     isRead: false
   };
+
+  // 0. Simpan ID pesanan terbaru ke sesi browser pelanggan
+  addRecentOrderId(newId);
 
   // 1. Simpan ke Global Transaksi (untuk Admin)
   const allTransactions = getTransactions();
@@ -1040,7 +1076,15 @@ export function getActiveNotificationCount(user = null) {
       if (raw) targetUser = JSON.parse(raw);
     } catch {}
   }
-  if (!targetUser) return 0;
+  if (!targetUser) {
+    const recent = getRecentOrderIds();
+    if (recent.length > 0) {
+      const all = getTransactions();
+      const myOrders = all.filter((t) => recent.includes(t.id));
+      return myOrders.filter((t) => !t.isRead && (t.status === 'completed' || t.status === 'rejected')).length;
+    }
+    return 0;
+  }
   const list = getUserTransactions(targetUser);
   return list.filter((t) => !t.isRead).length;
 }

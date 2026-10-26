@@ -8,7 +8,7 @@ import {
   copyImageBlobToClipboard
 } from '../utils/format';
 import { createTransaction, getUserKey } from '../utils/transactions';
-import { playUserNoticeSound } from '../utils/audioNotification';
+import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
 
 export default function CheckoutModal({
   isOpen,
@@ -205,6 +205,7 @@ export default function CheckoutModal({
   };
 
   const handleSubmitOrder = async () => {
+    unlockAudio();
     const username = buyerUsername.trim();
     const name = buyerName.trim();
     const wa = buyerWa.trim();
