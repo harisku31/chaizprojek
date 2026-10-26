@@ -153,7 +153,8 @@ export default function ProductCatalog({
                   <span className={`motion-dot-indicator ${isVideoMode ? 'active' : 'paused'}`}></span>
                   <i className={activeVideo.icon}></i>
                   <span className="motion-label-text">
-                    {isVideoMode ? activeVideo.shortName : 'Mode Foto'}
+                    <span className="badge-desktop-label">{isVideoMode ? activeVideo.shortName : 'Mode Foto'}</span>
+                    <span className="badge-mobile-label">{isVideoMode ? activeVideo.tag : 'Foto'}</span>
                   </span>
                   <button
                     type="button"
@@ -162,7 +163,7 @@ export default function ProductCatalog({
                     title="Ganti Video Iklan Berikutnya"
                   >
                     <i className="fa-solid fa-shuffle"></i>
-                    <span>Ganti ({currentVideoIdx + 1}/3)</span>
+                    <span className="btn-text-desktop">Ganti ({currentVideoIdx + 1}/3)</span>
                   </button>
                   <button
                     type="button"
@@ -171,7 +172,7 @@ export default function ProductCatalog({
                     title={isVideoMode ? 'Ganti ke Foto Saja' : 'Nyalakan Video Bergerak'}
                   >
                     <i className={isVideoMode ? 'fa-solid fa-image' : 'fa-solid fa-video'}></i>
-                    <span>{isVideoMode ? 'Foto' : 'Video'}</span>
+                    <span className="btn-text-desktop">{isVideoMode ? 'Foto' : 'Video'}</span>
                   </button>
                 </div>
               </div>
