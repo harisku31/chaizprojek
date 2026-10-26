@@ -2063,8 +2063,8 @@ button, input {
   border-radius: 22px;
   overflow: hidden;
   margin-bottom: 34px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  box-shadow: 0 16px 45px rgba(2, 6, 23, 0.7), 0 0 35px rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 16px 45px rgba(2, 6, 23, 0.7), 0 0 35px rgba(14, 165, 233, 0.22);
   background: #090e1a;
 }
 
@@ -2098,6 +2098,63 @@ button, input {
   }
 }
 
+/* Live Video Wallpaper Container & Iframe 4K Looper */
+.catalog-banner-video-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 220%;
+  min-width: 100%;
+  min-height: 100%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.catalog-banner-video-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+  filter: brightness(1.15) contrast(1.08) saturate(1.25);
+  transform: scale(1.05);
+}
+
+/* Animated Cyber Aurora Waves (Real dynamic light motion across banner) */
+.catalog-animated-cyber-aurora {
+  position: absolute;
+  top: -30%;
+  left: -50%;
+  width: 200%;
+  height: 160%;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(56, 189, 248, 0.22) 0%,
+    rgba(99, 102, 241, 0.16) 40%,
+    transparent 70%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 2;
+  animation: catalogAuroraFlow 9s ease-in-out infinite alternate;
+}
+
+@keyframes catalogAuroraFlow {
+  0% {
+    transform: translate(-10%, -5%) rotate(0deg) scale(0.95);
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(10%, 8%) rotate(6deg) scale(1.1);
+    opacity: 0.65;
+  }
+}
+
 .catalog-hero-banner-overlay {
   position: absolute;
   top: 0;
@@ -2106,12 +2163,13 @@ button, input {
   height: 100%;
   background: linear-gradient(
     90deg,
-    rgba(8, 13, 24, 0.9) 0%,
-    rgba(8, 13, 24, 0.75) 45%,
-    rgba(8, 13, 24, 0.38) 78%,
-    rgba(8, 13, 24, 0.6) 100%
+    rgba(8, 13, 24, 0.92) 0%,
+    rgba(8, 13, 24, 0.78) 45%,
+    rgba(8, 13, 24, 0.35) 78%,
+    rgba(8, 13, 24, 0.58) 100%
   );
   pointer-events: none;
+  z-index: 2;
 }
 
 .catalog-hero-banner-glow {
@@ -2124,6 +2182,7 @@ button, input {
   background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
   filter: blur(55px);
   pointer-events: none;
+  z-index: 2;
   animation: catalogBannerPulse 4.5s ease-in-out infinite alternate;
 }
 
@@ -2140,19 +2199,27 @@ button, input {
 
 .catalog-hero-banner-body {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   grid-template-columns: 1.35fr 0.85fr;
   align-items: center;
   gap: 28px;
-  padding: 32px 36px;
+  padding: 30px 36px;
+}
+
+.catalog-hero-banner-badge-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .catalog-hero-banner-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.88);
   border: 1px solid rgba(56, 189, 248, 0.35);
   backdrop-filter: blur(10px);
   padding: 5px 14px;
@@ -2160,9 +2227,77 @@ button, input {
   font-size: 0.78rem;
   font-weight: 700;
   color: #e0f2fe;
-  margin-bottom: 12px;
   letter-spacing: 0.04em;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* Kontrol Motion Live Video */
+.catalog-motion-ctrl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 4px 10px 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.motion-dot-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.motion-dot-indicator.active {
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: motionPulse 1.8s infinite;
+}
+
+.motion-dot-indicator.paused {
+  background: #64748b;
+}
+
+@keyframes motionPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.motion-label-text {
+  font-weight: 700;
+  color: #38bdf8;
+  font-size: 0.75rem;
+}
+
+.btn-motion-action {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #f1f5f9;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-motion-action:hover {
+  background: rgba(14, 165, 233, 0.3);
+  border-color: #38bdf8;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.btn-motion-mode {
+  background: rgba(56, 189, 248, 0.15);
 }
 
 .badge-desktop-label {
@@ -2356,6 +2491,24 @@ button, input {
     grid-template-columns: 1fr;
     padding: 18px 16px;
     gap: 14px;
+  }
+
+  .catalog-hero-banner-badge-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .catalog-motion-ctrl-pill {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    gap: 5px;
+  }
+
+  .catalog-banner-video-container {
+    width: 150%;
+    height: 300%;
   }
 
   .catalog-hero-banner-title {

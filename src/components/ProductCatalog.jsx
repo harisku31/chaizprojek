@@ -1,5 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ProductCard from './ProductCard';
+
+const WALLPAPER_VIDEOS = [
+  {
+    id: '8ugaeA-nMTc',
+    name: 'Cyberpunk Blue Neon 4K',
+    shortName: 'Cyber Neon 4K',
+    tag: 'Cyber Neon',
+    icon: 'fa-solid fa-bolt text-cyan'
+  },
+  {
+    id: 'b9EkMc79ZSU',
+    name: 'Netflix Cinema & Series 4K',
+    shortName: 'Netflix 4K',
+    tag: 'Netflix',
+    icon: 'fa-solid fa-film text-danger'
+  },
+  {
+    id: 'BoohroM_XdQ',
+    name: 'Disney+ Universe Movies 4K',
+    shortName: 'Disney+ 4K',
+    tag: 'Disney+',
+    icon: 'fa-solid fa-wand-magic-sparkles text-cyan'
+  }
+];
 
 export default function ProductCatalog({
   products,
@@ -14,6 +38,26 @@ export default function ProductCatalog({
   activeTab = 'store',
   onSwitchTab
 }) {
+  const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
+  const [isVideoMode, setIsVideoMode] = useState(true);
+
+  const activeVideo = WALLPAPER_VIDEOS[currentVideoIdx];
+
+  const handleNextVideo = () => {
+    const nextIdx = (currentVideoIdx + 1) % WALLPAPER_VIDEOS.length;
+    setCurrentVideoIdx(nextIdx);
+    setIsVideoMode(true);
+    onShowToast?.(`Ganti Wallpaper Video: ${WALLPAPER_VIDEOS[nextIdx].name}`, 'fa-film text-cyan');
+  };
+
+  const handleToggleVideoMode = () => {
+    const nextState = !isVideoMode;
+    setIsVideoMode(nextState);
+    onShowToast?.(
+      nextState ? 'Wallpaper Video Bergerak Dinyalakan' : 'Wallpaper Mode Foto Diaktifkan',
+      nextState ? 'fa-video text-success' : 'fa-image text-muted'
+    );
+  };
   const categories = [
     { id: 'all', label: 'Semua Akun', icon: 'fa-border-all' },
     { id: 'streaming', label: 'Streaming Video', icon: 'fa-tv' },
@@ -64,26 +108,72 @@ export default function ProductCatalog({
 
       <div className="container">
         {/* =========================================================================
-            BANNER WALLPAPER BARU KHUSUS KATALOG (LANDSCAPE MIRIP BANNER DI ATAS)
+            BANNER WALLPAPER BARU KHUSUS KATALOG (DENGAN LIVE VIDEO BERGERAK 4K)
            ========================================================================= */}
         <div className="catalog-hero-banner-card">
           <div className="catalog-hero-banner-bg">
+            {/* Foto Background Wallpaper Dasar (Tetap ada sebagai fallback & base) */}
             <img
               src="/catalog-wallpaper.png?v=2"
               alt="ChaizStore Catalog Banner Wallpaper"
               className="catalog-hero-banner-img"
               loading="eager"
             />
+
+            {/* Live Video Wallpaper Bergerak 4K (AutoPlay, Looping, Muted, No Controls) */}
+            {isVideoMode && (
+              <div className="catalog-banner-video-container">
+                <iframe
+                  key={activeVideo.id}
+                  src={`https://www.youtube-nocookie.com/embed/${activeVideo.id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${activeVideo.id}&playsinline=1&showinfo=0&rel=0&iv_load_policy=3&disablekb=1&modestbranding=1&enablejsapi=1`}
+                  title={activeVideo.name}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  className="catalog-banner-video-iframe"
+                />
+              </div>
+            )}
+
+            {/* Glowing Cyber Aurora Waves & Lighting Overlays */}
+            <div className="catalog-animated-cyber-aurora"></div>
             <div className="catalog-hero-banner-overlay"></div>
             <div className="catalog-hero-banner-glow"></div>
           </div>
 
           <div className="catalog-hero-banner-body">
             <div className="catalog-hero-banner-left">
-              <div className="catalog-hero-banner-badge">
-                <i className="fa-solid fa-crown text-warning"></i>
-                <span className="badge-desktop-label">KATALOG RESMI CHAIZSTORE • 100% LEGAL & BERGARANSI</span>
-                <span className="badge-mobile-label">👑 Katalog Resmi 100% Legal</span>
+              <div className="catalog-hero-banner-badge-row">
+                <div className="catalog-hero-banner-badge">
+                  <i className="fa-solid fa-crown text-warning"></i>
+                  <span className="badge-desktop-label">KATALOG RESMI CHAIZSTORE • 100% LEGAL & BERGARANSI</span>
+                  <span className="badge-mobile-label">👑 Katalog Resmi 100% Legal</span>
+                </div>
+
+                {/* Kontrol Motion Video Bergerak */}
+                <div className="catalog-motion-ctrl-pill">
+                  <span className={`motion-dot-indicator ${isVideoMode ? 'active' : 'paused'}`}></span>
+                  <i className={activeVideo.icon}></i>
+                  <span className="motion-label-text">
+                    {isVideoMode ? activeVideo.shortName : 'Mode Foto'}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-motion-action"
+                    onClick={handleNextVideo}
+                    title="Ganti Video Iklan Berikutnya"
+                  >
+                    <i className="fa-solid fa-shuffle"></i>
+                    <span>Ganti ({currentVideoIdx + 1}/3)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-motion-action btn-motion-mode"
+                    onClick={handleToggleVideoMode}
+                    title={isVideoMode ? 'Ganti ke Foto Saja' : 'Nyalakan Video Bergerak'}
+                  >
+                    <i className={isVideoMode ? 'fa-solid fa-image' : 'fa-solid fa-video'}></i>
+                    <span>{isVideoMode ? 'Foto' : 'Video'}</span>
+                  </button>
+                </div>
               </div>
 
               <h2 className="catalog-hero-banner-title">
