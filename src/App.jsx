@@ -29,6 +29,8 @@ import {
   recordUserHeartbeat,
   setUserOffline,
   recordUserActivity,
+  recordUserVisit,
+  updateVisitHeartbeat,
   isUserBanned
 } from './utils/userTracker';
 
@@ -237,6 +239,8 @@ export default function App() {
     if (!authUser) return;
 
     recordUserHeartbeat(authUser);
+    recordUserVisit(authUser, 'Membuka beranda toko ChaizStore');
+    updateVisitHeartbeat(authUser);
 
     // Instant cross-tab sync listener if admin bans or unbans user from admin portal
     let bc = null;
@@ -340,6 +344,8 @@ export default function App() {
           setUnbannedNoticeData({ name: authUser?.name || 'Pengguna' });
         }
         recordUserHeartbeat(authUser);
+    recordUserVisit(authUser, 'Membuka beranda toko ChaizStore');
+    updateVisitHeartbeat(authUser);
       }
     }, 4000);
 
@@ -827,7 +833,6 @@ export default function App() {
         activeTab={activeTab}
         onSwitchTab={handleSwitchTab}
         isBanned={isCurrentBanned}
-        notificationCount={unreadNotifCount}
       />
 
       <main>

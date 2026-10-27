@@ -4,6 +4,9 @@ import {
   getActivityLogs,
   getUserLogs,
   isUserOnline,
+  getPermanentVisits,
+  listenToPermanentVisits,
+  isVisitOnline,
   deleteUserFromDirectory,
   clearAllUsersDirectory,
   deleteActivityLog,
@@ -268,7 +271,9 @@ export default function AdminApp() {
 
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userFilter, setUserFilter] = useState('all'); // 'all' | 'online' | 'offline' | 'logged_in' | 'logged_out' | 'banned'
+  const [userFilter, setUserFilter] = useState('all'); // 'all' | 'online' | 'offline' | 'logged_in' | 'logged_out' | 'banned' | 'visits'
+  const [permanentVisits, setPermanentVisits] = useState(() => getPermanentVisits());
+  const [selectedVisitForModal, setSelectedVisitForModal] = useState(null);
 
   const [activitySearchQuery, setActivitySearchQuery] = useState('');
   const [activityFilter, setActivityFilter] = useState('all'); // 'all' | 'auth' | 'banned' | 'cart' | 'topup' | 'today'
@@ -311,6 +316,7 @@ export default function AdminApp() {
   const reloadAllData = () => {
     setRegisteredUsers(getRegisteredUsers());
     setActivityLogs(getActivityLogs());
+    setPermanentVisits(getPermanentVisits());
     setOrdersList(getTransactions());
     syncTransactionsFromCloud().then((fresh) => {
       if (fresh && fresh.length > 0) {
@@ -362,6 +368,8 @@ export default function AdminApp() {
           } else if (type === 'ACTIVITIES_UPDATED') {
             setActivityLogs(getActivityLogs());
             showToast('Aktivitas baru pengguna baru saja tercatat!', 'fa-clock-rotate-left', 'info');
+          } else if (type === 'VISITS_UPDATED') {
+            setPermanentVisits(getPermanentVisits());
           } else if (type === 'USER_BANNED') {
             setRegisteredUsers(getRegisteredUsers());
             showToast('Sanksi Banned pengguna berhasil diterapkan!', 'fa-ban', 'warning');
@@ -470,8 +478,16 @@ export default function AdminApp() {
       });
     }, 20000);
 
+    // Realtime streaming kunjungan permanen dari Firebase RTDB
+    const unsubscribeVisits = listenToPermanentVisits((liveVisits) => {
+      if (Array.isArray(liveVisits) && liveVisits.length > 0) {
+        setPermanentVisits(liveVisits);
+      }
+    });
+
     return () => {
       if (unsubscribeAllTrx) unsubscribeAllTrx();
+      if (unsubscribeVisits) unsubscribeVisits();
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
       if (bc) bc.close();
@@ -1315,6 +1331,21 @@ export default function AdminApp() {
     });
   }, [registeredUsers, userFilter, userSearchQuery]);
 
+  // Filtered Permanent Visits (Riwayat Kunjungan Pengunjung Toko)
+  const filteredVisits = useMemo(() => {
+    return permanentVisits.filter((v) => {
+      if (userSearchQuery.trim()) {
+        const q = userSearchQuery.toLowerCase().trim();
+        const nameMatch = (v.name || '').toLowerCase().includes(q);
+        const emailMatch = (v.email || '').toLowerCase().includes(q);
+        const actMatch = (v.currentActivity || '').toLowerCase().includes(q);
+        const devMatch = (v.device || '').toLowerCase().includes(q);
+        return nameMatch || emailMatch || actMatch || devMatch;
+      }
+      return true;
+    });
+  }, [permanentVisits, userSearchQuery]);
+
   // Filtered Activity Logs
   const filteredActivities = useMemo(() => {
     return activityLogs.filter((a) => {
@@ -1937,6 +1968,22 @@ export default function AdminApp() {
                   <small className="stat-sub">Diblokir sementara / permanen</small>
                 </div>
               </div>
+
+              <div
+                className={`admin-stat-card card-visits ${userFilter === 'visits' ? 'active' : ''}`}
+                onClick={() => setUserFilter('visits')}
+                style={{ cursor: 'pointer' }}
+                title="Klik untuk melihat seluruh riwayat kunjungan Gmail & pengunjung toko"
+              >
+                <div className="stat-card-icon">
+                  <i className="fa-solid fa-shoe-prints text-indigo"></i>
+                </div>
+                <div className="stat-card-info">
+                  <span className="stat-label">Riwayat Kunjungan</span>
+                  <strong className="stat-value text-indigo">{permanentVisits.length}</strong>
+                  <small className="stat-sub">Gmail tercatat abadi & permanen</small>
+                </div>
+              </div>
             </section>
 
             {/* Filter & Search Bar Pengguna */}
@@ -1989,6 +2036,15 @@ export default function AdminApp() {
                 >
                   <i className="fa-solid fa-ban text-danger"></i> Terkena Banned ({userStats.bannedCount})
                 </button>
+
+                <button
+                  type="button"
+                  className={`filter-pill filter-pill-visits ${userFilter === 'visits' ? 'active' : ''}`}
+                  onClick={() => setUserFilter('visits')}
+                  title="Lihat riwayat akun Gmail yang pernah berkunjung & aktivitas yang sedang dilakukan"
+                >
+                  <i className="fa-solid fa-shoe-prints text-indigo"></i> Kunjungan ({permanentVisits.length})
+                </button>
               </div>
 
               <div className="admin-search-wrapper">
@@ -2012,7 +2068,224 @@ export default function AdminApp() {
               </div>
             </section>
 
-            {/* Tabel Daftar Pengguna */}
+            {/* Tabel Daftar Pengguna / Tabel Riwayat Kunjungan Pengunjung */}
+            {userFilter === 'visits' ? (
+              <section className="admin-table-card table-card-visits">
+                {/* Header Banner Khusus Riwayat Kunjungan Permanen */}
+                <div className="visits-banner-header">
+                  <div className="banner-left">
+                    <div className="banner-badge-row">
+                      <span className="visits-badge-pill">
+                        <i className="fa-solid fa-shield-halved text-cyan"></i> RIWAYAT KUNJUNGAN PERMANEN
+                      </span>
+                      <span className="visits-badge-locked">
+                        <i className="fa-solid fa-lock text-warning"></i> Tidak Dapat Dihapus (Permanen)
+                      </span>
+                    </div>
+                    <h3 className="visits-title">
+                      Daftar Akun Gmail & Riwayat Pengunjung Toko ({filteredVisits.length} Kunjungan Tercatat)
+                    </h3>
+                    <p className="visits-subtitle">
+                      Mencatat siapa saja akun Gmail yang pernah berkunjung ke toko dan <strong>aktivitas apa yang sedang atau pernah mereka lakukan</strong> secara realtime. Riwayat ini tersimpan abadi sebagai arsip pengunjung toko.
+                    </p>
+                  </div>
+                  <div className="banner-right">
+                    <div className="visits-stat-badge">
+                      <i className="fa-solid fa-shoe-prints text-indigo"></i>
+                      <strong>{filteredVisits.length}</strong>
+                      <span>Kunjungan</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="admin-users-table visits-table">
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Pengunjung & Gmail</th>
+                        <th>Aktivitas Sedang Dilakukan (Lagi Ngapain)</th>
+                        <th>Presensi Kunjungan</th>
+                        <th>Waktu Masuk & Terakhir Aktif</th>
+                        <th>Perangkat & Browser</th>
+                        <th style={{ textAlign: 'center' }}>Rincian Aksi</th>
+                        <th style={{ textAlign: 'center' }}>Status Riwayat</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredVisits.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="empty-table-state">
+                            <div className="empty-box">
+                              <i className="fa-solid fa-shoe-prints empty-icon text-indigo"></i>
+                              <h3>Belum Ada Riwayat Kunjungan</h3>
+                              <p>
+                                {userSearchQuery
+                                  ? `Tidak ada data kunjungan yang cocok dengan pencarian "${userSearchQuery}".`
+                                  : 'Setiap kali ada pelanggan atau akun Gmail berkunjung ke toko, data dan aktivitas mereka otomatis dicatat permanen di sini.'}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredVisits.map((v, index) => {
+                          const online = isVisitOnline(v);
+                          const isGmail = (v.email || '').toLowerCase().includes('@gmail.com');
+
+                          return (
+                            <tr key={v.id || v.userId} className={`user-log-row ${online ? 'row-user-online' : ''}`}>
+                              <td className="col-num">{index + 1}</td>
+
+                              {/* Pengunjung & Gmail */}
+                              <td className="col-user">
+                                <div className="user-cell-wrap">
+                                  <div className="avatar-with-presence">
+                                    {v.picture ? (
+                                      <img
+                                        src={v.picture}
+                                        alt={v.name}
+                                        className="user-avatar-small"
+                                        referrerPolicy="no-referrer"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="user-avatar-initial" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' }}>
+                                        {(v.name || 'G').charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span className={`avatar-status-badge ${online ? 'status-online' : 'status-offline'}`}></span>
+                                  </div>
+                                  <div className="user-name-box">
+                                    <div className="user-name-row">
+                                      <strong>{v.name || 'Pengunjung Chaiz'}</strong>
+                                      {isGmail && (
+                                        <span className="gmail-badge" title="Akun Terverifikasi Google Gmail">
+                                          <i className="fa-brands fa-google text-danger"></i> Gmail
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="email-copy-row">
+                                      <span className="email-subtext">{v.email || 'tanpa_email@chaizstore.id'}</span>
+                                      {v.email && (
+                                        <button
+                                          type="button"
+                                          className="copy-email-mini-btn"
+                                          onClick={() => {
+                                            navigator.clipboard?.writeText(v.email);
+                                            showToast(`Gmail ${v.email} disalin!`, 'fa-copy');
+                                          }}
+                                          title="Salin Gmail"
+                                        >
+                                          <i className="fa-regular fa-copy"></i>
+                                        </button>
+                                      )}
+                                    </div>
+                                    <span className="user-id-sub">Total Kunjungan: {v.totalVisitsCount || 1}x</span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Aktivitas Sedang Dilakukan (Lagi Ngapain) */}
+                              <td className="col-activity-now">
+                                <div className="visit-activity-cell">
+                                  <div className={`activity-live-box ${online ? 'active-glow' : 'idle-box'}`}>
+                                    <div className="activity-icon-wrap">
+                                      <i className={`fa-solid ${online ? 'fa-bolt text-warning pulse-anim' : 'fa-clock-rotate-left text-muted'}`}></i>
+                                    </div>
+                                    <div className="activity-info">
+                                      <div className="activity-header-line">
+                                        <span className={`status-pill-small ${online ? 'pill-live' : 'pill-past'}`}>
+                                          {online ? 'SEDANG DILAKUKAN' : 'AKTIVITAS TERAKHIR'}
+                                        </span>
+                                        <small className="activity-ago">{formatTimeAgo(v.lastActiveAt)}</small>
+                                      </div>
+                                      <strong className="activity-desc-text">
+                                        {v.currentActivity || 'Menjelajahi halaman toko ChaizStore'}
+                                      </strong>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Presensi Kunjungan */}
+                              <td className="col-presence">
+                                {online ? (
+                                  <div className="presence-badge presence-online">
+                                    <span className="online-dot"></span>
+                                    <span>Sedang Online</span>
+                                  </div>
+                                ) : (
+                                  <div className="presence-badge presence-offline">
+                                    <span className="offline-dot"></span>
+                                    <span>Selesai Kunjungan</span>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Waktu Masuk & Terakhir Aktif */}
+                              <td className="col-time">
+                                <div className="time-cell-wrap">
+                                  <div className="visit-time-item">
+                                    <span className="time-label"><i className="fa-regular fa-calendar-check"></i> Masuk:</span>
+                                    <strong className="time-val">
+                                      {new Date(v.firstVisitedAt || v.lastActiveAt || Date.now()).toLocaleString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })} WIB
+                                    </strong>
+                                  </div>
+                                  <div className="visit-time-item">
+                                    <span className="time-label"><i className="fa-regular fa-clock"></i> Terakhir:</span>
+                                    <span className="time-relative">{formatTimeAgo(v.lastActiveAt)}</span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Perangkat & Browser */}
+                              <td className="col-device">
+                                <div className="device-cell-wrap">
+                                  <div className="device-top">
+                                    <i className={`fa-solid ${v.isMobile ? 'fa-mobile-screen-button text-cyan' : 'fa-laptop text-warning'}`}></i>
+                                    <strong>{v.os || 'OS'}</strong>
+                                  </div>
+                                  <span className="browser-sub">{v.browser || 'Browser'}</span>
+                                </div>
+                              </td>
+
+                              {/* Rincian Aksi (Tombol Modal) */}
+                              <td className="col-actions" style={{ textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="btn-tbl-action btn-history btn-view-visit"
+                                  onClick={() => setSelectedVisitForModal(v)}
+                                  title="Buka daftar lengkap rincian aksi aktivitas kunjungan ini"
+                                >
+                                  <i className="fa-solid fa-list-ul"></i>
+                                  <span>{v.activityHistory?.length || 1} Aksi</span>
+                                </button>
+                              </td>
+
+                              {/* Status Riwayat: Permanen Terkunci (Tanpa Tombol Hapus!) */}
+                              <td className="col-status-lock" style={{ textAlign: 'center' }}>
+                                <div className="lock-tag-box" title="Data kunjungan ini tersimpan permanen dan terlindungi dari penghapusan">
+                                  <i className="fa-solid fa-lock text-cyan"></i>
+                                  <span>Permanen</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : (
+            /* Tabel Daftar Pengguna Normal */
             <section className="admin-table-card">
               <div className="table-responsive">
                 <table className="admin-users-table">
@@ -2256,6 +2529,7 @@ export default function AdminApp() {
                 </table>
               </div>
             </section>
+            )}
           </div>
         )}
 
@@ -3629,6 +3903,126 @@ export default function AdminApp() {
                 type="button"
                 className="btn-modal-close"
                 onClick={() => setSelectedUserForHistory(null)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: DETAIL RINCIAN AKSI KUNJUNGAN PENGUNJUNG (PERMANEN)
+          =================================================================== */}
+      {selectedVisitForModal && (
+        <div className="admin-modal-backdrop" onClick={() => setSelectedVisitForModal(null)}>
+          <div className="admin-modal-box modal-box-visit-history" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <div className="modal-title-wrap">
+                <i className="fa-solid fa-shoe-prints text-indigo"></i>
+                <div>
+                  <h3 style={{ margin: 0 }}>Rincian Kunjungan & Aktivitas Pengunjung</h3>
+                  <small style={{ color: '#94a3b8', fontSize: '11.5px' }}>Riwayat kronologis seluruh tindakan pelanggan selama berkunjung ke toko</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setSelectedVisitForModal(null)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div className="admin-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+              {/* Ringkasan Profil Pengunjung */}
+              <div className="modal-user-summary-card">
+                <div className="modal-avatar-wrapper">
+                  {selectedVisitForModal.picture ? (
+                    <img
+                      src={selectedVisitForModal.picture}
+                      alt={selectedVisitForModal.name}
+                      className="modal-user-avatar-img"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="modal-user-avatar-initial" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' }}>
+                      {(selectedVisitForModal.name || 'G').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className={`avatar-status-badge ${isVisitOnline(selectedVisitForModal) ? 'status-online' : 'status-offline'}`}></span>
+                </div>
+
+                <div className="modal-user-summary-text">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0 }}>{selectedVisitForModal.name || 'Pengunjung Chaiz'}</h4>
+                    {(selectedVisitForModal.email || '').toLowerCase().includes('@gmail.com') && (
+                      <span className="gmail-badge"><i className="fa-brands fa-google text-danger"></i> Gmail</span>
+                    )}
+                  </div>
+                  <span className="modal-email">{selectedVisitForModal.email || 'tanpa_email@chaizstore.id'}</span>
+                  <div className="modal-badge-row" style={{ marginTop: '6px' }}>
+                    <span className={`presence-badge ${isVisitOnline(selectedVisitForModal) ? 'presence-online' : 'presence-offline'}`}>
+                      {isVisitOnline(selectedVisitForModal) ? '🟢 Sedang Online Sekarang' : '⚪ Selesai Berkunjung'}
+                    </span>
+                    <span className="badge-lock-info">
+                      <i className="fa-solid fa-lock text-cyan"></i> Riwayat Permanen (Terkunci)
+                    </span>
+                    <span className="session-badge session-logged-in" style={{ fontSize: '11px' }}>
+                      Total Datang: {selectedVisitForModal.totalVisitsCount || 1}x
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box Aktivitas Terkini */}
+              <div className="visit-modal-current-box">
+                <div className="current-box-header">
+                  <span className="current-box-label"><i className="fa-solid fa-bolt text-warning"></i> Aktivitas Terkini (Lagi Ngapain):</span>
+                  <small className="current-box-time">Terakhir aktif: {formatTimeAgo(selectedVisitForModal.lastActiveAt)} ({new Date(selectedVisitForModal.lastActiveAt || Date.now()).toLocaleTimeString('id-ID')} WIB)</small>
+                </div>
+                <strong className="current-box-desc">{selectedVisitForModal.currentActivity || 'Menjelajahi halaman toko ChaizStore'}</strong>
+                <div className="current-box-device">
+                  <i className={`fa-solid ${selectedVisitForModal.isMobile ? 'fa-mobile-screen-button text-cyan' : 'fa-laptop text-warning'}`}></i>
+                  <span>Perangkat: {selectedVisitForModal.device || 'Web Browser'}</span>
+                </div>
+              </div>
+
+              {/* Linimasa Kronologi Aksi */}
+              <div className="user-timeline-wrapper" style={{ marginTop: '16px' }}>
+                <h4 className="timeline-title">
+                  <i className="fa-solid fa-timeline text-indigo"></i> Kronologi Riwayat Aksi ({selectedVisitForModal.activityHistory?.length || 1} Tindakan)
+                </h4>
+
+                <div className="timeline-list">
+                  {(selectedVisitForModal.activityHistory || []).map((item, idx) => (
+                    <div key={item.id || idx} className="timeline-item">
+                      <div className="timeline-marker" style={{ background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', borderColor: '#6366f1' }}>
+                        <i className="fa-solid fa-shoe-prints"></i>
+                      </div>
+                      <div className="timeline-content">
+                        <div className="timeline-header">
+                          <span className="activity-type-badge type-general" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc', borderColor: 'rgba(99, 102, 241, 0.3)' }}>
+                            AKSI #{selectedVisitForModal.activityHistory.length - idx}
+                          </span>
+                          <span className="timeline-time">
+                            {formatTimeAgo(item.timestamp)} • {new Date(item.timestamp).toLocaleTimeString('id-ID')} WIB
+                          </span>
+                        </div>
+                        <p className="timeline-desc" style={{ color: '#e2e8f0', fontWeight: '600' }}>{item.action}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-close"
+                onClick={() => setSelectedVisitForModal(null)}
               >
                 Tutup
               </button>

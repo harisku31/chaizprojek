@@ -4,9 +4,18 @@
  * temporary & permanent bans, and chronological activity history for Admin Dashboard.
  */
 
+import {
+  writeToFirebase,
+  updateInFirebase,
+  readFromFirebase,
+  listenToFirebase
+} from './firebase.js';
+
 const STORAGE_KEY = 'chaiz_admin_user_logs';
 const USERS_KEY = 'chaiz_admin_registered_users';
 const ACTIVITY_KEY = 'chaiz_admin_activity_logs';
+const PERMANENT_VISITS_KEY = 'chaiz_permanent_visit_history';
+const FIREBASE_PATH_VISITS = 'permanent_visits';
 const BANNED_KEY = 'chaiz_admin_banned_users';
 const ADMIN_AUTH_KEY = 'chaiz_admin_credentials';
 const ADMIN_SESSION_KEY = 'chaiz_admin_session';
@@ -461,7 +470,213 @@ export function recordUserActivity(user, actionType, description) {
     saveRegisteredUsers(users);
   }
 
+  // Sinkronkan ke riwayat kunjungan abadi (permanen tanpa bisa dihapus)
+  try {
+    recordUserVisit(user, description);
+  } catch (e) {}
+
   return newActivity;
+}
+
+// =========================================================================
+// 3B. PERMANENT VISIT LOGS (RIWAYAT KUNJUNGAN ABADI - TIDAK BISA DIHAPUS)
+// =========================================================================
+
+export function isVisitOnline(visit) {
+  if (!visit || !visit.lastHeartbeat) return false;
+  return Date.now() - Number(visit.lastHeartbeat) < 45000;
+}
+
+export function getPermanentVisits() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(PERMANENT_VISITS_KEY);
+    let list = raw ? JSON.parse(raw) : [];
+
+    // Jika belum ada data kunjungan tetapi sudah ada registered users, auto-seed dari registered users
+    if (list.length === 0) {
+      const users = getRegisteredUsers();
+      if (users.length > 0) {
+        list = users.map((u) => {
+          const act = u.lastActivitySummary || 'Mengunjungi toko ChaizStore';
+          return {
+            id: `vis_${Date.now()}_${u.id}`,
+            userId: u.id,
+            name: u.name || 'Pengunjung Chaiz',
+            email: u.email || 'tanpa_email@chaizstore.id',
+            picture: u.picture || null,
+            firstVisitedAt: u.firstLoginTime || u.lastActiveTime || new Date().toISOString(),
+            lastActiveAt: u.lastActiveTime || new Date().toISOString(),
+            lastHeartbeat: u.lastHeartbeat || 0,
+            currentActivity: act,
+            activityHistory: [
+              {
+                id: `act_${Date.now()}_seed`,
+                action: act,
+                timestamp: u.lastActiveTime || new Date().toISOString()
+              }
+            ],
+            device: `${u.os || 'OS'} • ${u.browser || 'Browser'}`,
+            os: u.os || 'OS',
+            browser: u.browser || 'Browser',
+            isMobile: !!u.isMobile,
+            totalVisitsCount: u.loginCount || 1,
+            isPermanent: true
+          };
+        });
+        localStorage.setItem(PERMANENT_VISITS_KEY, JSON.stringify(list));
+      }
+    }
+
+    // Sort: Paling baru aktif ditaruh di paling atas
+    list.sort((a, b) => new Date(b.lastActiveAt || b.firstVisitedAt || 0).getTime() - new Date(a.lastActiveAt || a.firstVisitedAt || 0).getTime());
+    return list;
+  } catch (err) {
+    console.error('Failed to get permanent visits:', err);
+    return [];
+  }
+}
+
+export function savePermanentVisits(visits) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PERMANENT_VISITS_KEY, JSON.stringify(visits));
+    broadcastAdminUpdate('VISITS_UPDATED', { count: visits.length });
+  } catch (err) {
+    console.error('Failed to save permanent visits:', err);
+  }
+}
+
+export function recordUserVisit(user, activityDescription = 'Mengunjungi toko ChaizStore') {
+  if (!user || typeof window === 'undefined') return null;
+
+  const device = parseDevice();
+  const browser = parseBrowser();
+  const userId = getUniqueUserId(user);
+  const nowIso = new Date().toISOString();
+
+  const visits = getPermanentVisits();
+  const cleanEmail = (user.email || '').toLowerCase().trim();
+
+  // Cari apakah user ini (berdasarkan userId atau Email) sudah punya riwayat kunjungan
+  const existingIdx = visits.findIndex(
+    (v) => v.userId === userId || (cleanEmail && cleanEmail !== '-' && v.email && v.email.toLowerCase() === cleanEmail)
+  );
+
+  const newAction = {
+    id: `act_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    action: activityDescription,
+    timestamp: nowIso
+  };
+
+  let targetVisit;
+  if (existingIdx !== -1) {
+    const existing = visits[existingIdx];
+    const prevHistory = Array.isArray(existing.activityHistory) ? existing.activityHistory : [];
+    
+    // Jangan duplikasi aksi yang sama persis jika baru saja tercatat dalam 4 detik
+    const isRecentDuplicate = prevHistory.length > 0 && prevHistory[0].action === activityDescription && (Date.now() - new Date(prevHistory[0].timestamp).getTime() < 4000);
+    const updatedHistory = isRecentDuplicate ? prevHistory : [newAction, ...prevHistory.slice(0, 49)];
+
+    targetVisit = {
+      ...existing,
+      name: user.name || existing.name,
+      email: user.email || existing.email,
+      picture: user.picture || existing.picture,
+      lastActiveAt: nowIso,
+      lastHeartbeat: Date.now(),
+      currentActivity: activityDescription,
+      activityHistory: updatedHistory,
+      device: `${device.os} • ${browser}`,
+      os: device.os,
+      browser,
+      isMobile: device.isMobile,
+      totalVisitsCount: (existing.totalVisitsCount || 1) + 1,
+      isPermanent: true
+    };
+    visits[existingIdx] = targetVisit;
+  } else {
+    targetVisit = {
+      id: `vis_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      userId,
+      name: user.name || 'Pengunjung Chaiz',
+      email: user.email || 'tanpa_email@chaizstore.id',
+      picture: user.picture || null,
+      firstVisitedAt: nowIso,
+      lastActiveAt: nowIso,
+      lastHeartbeat: Date.now(),
+      currentActivity: activityDescription,
+      activityHistory: [newAction],
+      device: `${device.os} • ${browser}`,
+      os: device.os,
+      browser,
+      isMobile: device.isMobile,
+      totalVisitsCount: 1,
+      isPermanent: true
+    };
+    visits.unshift(targetVisit);
+  }
+
+  savePermanentVisits(visits);
+
+  // Sync atomic ke Firebase Realtime Database
+  try {
+    writeToFirebase(`${FIREBASE_PATH_VISITS}/${userId}`, targetVisit).catch(() => {});
+  } catch (e) {}
+
+  return targetVisit;
+}
+
+export function updateVisitHeartbeat(user) {
+  if (!user || typeof window === 'undefined') return;
+  const userId = getUniqueUserId(user);
+  const cleanEmail = (user.email || '').toLowerCase().trim();
+
+  try {
+    const visits = getPermanentVisits();
+    const existingIdx = visits.findIndex(
+      (v) => v.userId === userId || (cleanEmail && cleanEmail !== '-' && v.email && v.email.toLowerCase() === cleanEmail)
+    );
+    if (existingIdx !== -1) {
+      visits[existingIdx].lastHeartbeat = Date.now();
+      visits[existingIdx].lastActiveAt = new Date().toISOString();
+      localStorage.setItem(PERMANENT_VISITS_KEY, JSON.stringify(visits));
+    }
+  } catch (e) {}
+}
+
+export function listenToPermanentVisits(callback) {
+  if (typeof window === 'undefined') return () => {};
+
+  return listenToFirebase(FIREBASE_PATH_VISITS, (cloudData) => {
+    if (!cloudData) return;
+    try {
+      const cloudList = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+
+      if (cloudList.length > 0) {
+        const local = getPermanentVisits();
+        const map = new Map();
+        local.forEach((v) => map.set(v.userId || v.id, v));
+        cloudList.forEach((v) => {
+          if (v && (v.userId || v.id)) {
+            const key = v.userId || v.id;
+            const existing = map.get(key);
+            if (!existing || new Date(v.lastActiveAt || 0) >= new Date(existing.lastActiveAt || 0)) {
+              map.set(key, { ...existing, ...v });
+            }
+          }
+        });
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.lastActiveAt || 0).getTime() - new Date(a.lastActiveAt || 0).getTime());
+        localStorage.setItem(PERMANENT_VISITS_KEY, JSON.stringify(merged));
+        callback(merged);
+      }
+    } catch (err) {
+      console.warn('Error in listenToPermanentVisits:', err);
+    }
+  });
 }
 
 // =========================================================================
