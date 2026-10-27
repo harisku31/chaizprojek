@@ -23,6 +23,7 @@ import ToastContainer from './components/ToastContainer';
 import BannedNoticeModal from './components/BannedNoticeModal';
 import UnbannedNoticeModal from './components/UnbannedNoticeModal';
 import OrderNotificationModal from './components/OrderNotificationModal';
+import UserNoticeModal from './components/UserNoticeModal';
 import {
   recordUserLogin,
   recordUserLogout,
@@ -31,7 +32,10 @@ import {
   recordUserActivity,
   recordUserVisit,
   updateVisitHeartbeat,
-  isUserBanned
+  isUserBanned,
+  getUserActiveNotice,
+  respondToUserNotice,
+  listenToUserNotice
 } from './utils/userTracker';
 
 import {
@@ -52,6 +56,7 @@ import { syncUserToSql } from './utils/sqlApi';
 import {
   playUserSuccessSound,
   playUserRejectSound,
+  playUserNoticeSound,
   triggerNotificationVibrate,
   unlockAudio
 } from './utils/audioNotification';
@@ -168,6 +173,7 @@ export default function App() {
   // Modals & Banned Status
   const [bannedInfo, setBannedInfo] = useState(null);
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
+  const [activeUserNotice, setActiveUserNotice] = useState(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
@@ -361,6 +367,72 @@ export default function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [authUser, bannedInfo, isBannedModalOpen]);
+
+  // Realtime Listener for Admin Official Notices (Catatan Khusus Admin & Tombol Continue)
+  useEffect(() => {
+    // 1. Initial check on mount / auth change
+    if (authUser) {
+      const pendingNotice = getUserActiveNotice(authUser);
+      if (pendingNotice) {
+        setActiveUserNotice(pendingNotice);
+        playUserNoticeSound();
+      }
+    }
+
+    // 2. Realtime listener via Firebase RTDB
+    const unsubNotice = authUser
+      ? listenToUserNotice(authUser, (notice) => {
+          if (notice && notice.status === 'pending') {
+            setActiveUserNotice(notice);
+            playUserNoticeSound();
+          }
+        })
+      : () => {};
+
+    // 3. Realtime listener via BroadcastChannel
+    let noticeBc = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        noticeBc = new BroadcastChannel('chaiz_admin_sync');
+        noticeBc.onmessage = (ev) => {
+          if (ev.data?.type === 'USER_NOTICE_SENT') {
+            const notice = ev.data?.notice;
+            if (notice && notice.status === 'pending') {
+              const myEmail = (authUser?.email || '').toLowerCase().trim();
+              const myId = authUser?.id || '';
+              const targetEmail = (notice.targetEmail || '').toLowerCase().trim();
+              const targetId = notice.targetUserId || '';
+              if (
+                (myEmail && targetEmail && myEmail === targetEmail) ||
+                (myId && targetId && myId === targetId)
+              ) {
+                setActiveUserNotice(notice);
+                playUserNoticeSound();
+              }
+            }
+          }
+        };
+      }
+    } catch (e) {}
+
+    return () => {
+      if (unsubNotice) unsubNotice();
+      if (noticeBc) noticeBc.close();
+    };
+  }, [authUser]);
+
+  // Handle User clicking "Continue" on the Admin Notice Modal
+  const handleContinueNotice = () => {
+    if (activeUserNotice) {
+      respondToUserNotice(
+        activeUserNotice.id,
+        authUser || { id: activeUserNotice.targetUserId, email: activeUserNotice.targetEmail }
+      );
+      setActiveUserNotice(null);
+      playUserNoticeSound();
+      showToast('Terima kasih! Respon Anda telah terkirim ke Admin.', 'fa-circle-check text-success');
+    }
+  };
 
   // Realtime Order & Notification Watcher (Memantau respon Admin secara instan via Firebase RTDB, BroadcastChannel & Storage)
   useEffect(() => {
@@ -1014,6 +1086,13 @@ export default function App() {
           setAutoOpenTrxId(order?.id || null);
           handleSwitchTab('transaksi');
         }}
+      />
+
+      {/* Modal Catatan & Pengumuman Khusus dari Admin dengan Tombol Continue */}
+      <UserNoticeModal
+        isOpen={Boolean(activeUserNotice)}
+        notice={activeUserNotice}
+        onContinue={handleContinueNotice}
       />
     </>
   );

@@ -13,6 +13,9 @@ import {
   clearAllActivityLogs,
   banUser,
   unbanUser,
+  isUserBanned,
+  sendNoticeToUser,
+  respondToUserNotice,
   getAdminCredentials,
   updateAdminCredentials,
   getAdminSession,
@@ -274,6 +277,10 @@ export default function AdminApp() {
   const [userFilter, setUserFilter] = useState('all'); // 'all' | 'online' | 'offline' | 'logged_in' | 'logged_out' | 'banned' | 'visits'
   const [permanentVisits, setPermanentVisits] = useState(() => getPermanentVisits());
   const [selectedVisitForModal, setSelectedVisitForModal] = useState(null);
+  const [noticeTargetVisitor, setNoticeTargetVisitor] = useState(null);
+  const [noticeTitle, setNoticeTitle] = useState('');
+  const [noticeMessage, setNoticeMessage] = useState('');
+  const [noticeType, setNoticeType] = useState('info');
 
   const [activitySearchQuery, setActivitySearchQuery] = useState('');
   const [activityFilter, setActivityFilter] = useState('all'); // 'all' | 'auth' | 'banned' | 'cart' | 'topup' | 'today'
@@ -370,11 +377,18 @@ export default function AdminApp() {
             showToast('Aktivitas baru pengguna baru saja tercatat!', 'fa-clock-rotate-left', 'info');
           } else if (type === 'VISITS_UPDATED') {
             setPermanentVisits(getPermanentVisits());
+          } else if (type === 'USER_NOTICE_RESPONDED') {
+            setPermanentVisits(getPermanentVisits());
+            showToast('🟢 Pengguna telah merespon catatan Admin! (Tanda Hijau Aktif)', 'fa-circle-check text-success', 'success');
+          } else if (type === 'USER_NOTICE_SENT') {
+            setPermanentVisits(getPermanentVisits());
           } else if (type === 'USER_BANNED') {
             setRegisteredUsers(getRegisteredUsers());
-            showToast('Sanksi Banned pengguna berhasil diterapkan!', 'fa-ban', 'warning');
+            setPermanentVisits(getPermanentVisits());
+            showToast('Sanksi Banned berhasil diterapkan!', 'fa-ban', 'warning');
           } else if (type === 'USER_UNBANNED') {
             setRegisteredUsers(getRegisteredUsers());
+            setPermanentVisits(getPermanentVisits());
             showToast('Sanksi Banned pengguna telah dicabut!', 'fa-circle-check', 'success');
           } else if (type === 'NEW_TRANSACTION') {
             const newTrx = ev.data?.data?.newTrx || ev.data?.newTrx;
@@ -1406,24 +1420,56 @@ export default function AdminApp() {
       }
     }
 
-    banUser(userToBan.id, banType, finalMinutes, banReason);
+    banUser(userToBan, banType, finalMinutes, banReason);
     reloadAllData();
 
     const durationText = banType === 'permanent' ? 'secara Permanen' : `selama ${finalMinutes} menit`;
-    showToast(`Akun ${userToBan.name} berhasil di-banned ${durationText}!`, 'fa-ban', 'warning');
+    showToast(`Akun ${userToBan.name || userToBan.email} berhasil di-banned ${durationText}!`, 'fa-ban', 'warning');
     setUserToBan(null);
   };
 
   // Unban Action
   const handleExecuteUnban = (user) => {
-    if (window.confirm(`Apakah Anda yakin ingin memulihkan (Unban) akun ${user.name}? Pengguna akan dapat login kembali.`)) {
-      unbanUser(user.id);
+    if (window.confirm(`Apakah Anda yakin ingin memulihkan (Unban) akun ${user.name || user.email}? Pengguna akan dapat login kembali.`)) {
+      unbanUser(user);
       reloadAllData();
-      showToast(`Sanksi banned akun ${user.name} berhasil dicabut!`, 'fa-circle-check', 'success');
-      if (selectedUserDetail && selectedUserDetail.id === user.id) {
+      showToast(`Sanksi banned akun ${user.name || user.email} berhasil dicabut!`, 'fa-circle-check', 'success');
+      if (selectedUserDetail && (selectedUserDetail.id === user.id || selectedUserDetail.userId === user.userId)) {
         setSelectedUserDetail(null);
       }
     }
+  };
+
+  // Open Notice Modal for Visitor or User
+  const handleOpenNoticeModal = (visitor) => {
+    setNoticeTargetVisitor(visitor);
+    setNoticeTitle(visitor.adminNotice?.title || `Catatan Khusus untuk ${visitor.name || 'Pengguna'}`);
+    setNoticeMessage(visitor.adminNotice?.message || '');
+    setNoticeType(visitor.adminNotice?.type || 'info');
+  };
+
+  // Submit Notice Form
+  const handleSendNoticeSubmit = (e) => {
+    e.preventDefault();
+    if (!noticeTargetVisitor || !noticeMessage.trim()) return;
+
+    sendNoticeToUser(
+      noticeTargetVisitor.userId || noticeTargetVisitor.id,
+      noticeTargetVisitor.email,
+      noticeTargetVisitor.name,
+      {
+        title: noticeTitle.trim() || 'Pemberitahuan dari Admin ChaizStore',
+        message: noticeMessage.trim(),
+        type: noticeType
+      }
+    );
+
+    reloadAllData();
+    showToast(
+      `Catatan resmi berhasil dikirim ke ${noticeTargetVisitor.name || noticeTargetVisitor.email}! Menunggu respon pengguna.`,
+      'fa-paper-plane text-success'
+    );
+    setNoticeTargetVisitor(null);
   };
 
   // Quick Action: Simulate a live user
@@ -2106,16 +2152,18 @@ export default function AdminApp() {
                         <th>Pengunjung & Gmail</th>
                         <th>Aktivitas Sedang Dilakukan (Lagi Ngapain)</th>
                         <th>Presensi Kunjungan</th>
-                        <th>Waktu Masuk & Terakhir Aktif</th>
-                        <th>Perangkat & Browser</th>
-                        <th style={{ textAlign: 'center' }}>Rincian Aksi</th>
+                        <th>Status Sanksi</th>
+                        <th>Status Respon Catatan</th>
+                        <th>Waktu Masuk & Terakhir</th>
+                        <th>Perangkat</th>
+                        <th style={{ textAlign: 'center' }}>Kelola & Tindakan</th>
                         <th style={{ textAlign: 'center' }}>Status Riwayat</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredVisits.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="empty-table-state">
+                          <td colSpan="10" className="empty-table-state">
                             <div className="empty-box">
                               <i className="fa-solid fa-shoe-prints empty-icon text-indigo"></i>
                               <h3>Belum Ada Riwayat Kunjungan</h3>
@@ -2131,9 +2179,13 @@ export default function AdminApp() {
                         filteredVisits.map((v, index) => {
                           const online = isVisitOnline(v);
                           const isGmail = (v.email || '').toLowerCase().includes('@gmail.com');
+                          const banInfo = isUserBanned(v);
+                          const isBanned = Boolean(banInfo.isBanned);
+                          const isPermanentBan = isBanned && banInfo.banType === 'permanent';
+                          const notice = v.adminNotice;
 
                           return (
-                            <tr key={v.id || v.userId} className={`user-log-row ${online ? 'row-user-online' : ''}`}>
+                            <tr key={v.id || v.userId} className={`user-log-row ${online ? 'row-user-online' : ''} ${isBanned ? 'row-user-banned' : ''}`}>
                               <td className="col-num">{index + 1}</td>
 
                               {/* Pengunjung & Gmail */}
@@ -2224,6 +2276,70 @@ export default function AdminApp() {
                                 )}
                               </td>
 
+                              {/* Status Sanksi & Banned */}
+                              <td className="col-banned-status">
+                                {isBanned ? (
+                                  isPermanentBan ? (
+                                    <div className="banned-pill pill-perm-banned" title={`Alasan: ${banInfo.reason}`}>
+                                      <i className="fa-solid fa-ban"></i>
+                                      <div className="banned-pill-text">
+                                        <strong>Banned Permanen</strong>
+                                        <small>Akses Toko Diblokir</small>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="banned-pill pill-temp-banned" title={`Alasan: ${banInfo.reason}`}>
+                                      <i className="fa-solid fa-user-lock"></i>
+                                      <div className="banned-pill-text">
+                                        <strong>Banned Sementara</strong>
+                                        <small>{formatBanRemaining(banInfo.bannedUntil)}</small>
+                                      </div>
+                                    </div>
+                                  )
+                                ) : (
+                                  <div className="banned-pill pill-normal">
+                                    <i className="fa-solid fa-circle-check text-success"></i>
+                                    <span>Normal / Aktif</span>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Status Respon Catatan (Tanda Hijau) */}
+                              <td className="col-notice-status">
+                                {notice ? (
+                                  notice.status === 'responded' ? (
+                                    <div
+                                      className="notice-status-badge badge-notice-responded"
+                                      title={`Pengguna telah merespon catatan ini pada ${new Date(notice.respondedAt).toLocaleTimeString('id-ID')} WIB`}
+                                    >
+                                      <span className="notice-responded-dot"></span>
+                                      <div className="notice-status-text">
+                                        <strong className="text-green-glow">🟢 Sudah Direspon</strong>
+                                        <small>
+                                          {notice.respondedAt ? formatTimeAgo(notice.respondedAt) : 'Telah dikonfirmasi'}
+                                        </small>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className="notice-status-badge badge-notice-pending"
+                                      title={`Catatan "${notice.title}" telah terkirim. Menunggu pengguna mengklik Continue.`}
+                                    >
+                                      <span className="notice-pending-dot"></span>
+                                      <div className="notice-status-text">
+                                        <strong className="text-yellow-glow">🟡 Menunggu Respon</strong>
+                                        <small>Menunggu klik Continue</small>
+                                      </div>
+                                    </div>
+                                  )
+                                ) : (
+                                  <div className="notice-status-badge badge-notice-none" title="Belum pernah dikirimi catatan admin">
+                                    <i className="fa-regular fa-comment-dots text-muted"></i>
+                                    <span>Belum Ada Catatan</span>
+                                  </div>
+                                )}
+                              </td>
+
                               {/* Waktu Masuk & Terakhir Aktif */}
                               <td className="col-time">
                                 <div className="time-cell-wrap">
@@ -2256,17 +2372,54 @@ export default function AdminApp() {
                                 </div>
                               </td>
 
-                              {/* Rincian Aksi (Tombol Modal) */}
-                              <td className="col-actions" style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="btn-tbl-action btn-history btn-view-visit"
-                                  onClick={() => setSelectedVisitForModal(v)}
-                                  title="Buka daftar lengkap rincian aksi aktivitas kunjungan ini"
-                                >
-                                  <i className="fa-solid fa-list-ul"></i>
-                                  <span>{v.activityHistory?.length || 1} Aksi</span>
-                                </button>
+                              {/* Kelola & Tindakan (Tombol Mode Banned + Pemberitahuan + Riwayat Aksi) */}
+                              <td className="col-actions">
+                                <div className="action-buttons-wrap">
+                                  {/* Tombol 1: Mode Banned (Sama persis dengan sistem daftar pengguna) */}
+                                  {isBanned ? (
+                                    <button
+                                      type="button"
+                                      className="btn-tbl-action btn-unban"
+                                      onClick={() => handleExecuteUnban(v)}
+                                      title="Cabut Sanksi Banned Pengunjung Ini (Unban)"
+                                    >
+                                      <i className="fa-solid fa-user-check"></i>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="btn-tbl-action btn-ban"
+                                      onClick={() => handleOpenBanModal(v)}
+                                      title="Banned Pengunjung Ini dari Toko (Sementara / Permanen)"
+                                    >
+                                      <i className="fa-solid fa-ban"></i>
+                                    </button>
+                                  )}
+
+                                  {/* Tombol 2: Pemberitahuan (Catatan pengumuman untuk pengguna) */}
+                                  <button
+                                    type="button"
+                                    className={`btn-tbl-action btn-notify ${notice?.status === 'responded' ? 'notify-responded' : notice ? 'notify-pending' : ''}`}
+                                    onClick={() => handleOpenNoticeModal(v)}
+                                    title="Kirim Catatan / Pengumuman Khusus ke Pengguna Ini"
+                                  >
+                                    <i className="fa-solid fa-bullhorn"></i>
+                                    {notice?.status === 'responded' && (
+                                      <span className="mini-green-dot" title="Sudah Direspon (Tanda Hijau)"></span>
+                                    )}
+                                  </button>
+
+                                  {/* Tombol 3: Rincian Riwayat Aksi */}
+                                  <button
+                                    type="button"
+                                    className="btn-tbl-action btn-history btn-view-visit"
+                                    onClick={() => setSelectedVisitForModal(v)}
+                                    title="Buka daftar lengkap rincian aksi aktivitas kunjungan ini"
+                                  >
+                                    <i className="fa-solid fa-list-ul"></i>
+                                    <span className="btn-act-count">{v.activityHistory?.length || 1}</span>
+                                  </button>
+                                </div>
                               </td>
 
                               {/* Status Riwayat: Permanen Terkunci (Tanpa Tombol Hapus!) */}
@@ -4021,12 +4174,189 @@ export default function AdminApp() {
             <div className="admin-modal-footer">
               <button
                 type="button"
+                className="btn-modal-action-notify"
+                onClick={() => {
+                  const target = selectedVisitForModal;
+                  setSelectedVisitForModal(null);
+                  handleOpenNoticeModal(target);
+                }}
+                style={{
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  color: '#818cf8',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <i className="fa-solid fa-bullhorn"></i> Kirim Catatan
+              </button>
+              <button
+                type="button"
                 className="btn-modal-close"
                 onClick={() => setSelectedVisitForModal(null)}
               >
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: KIRIM CATATAN / PEMBERITAHUAN KHUSUS ADMIN DENGAN CONTINUE
+          =================================================================== */}
+      {noticeTargetVisitor && (
+        <div className="admin-modal-backdrop" onClick={() => setNoticeTargetVisitor(null)}>
+          <div className="admin-modal-box admin-notice-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '580px' }}>
+            <div className="admin-modal-header" style={{ borderBottomColor: 'rgba(99, 102, 241, 0.3)' }}>
+              <div className="modal-title-wrap">
+                <i className="fa-solid fa-bullhorn text-indigo"></i>
+                <div>
+                  <h3 style={{ margin: 0 }}>Kirim Catatan / Pengumuman ke Pengguna</h3>
+                  <small style={{ color: '#94a3b8', fontSize: '11.5px' }}>
+                    Pesan akan muncul di layar pengguna dengan tombol <strong>Continue</strong>. Saat diklik, sistem menandai <strong>🟢 Sudah Direspon</strong>.
+                  </small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setNoticeTargetVisitor(null)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleSendNoticeSubmit}>
+              <div className="admin-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+                {/* User Target Card */}
+                <div className="notice-target-summary mb-3">
+                  <div className="avatar-with-presence">
+                    {noticeTargetVisitor.picture ? (
+                      <img
+                        src={noticeTargetVisitor.picture}
+                        alt={noticeTargetVisitor.name}
+                        className="modal-user-avatar"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="modal-user-avatar-initial" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' }}>
+                        {(noticeTargetVisitor.name || 'P').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="modal-user-summary-text">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4 style={{ margin: 0 }}>{noticeTargetVisitor.name || 'Pengunjung Chaiz'}</h4>
+                      {(noticeTargetVisitor.email || '').toLowerCase().includes('@gmail.com') && (
+                        <span className="gmail-badge"><i className="fa-brands fa-google text-danger"></i> Gmail</span>
+                      )}
+                    </div>
+                    <span className="modal-email">{noticeTargetVisitor.email || 'tanpa_email@chaizstore.id'}</span>
+                  </div>
+                </div>
+
+                {/* Status Catatan Sebelumnya (Jika ada) */}
+                {noticeTargetVisitor.adminNotice && (
+                  <div
+                    className={`prev-notice-card ${
+                      noticeTargetVisitor.adminNotice.status === 'responded' ? 'notice-card-responded' : 'notice-card-pending'
+                    }`}
+                  >
+                    <div className="prev-notice-header">
+                      <span className={`status-badge-inline ${noticeTargetVisitor.adminNotice.status === 'responded' ? 'badge-inline-green' : 'badge-inline-yellow'}`}>
+                        {noticeTargetVisitor.adminNotice.status === 'responded' ? '🟢 SUDAH DIRESPON PENGGUNA' : '🟡 MENUNGGU RESPON PENGGUNA'}
+                      </span>
+                      <small className="prev-notice-time">
+                        {noticeTargetVisitor.adminNotice.respondedAt
+                          ? `Direspon: ${new Date(noticeTargetVisitor.adminNotice.respondedAt).toLocaleTimeString('id-ID')} WIB`
+                          : `Terkirim: ${new Date(noticeTargetVisitor.adminNotice.sentAt).toLocaleTimeString('id-ID')} WIB`}
+                      </small>
+                    </div>
+                    <p className="prev-notice-body">"{noticeTargetVisitor.adminNotice.message}"</p>
+                  </div>
+                )}
+
+                {/* Form Inputs */}
+                <div className="admin-form-group mb-3">
+                  <label htmlFor="noticeTitleInput">
+                    <i className="fa-solid fa-heading text-indigo"></i> Judul Catatan / Subjek <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="noticeTitleInput"
+                    type="text"
+                    className="admin-text-input"
+                    value={noticeTitle}
+                    onChange={(e) => setNoticeTitle(e.target.value)}
+                    placeholder="Contoh: Pemberitahuan Akun Netflix / Catatan Khusus Pesanan"
+                    required
+                  />
+                </div>
+
+                <div className="admin-form-group mb-3">
+                  <label htmlFor="noticeMessageInput">
+                    <i className="fa-solid fa-envelope-open-text text-indigo"></i> Isi Pesan Catatan Admin <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    id="noticeMessageInput"
+                    rows="4"
+                    className="admin-text-input"
+                    style={{ resize: 'vertical' }}
+                    value={noticeMessage}
+                    onChange={(e) => setNoticeMessage(e.target.value)}
+                    placeholder="Tuliskan catatan khusus atau pengumuman yang wajib dibaca oleh pengguna ini..."
+                    required
+                  ></textarea>
+                  <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#94a3b8' }}>
+                    <i className="fa-solid fa-circle-info text-cyan"></i> Pengguna akan melihat pesan ini dalam kotak dialog resmi dan harus mengklik tombol <strong>Continue</strong> untuk melanjutkan.
+                  </div>
+                </div>
+
+                <div className="admin-form-group mb-3">
+                  <label>Kategori Catatan</label>
+                  <div className="notice-category-chips">
+                    {[
+                      { val: 'info', icon: 'fa-circle-info', color: '#38bdf8', label: 'Info Umum' },
+                      { val: 'warning', icon: 'fa-triangle-exclamation', color: '#f59e0b', label: 'Perhatian' },
+                      { val: 'urgent', icon: 'fa-bell', color: '#ef4444', label: 'Penting' },
+                      { val: 'promo', icon: 'fa-gift', color: '#10b981', label: 'Hadiah / Promo' }
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        className={`category-chip-btn ${noticeType === item.val ? 'active' : ''}`}
+                        onClick={() => setNoticeType(item.val)}
+                      >
+                        <i className={`fa-solid ${item.icon}`} style={{ color: item.color }}></i>
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-modal-footer">
+                <button
+                  type="button"
+                  className="btn-modal-close"
+                  onClick={() => setNoticeTargetVisitor(null)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modal-save"
+                  style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: '#fff', border: 'none' }}
+                >
+                  <i className="fa-solid fa-paper-plane"></i> Kirim Catatan Sekarang
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

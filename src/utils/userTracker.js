@@ -225,16 +225,30 @@ export function isUserBanned(userOrEmail) {
 }
 
 /**
- * Ban a user (temporary or permanent)
- * @param {string} userId User ID to ban
+ * Ban a user or visitor (temporary or permanent)
+ * @param {string|object} userOrId User ID or User/Visitor object to ban
  * @param {'temporary'|'permanent'} banType
  * @param {number} durationMinutes Duration in minutes (if temporary)
  * @param {string} reason Reason for banning
  */
-export function banUser(userId, banType = 'temporary', durationMinutes = 60, reason = 'Pelanggaran aturan toko') {
+export function banUser(userOrId, banType = 'temporary', durationMinutes = 60, reason = 'Pelanggaran aturan toko') {
+  if (!userOrId) return false;
+
   const users = getRegisteredUsers();
-  const user = users.find((u) => u.id === userId);
-  if (!user) return false;
+  const visits = getPermanentVisits();
+
+  let targetObj = null;
+  if (typeof userOrId === 'object') {
+    targetObj = userOrId;
+  } else {
+    targetObj =
+      users.find((u) => u.id === userOrId || u.userId === userOrId) ||
+      visits.find((v) => v.id === userOrId || v.userId === userOrId || (v.email && v.email === userOrId));
+  }
+
+  const finalUserId = targetObj?.userId || targetObj?.id || (typeof userOrId === 'string' ? userOrId : `usr_${Date.now()}`);
+  const finalEmail = (targetObj?.email || (typeof userOrId === 'string' && userOrId.includes('@') ? userOrId : '')).toLowerCase().trim();
+  const finalName = targetObj?.name || (finalEmail ? finalEmail.split('@')[0] : 'Pengguna');
 
   const nowIso = new Date().toISOString();
   let bannedUntil = null;
@@ -247,9 +261,9 @@ export function banUser(userId, banType = 'temporary', durationMinutes = 60, rea
 
   const banRecord = {
     id: `ban_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-    userId: user.id,
-    name: user.name,
-    email: user.email,
+    userId: finalUserId,
+    name: finalName,
+    email: finalEmail,
     banType,
     durationMinutes: banType === 'temporary' ? minutes : null,
     durationText,
@@ -260,32 +274,68 @@ export function banUser(userId, banType = 'temporary', durationMinutes = 60, rea
 
   // 1. Update Banned List
   const bannedList = getBannedList();
-  const filteredBanned = bannedList.filter((b) => b.userId !== userId && b.email !== user.email);
+  const filteredBanned = bannedList.filter((b) => {
+    if (finalUserId && (b.userId === finalUserId || b.id === finalUserId)) return false;
+    if (finalEmail && b.email && b.email.toLowerCase().trim() === finalEmail) return false;
+    return true;
+  });
   saveBannedList([banRecord, ...filteredBanned]);
 
-  // 2. Update Registered User
-  user.banStatus = {
-    isBanned: true,
-    banType,
-    durationMinutes: banType === 'temporary' ? minutes : null,
-    durationText,
-    reason: banRecord.reason,
-    bannedAt: nowIso,
-    bannedUntil
-  };
-  user.sessionStatus = 'logged_out'; // Force logout
-  user.lastHeartbeat = 0; // Force offline
-  saveRegisteredUsers(users);
+  // 2. Update Registered User if exists
+  const regUser = users.find(
+    (u) => (finalUserId && (u.id === finalUserId || u.userId === finalUserId)) ||
+           (finalEmail && u.email && u.email.toLowerCase().trim() === finalEmail)
+  );
+  if (regUser) {
+    regUser.banStatus = {
+      isBanned: true,
+      banType,
+      durationMinutes: banType === 'temporary' ? minutes : null,
+      durationText,
+      reason: banRecord.reason,
+      bannedAt: nowIso,
+      bannedUntil
+    };
+    regUser.sessionStatus = 'logged_out'; // Force logout
+    regUser.lastHeartbeat = 0; // Force offline
+    saveRegisteredUsers(users);
+  }
 
-  // 3. Log Activity
-  const banLabel = banType === 'permanent' ? 'Banned Permanen' : `Banned Sementara (${durationMinutes} menit)`;
+  // 3. Update Permanent Visit if exists
+  let visitUpdated = false;
+  visits.forEach((v) => {
+    if (
+      (finalUserId && (v.userId === finalUserId || v.id === finalUserId)) ||
+      (finalEmail && v.email && v.email.toLowerCase().trim() === finalEmail)
+    ) {
+      v.banStatus = {
+        isBanned: true,
+        banType,
+        durationMinutes: banType === 'temporary' ? minutes : null,
+        durationText,
+        reason: banRecord.reason,
+        bannedAt: nowIso,
+        bannedUntil
+      };
+      visitUpdated = true;
+      try {
+        updateInFirebase(`${FIREBASE_PATH_VISITS}/${v.userId || v.id}`, { banStatus: v.banStatus }).catch(() => {});
+      } catch (e) {}
+    }
+  });
+  if (visitUpdated) {
+    savePermanentVisits(visits);
+  }
+
+  // 4. Log Activity
+  const banLabel = banType === 'permanent' ? 'Banned Permanen' : `Banned Sementara (${minutes} menit)`;
   recordUserActivity(
-    user,
+    { id: finalUserId, name: finalName, email: finalEmail },
     'BANNED',
     `Sanksi Admin: Akun dikenai ${banLabel}. Alasan: "${reason}"`
   );
 
-  broadcastAdminUpdate('USER_BANNED', { userId, banType, reason });
+  broadcastAdminUpdate('USER_BANNED', { userId: finalUserId, email: finalEmail, banType, reason });
   return banRecord;
 }
 
@@ -353,7 +403,28 @@ export function unbanUser(userOrId) {
     console.error('Error updating auth user on unban:', e);
   }
 
-  // 5. Save unbanned notice so client shows "Akun Anda Tidak Di-banned Lagi" window
+  // 5. Clear banStatus in Permanent Visits
+  try {
+    const visits = getPermanentVisits();
+    let visitChanged = false;
+    visits.forEach((v) => {
+      if (
+        (finalId && (v.userId === finalId || v.id === finalId)) ||
+        (finalEmail && v.email && v.email.toLowerCase().trim() === finalEmail)
+      ) {
+        v.banStatus = null;
+        visitChanged = true;
+        try {
+          updateInFirebase(`${FIREBASE_PATH_VISITS}/${v.userId || v.id}`, { banStatus: null }).catch(() => {});
+        } catch (e) {}
+      }
+    });
+    if (visitChanged) {
+      savePermanentVisits(visits);
+    }
+  } catch (e) {}
+
+  // 6. Save unbanned notice so client shows "Akun Anda Tidak Di-banned Lagi" window
   try {
     localStorage.setItem('chaiz_last_unbanned_notice', JSON.stringify({
       userId: finalId,
@@ -677,6 +748,207 @@ export function listenToPermanentVisits(callback) {
       console.warn('Error in listenToPermanentVisits:', err);
     }
   });
+}
+
+// =========================================================================
+// 3C. USER ANNOUNCEMENT & NOTICES (PENGUMUMAN / CATATAN KHUSUS ADMIN)
+// =========================================================================
+
+const FIREBASE_PATH_NOTICES = 'user_notices';
+const NOTICE_KEY_PREFIX = 'chaiz_user_notice_';
+
+/**
+ * Kirim Catatan / Pengumuman khusus dari Admin ke pengguna / pengunjung tertentu
+ */
+export function sendNoticeToUser(targetUserId, targetEmail, targetName, { title, message, type = 'info' }) {
+  if (!targetUserId && !targetEmail) return null;
+
+  const nowIso = new Date().toISOString();
+  const cleanEmail = (targetEmail || '').toLowerCase().trim();
+  const userId = targetUserId || getUniqueUserId({ email: cleanEmail });
+
+  const notice = {
+    id: `notc_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    targetUserId: userId,
+    targetEmail: cleanEmail,
+    targetName: targetName || 'Pengguna',
+    title: title || 'Pemberitahuan dari Admin ChaizStore',
+    message: message || '',
+    type: type || 'info', // 'info' | 'warning' | 'urgent' | 'promo'
+    sentAt: nowIso,
+    status: 'pending', // 'pending' | 'responded'
+    respondedAt: null
+  };
+
+  // 1. Update ke riwayat kunjungan permanen (chaiz_permanent_visit_history)
+  try {
+    const visits = getPermanentVisits();
+    const targetIdx = visits.findIndex(
+      (v) => v.userId === userId || (cleanEmail && v.email && v.email.toLowerCase() === cleanEmail)
+    );
+    if (targetIdx !== -1) {
+      visits[targetIdx].adminNotice = notice;
+      savePermanentVisits(visits);
+    }
+  } catch (e) {}
+
+  // 2. Simpan ke localStorage khusus user target
+  try {
+    localStorage.setItem(`${NOTICE_KEY_PREFIX}${userId}`, JSON.stringify(notice));
+    if (cleanEmail) {
+      localStorage.setItem(`${NOTICE_KEY_PREFIX}${cleanEmail}`, JSON.stringify(notice));
+    }
+  } catch (e) {}
+
+  // 3. Simpan ke Firebase Realtime Database
+  try {
+    writeToFirebase(`${FIREBASE_PATH_NOTICES}/${userId}`, notice).catch(() => {});
+    if (cleanEmail) {
+      const safeEmailKey = cleanEmail.replace(/[.#$[\]]/g, '_');
+      writeToFirebase(`${FIREBASE_PATH_NOTICES}/${safeEmailKey}`, notice).catch(() => {});
+    }
+    // Update juga di node visit Firebase
+    updateInFirebase(`${FIREBASE_PATH_VISITS}/${userId}`, { adminNotice: notice }).catch(() => {});
+  } catch (e) {}
+
+  // 4. Broadcast event
+  broadcastAdminUpdate('USER_NOTICE_SENT', { notice, targetUserId: userId, targetEmail: cleanEmail });
+
+  return notice;
+}
+
+/**
+ * Respon pengguna saat menekan tombol "Continue" di popup catatan admin
+ */
+export function respondToUserNotice(noticeId, userOrKey) {
+  if (!noticeId) return null;
+  const nowIso = new Date().toISOString();
+
+  // 1. Update di kunjungan permanen
+  try {
+    const visits = getPermanentVisits();
+    let updatedVisit = null;
+    visits.forEach((v) => {
+      if (
+        v.adminNotice &&
+        (v.adminNotice.id === noticeId ||
+          v.userId === userOrKey ||
+          (userOrKey?.email && v.email && v.email.toLowerCase() === userOrKey.email.toLowerCase()))
+      ) {
+        v.adminNotice.status = 'responded';
+        v.adminNotice.respondedAt = nowIso;
+        updatedVisit = v;
+      }
+    });
+    if (updatedVisit) {
+      savePermanentVisits(visits);
+      updateInFirebase(`${FIREBASE_PATH_VISITS}/${updatedVisit.userId}`, { adminNotice: updatedVisit.adminNotice }).catch(() => {});
+    }
+  } catch (e) {}
+
+  // 2. Update di localStorage
+  try {
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(NOTICE_KEY_PREFIX)) {
+          try {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed.id === noticeId || parsed.status === 'pending') {
+                parsed.status = 'responded';
+                parsed.respondedAt = nowIso;
+                localStorage.setItem(k, JSON.stringify(parsed));
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 3. Update di Firebase
+  const targetId = typeof userOrKey === 'object' ? (userOrKey.id || getUniqueUserId(userOrKey)) : userOrKey;
+  if (targetId) {
+    updateInFirebase(`${FIREBASE_PATH_NOTICES}/${targetId}`, { status: 'responded', respondedAt: nowIso }).catch(() => {});
+  }
+  if (userOrKey?.email) {
+    const safeEmailKey = userOrKey.email.toLowerCase().trim().replace(/[.#$[\]]/g, '_');
+    updateInFirebase(`${FIREBASE_PATH_NOTICES}/${safeEmailKey}`, { status: 'responded', respondedAt: nowIso }).catch(() => {});
+  }
+
+  // 4. Broadcast response ke Admin
+  broadcastAdminUpdate('USER_NOTICE_RESPONDED', { noticeId, respondedAt: nowIso, targetId });
+
+  return { id: noticeId, status: 'responded', respondedAt: nowIso };
+}
+
+/**
+ * Mengambil catatan aktif yang belum direspon oleh user yang sedang membuka web
+ */
+export function getUserActiveNotice(user) {
+  if (!user || typeof window === 'undefined') return null;
+  const cleanEmail = (user.email || '').toLowerCase().trim();
+  const userId = user.id || getUniqueUserId(user);
+
+  try {
+    // 1. Cek storage lokal user
+    const rawById = localStorage.getItem(`${NOTICE_KEY_PREFIX}${userId}`);
+    if (rawById) {
+      const parsed = JSON.parse(rawById);
+      if (parsed && parsed.status === 'pending') return parsed;
+    }
+
+    if (cleanEmail) {
+      const rawByEmail = localStorage.getItem(`${NOTICE_KEY_PREFIX}${cleanEmail}`);
+      if (rawByEmail) {
+        const parsed = JSON.parse(rawByEmail);
+        if (parsed && parsed.status === 'pending') return parsed;
+      }
+    }
+
+    // 2. Cek di daftar kunjungan permanen
+    const visits = getPermanentVisits();
+    const v = visits.find(
+      (item) => item.userId === userId || (cleanEmail && item.email && item.email.toLowerCase() === cleanEmail)
+    );
+    if (v && v.adminNotice && v.adminNotice.status === 'pending') {
+      return v.adminNotice;
+    }
+  } catch (e) {}
+
+  return null;
+}
+
+/**
+ * Langganan realtime untuk catatan admin khusus pengguna ini via Firebase
+ */
+export function listenToUserNotice(user, callback) {
+  if (!user || typeof window === 'undefined') return () => {};
+  const cleanEmail = (user.email || '').toLowerCase().trim();
+  const userId = user.id || getUniqueUserId(user);
+
+  const unsub1 = listenToFirebase(`${FIREBASE_PATH_NOTICES}/${userId}`, (data) => {
+    if (data && data.status === 'pending') {
+      callback(data);
+    }
+  });
+
+  let unsub2 = () => {};
+  if (cleanEmail) {
+    const safeEmailKey = cleanEmail.replace(/[.#$[\]]/g, '_');
+    unsub2 = listenToFirebase(`${FIREBASE_PATH_NOTICES}/${safeEmailKey}`, (data) => {
+      if (data && data.status === 'pending') {
+        callback(data);
+      }
+    });
+  }
+
+  return () => {
+    unsub1();
+    unsub2();
+  };
 }
 
 // =========================================================================
