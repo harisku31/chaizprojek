@@ -587,14 +587,16 @@ export default function AdminApp() {
     let totalStock = 0;
     let totalAccounts = 0;
     let lowStockCount = 0;
-    productsList.forEach((p) => {
+    const safeProducts = Array.isArray(productsList) ? productsList.filter(Boolean) : [];
+    safeProducts.forEach((p) => {
+      if (!p) return;
       const s = typeof p.stock === 'number' ? p.stock : 0;
       totalStock += s;
       totalAccounts += Array.isArray(p.accounts) ? p.accounts.length : 0;
       if (s <= 3) lowStockCount++;
     });
     return {
-      totalProducts: productsList.length,
+      totalProducts: safeProducts.length,
       totalStock,
       totalAccounts,
       lowStockCount
@@ -603,7 +605,9 @@ export default function AdminApp() {
 
   // Filtered Gudang Products List
   const filteredGudangProducts = useMemo(() => {
-    return productsList.filter((prod) => {
+    const safeProducts = Array.isArray(productsList) ? productsList.filter(Boolean) : [];
+    return safeProducts.filter((prod) => {
+      if (!prod) return false;
       let matchCat = true;
       if (gudangCategory === 'low') {
         matchCat = (prod.stock || 0) <= 5;
@@ -611,12 +615,15 @@ export default function AdminApp() {
         matchCat = prod.category === gudangCategory;
       }
 
-      const q = gudangSearch.trim().toLowerCase();
+      const q = (gudangSearch || '').trim().toLowerCase();
+      const pName = String(prod.name || '').toLowerCase();
+      const pCat = String(prod.category || '').toLowerCase();
+      const pBadge = String(prod.badge || '').toLowerCase();
       const matchSearch =
         !q ||
-        prod.name.toLowerCase().includes(q) ||
-        prod.category.toLowerCase().includes(q) ||
-        (prod.badge && prod.badge.toLowerCase().includes(q));
+        pName.includes(q) ||
+        pCat.includes(q) ||
+        pBadge.includes(q);
 
       return matchCat && matchSearch;
     });
@@ -736,7 +743,8 @@ export default function AdminApp() {
 
   // Orders (Menu 4) Stats Summary & Filtered List
   const pendingOrdersCount = useMemo(() => {
-    return ordersList.filter((o) => o.status === 'processing').length;
+    const safeOrders = Array.isArray(ordersList) ? ordersList.filter(Boolean) : [];
+    return safeOrders.filter((o) => o && o.status === 'processing').length;
   }, [ordersList]);
 
   const ordersStats = useMemo(() => {
@@ -745,7 +753,9 @@ export default function AdminApp() {
     let processingCount = 0;
     let rejectedCount = 0;
 
-    ordersList.forEach((o) => {
+    const safeOrders = Array.isArray(ordersList) ? ordersList.filter(Boolean) : [];
+    safeOrders.forEach((o) => {
+      if (!o) return;
       totalRevenue += Number(o.total) || 0;
       if (o.status === 'completed') completedCount++;
       if (o.status === 'processing') processingCount++;
@@ -753,7 +763,7 @@ export default function AdminApp() {
     });
 
     return {
-      total: ordersList.length,
+      total: safeOrders.length,
       processing: processingCount,
       completed: completedCount,
       rejected: rejectedCount,
@@ -762,19 +772,28 @@ export default function AdminApp() {
   }, [ordersList]);
 
   const filteredOrders = useMemo(() => {
-    return ordersList.filter((order) => {
+    const safeOrders = Array.isArray(ordersList) ? ordersList.filter(Boolean) : [];
+    return safeOrders.filter((order) => {
+      if (!order) return false;
       if (orderFilter === 'processing' && order.status !== 'processing') return false;
       if (orderFilter === 'completed' && order.status !== 'completed') return false;
       if (orderFilter === 'rejected' && order.status !== 'rejected') return false;
 
-      if (!orderSearch.trim()) return true;
-      const q = orderSearch.toLowerCase();
+      const q = (orderSearch || '').trim().toLowerCase();
+      if (!q) return true;
+
+      const oId = String(order.id || '').toLowerCase();
+      const cName = String(order.customerName || '').toLowerCase();
+      const cMail = String(order.customerEmail || order.userEmail || order.email || '').toLowerCase();
+      const cPhone = String(order.customerPhone || order.phone || order.wa || '').toLowerCase();
+      const pName = String(order.productName || '').toLowerCase();
+
       return (
-        order.id.toLowerCase().includes(q) ||
-        (order.customerName && order.customerName.toLowerCase().includes(q)) ||
-        (order.customerEmail && order.customerEmail.toLowerCase().includes(q)) ||
-        (order.customerPhone && order.customerPhone.toLowerCase().includes(q)) ||
-        (order.productName && order.productName.toLowerCase().includes(q))
+        oId.includes(q) ||
+        cName.includes(q) ||
+        cMail.includes(q) ||
+        cPhone.includes(q) ||
+        pName.includes(q)
       );
     });
   }, [ordersList, orderFilter, orderSearch]);
@@ -1345,12 +1364,13 @@ export default function AdminApp() {
 
   // Statistics for Users Directory
   const userStats = useMemo(() => {
-    const total = registeredUsers.length;
-    const onlineCount = registeredUsers.filter((u) => isUserOnline(u)).length;
+    const safeUsers = Array.isArray(registeredUsers) ? registeredUsers.filter(Boolean) : [];
+    const total = safeUsers.length;
+    const onlineCount = safeUsers.filter((u) => isUserOnline(u)).length;
     const offlineCount = total - onlineCount;
-    const loggedInCount = registeredUsers.filter((u) => u.sessionStatus !== 'logged_out' && !u.banStatus?.isBanned).length;
-    const loggedOutCount = registeredUsers.filter((u) => u.sessionStatus === 'logged_out').length;
-    const bannedCount = registeredUsers.filter((u) => u.banStatus?.isBanned).length;
+    const loggedInCount = safeUsers.filter((u) => u && u.sessionStatus !== 'logged_out' && !u.banStatus?.isBanned).length;
+    const loggedOutCount = safeUsers.filter((u) => u && u.sessionStatus === 'logged_out').length;
+    const bannedCount = safeUsers.filter((u) => u && u.banStatus?.isBanned).length;
 
     return {
       total,
@@ -1364,11 +1384,12 @@ export default function AdminApp() {
 
   // Statistics for Activity Logs
   const activityStats = useMemo(() => {
-    const total = activityLogs.length;
+    const safeActs = Array.isArray(activityLogs) ? activityLogs.filter(Boolean) : [];
+    const total = safeActs.length;
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const todayCount = activityLogs.filter((a) => new Date(a.timestamp).getTime() > oneDayAgo).length;
-    const bannedCount = activityLogs.filter((a) => a.actionType === 'BANNED' || a.actionType === 'UNBANNED').length;
-    const cartCount = activityLogs.filter((a) => a.actionType === 'ADD_TO_CART' || a.actionType === 'OPEN_CHECKOUT' || a.actionType === 'SUBMIT_ORDER').length;
+    const todayCount = safeActs.filter((a) => a && new Date(a.timestamp || 0).getTime() > oneDayAgo).length;
+    const bannedCount = safeActs.filter((a) => a && (a.actionType === 'BANNED' || a.actionType === 'UNBANNED')).length;
+    const cartCount = safeActs.filter((a) => a && (a.actionType === 'ADD_TO_CART' || a.actionType === 'OPEN_CHECKOUT' || a.actionType === 'SUBMIT_ORDER')).length;
 
     return {
       total,
@@ -1380,7 +1401,9 @@ export default function AdminApp() {
 
   // Filtered Registered Users
   const filteredUsers = useMemo(() => {
-    return registeredUsers.filter((u) => {
+    const safeUsers = Array.isArray(registeredUsers) ? registeredUsers.filter(Boolean) : [];
+    return safeUsers.filter((u) => {
+      if (!u) return false;
       const online = isUserOnline(u);
       const isLoggedOut = u.sessionStatus === 'logged_out';
       const isBanned = Boolean(u.banStatus?.isBanned);
@@ -1391,13 +1414,13 @@ export default function AdminApp() {
       if (userFilter === 'logged_out' && !isLoggedOut) return false;
       if (userFilter === 'banned' && !isBanned) return false;
 
-      if (userSearchQuery.trim()) {
+      if (userSearchQuery && userSearchQuery.trim()) {
         const q = userSearchQuery.toLowerCase().trim();
-        const nameMatch = (u.name || '').toLowerCase().includes(q);
-        const emailMatch = (u.email || '').toLowerCase().includes(q);
-        const browserMatch = (u.browser || '').toLowerCase().includes(q);
-        const osMatch = (u.os || '').toLowerCase().includes(q);
-        const reasonMatch = (u.banStatus?.reason || '').toLowerCase().includes(q);
+        const nameMatch = String(u.name || '').toLowerCase().includes(q);
+        const emailMatch = String(u.email || '').toLowerCase().includes(q);
+        const browserMatch = String(u.browser || '').toLowerCase().includes(q);
+        const osMatch = String(u.os || '').toLowerCase().includes(q);
+        const reasonMatch = String(u.banStatus?.reason || '').toLowerCase().includes(q);
         return nameMatch || emailMatch || browserMatch || osMatch || reasonMatch;
       }
 
@@ -1407,13 +1430,15 @@ export default function AdminApp() {
 
   // Filtered Permanent Visits (Riwayat Kunjungan Pengunjung Toko)
   const filteredVisits = useMemo(() => {
-    return permanentVisits.filter((v) => {
-      if (userSearchQuery.trim()) {
+    const safeVisits = Array.isArray(permanentVisits) ? permanentVisits.filter(Boolean) : [];
+    return safeVisits.filter((v) => {
+      if (!v) return false;
+      if (userSearchQuery && userSearchQuery.trim()) {
         const q = userSearchQuery.toLowerCase().trim();
-        const nameMatch = (v.name || '').toLowerCase().includes(q);
-        const emailMatch = (v.email || '').toLowerCase().includes(q);
-        const actMatch = (v.currentActivity || '').toLowerCase().includes(q);
-        const devMatch = (v.device || '').toLowerCase().includes(q);
+        const nameMatch = String(v.name || '').toLowerCase().includes(q);
+        const emailMatch = String(v.email || '').toLowerCase().includes(q);
+        const actMatch = String(v.currentActivity || '').toLowerCase().includes(q);
+        const devMatch = String(v.device || '').toLowerCase().includes(q);
         return nameMatch || emailMatch || actMatch || devMatch;
       }
       return true;
@@ -1422,7 +1447,9 @@ export default function AdminApp() {
 
   // Filtered Activity Logs
   const filteredActivities = useMemo(() => {
-    return activityLogs.filter((a) => {
+    const safeActs = Array.isArray(activityLogs) ? activityLogs.filter(Boolean) : [];
+    return safeActs.filter((a) => {
+      if (!a) return false;
       const isAuth = a.actionType === 'LOGIN' || a.actionType === 'LOGOUT';
       const isBanned = a.actionType === 'BANNED' || a.actionType === 'UNBANNED';
       const isCart = a.actionType === 'ADD_TO_CART' || a.actionType === 'REMOVE_CART' || a.actionType === 'OPEN_CHECKOUT' || a.actionType === 'SUBMIT_ORDER';
@@ -1434,15 +1461,15 @@ export default function AdminApp() {
       if (activityFilter === 'topup' && !isTopup) return false;
       if (activityFilter === 'today') {
         const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-        if (new Date(a.timestamp).getTime() <= oneDayAgo) return false;
+        if (new Date(a.timestamp || 0).getTime() <= oneDayAgo) return false;
       }
 
-      if (activitySearchQuery.trim()) {
+      if (activitySearchQuery && activitySearchQuery.trim()) {
         const q = activitySearchQuery.toLowerCase().trim();
-        const nameMatch = (a.userName || '').toLowerCase().includes(q);
-        const emailMatch = (a.userEmail || '').toLowerCase().includes(q);
-        const descMatch = (a.description || '').toLowerCase().includes(q);
-        const actionMatch = (a.actionType || '').toLowerCase().includes(q);
+        const nameMatch = String(a.userName || '').toLowerCase().includes(q);
+        const emailMatch = String(a.userEmail || '').toLowerCase().includes(q);
+        const descMatch = String(a.description || '').toLowerCase().includes(q);
+        const actionMatch = String(a.actionType || '').toLowerCase().includes(q);
         return nameMatch || emailMatch || descMatch || actionMatch;
       }
 
@@ -1453,8 +1480,9 @@ export default function AdminApp() {
   // User-specific activities for history modal
   const userSpecificActivities = useMemo(() => {
     if (!selectedUserForHistory) return [];
-    return activityLogs.filter(
-      (a) => a.userId === selectedUserForHistory.id || a.userEmail === selectedUserForHistory.email
+    const safeActs = Array.isArray(activityLogs) ? activityLogs.filter(Boolean) : [];
+    return safeActs.filter(
+      (a) => a && (a.userId === selectedUserForHistory.id || a.userEmail === selectedUserForHistory.email)
     );
   }, [selectedUserForHistory, activityLogs]);
 
@@ -2245,7 +2273,7 @@ export default function AdminApp() {
                           const notice = v.adminNotice;
 
                           return (
-                            <tr key={v.id || v.userId} className={`user-log-row ${online ? 'row-user-online' : ''} ${isBanned ? 'row-user-banned' : ''}`}>
+                            <tr key={v.id || v.userId || index} className={`user-log-row ${online ? 'row-user-online' : ''} ${isBanned ? 'row-user-banned' : ''}`}>
                               <td className="col-num">{index + 1}</td>
 
                               {/* Pengunjung & Gmail */}
@@ -2545,7 +2573,7 @@ export default function AdminApp() {
                         const isPermanentBan = isBanned && u.banStatus.banType === 'permanent';
 
                         return (
-                          <tr key={u.id} className={`user-log-row ${online ? 'row-user-online' : ''} ${isBanned ? 'row-user-banned' : ''}`}>
+                          <tr key={u.id || u.userId || index} className={`user-log-row ${online ? 'row-user-online' : ''} ${isBanned ? 'row-user-banned' : ''}`}>
                             <td className="col-num">{index + 1}</td>
 
                             {/* Nama & Avatar */}
@@ -2571,7 +2599,7 @@ export default function AdminApp() {
                                 </div>
                                 <div className="user-name-box">
                                   <strong>{u.name || 'Pengguna'}</strong>
-                                  <span className="user-id-sub">ID: {u.id.slice(-6)}</span>
+                                  <span className="user-id-sub">ID: {String(u.id || u.userId || '').slice(-6) || '-'}</span>
                                 </div>
                               </div>
                             </td>
@@ -2959,7 +2987,7 @@ export default function AdminApp() {
                         const badgeInfo = getActionBadge(act.actionType);
 
                         return (
-                          <tr key={act.id} className="user-log-row">
+                          <tr key={act.id || index} className="user-log-row">
                             <td className="col-num">{index + 1}</td>
 
                             {/* Waktu */}
@@ -2967,12 +2995,16 @@ export default function AdminApp() {
                               <div className="time-cell-wrap">
                                 <strong className="time-relative">{formatTimeAgo(act.timestamp)}</strong>
                                 <small className="time-full">
-                                  {new Date(act.timestamp).toLocaleTimeString('id-ID', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                  })}{' '}
-                                  • {new Date(act.timestamp).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                  {act.timestamp ? (
+                                    <>
+                                      {new Date(act.timestamp).toLocaleTimeString('id-ID', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit'
+                                      })}{' '}
+                                      • {new Date(act.timestamp).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                    </>
+                                  ) : '-'}
                                 </small>
                               </div>
                             </td>
@@ -3158,14 +3190,17 @@ export default function AdminApp() {
 
               <div className="gudang-filter-scroll">
                 <div className="gudang-filter-tabs">
-                  {[
-                    { id: 'all', label: 'Semua Produk', icon: 'fa-solid fa-shapes', color: '#38bdf8', count: productsList.length },
-                    { id: 'ai', label: 'AI (Gemini / Grok)', icon: 'fa-solid fa-wand-magic-sparkles', color: '#06b6d4', count: productsList.filter(p => p.category === 'ai').length },
-                    { id: 'streaming', label: 'Streaming & Video', icon: 'fa-solid fa-film', color: '#f43f5e', count: productsList.filter(p => p.category === 'streaming').length },
-                    { id: 'produktivitas', label: 'Produktivitas & Desain', icon: 'fa-solid fa-palette', color: '#10b981', count: productsList.filter(p => p.category === 'produktivitas').length },
-                    { id: 'musik', label: 'Musik', icon: 'fa-solid fa-headphones', color: '#22c55e', count: productsList.filter(p => p.category === 'musik').length },
-                    { id: 'low', label: 'Stok Menipis / Kosong', icon: 'fa-solid fa-triangle-exclamation', color: '#f59e0b', count: gudangStats.lowStockCount, isAlert: true }
-                  ].map((tab) => {
+                  {(() => {
+                    const safeProducts = Array.isArray(productsList) ? productsList.filter(Boolean) : [];
+                    return [
+                      { id: 'all', label: 'Semua Produk', icon: 'fa-solid fa-shapes', color: '#38bdf8', count: safeProducts.length },
+                      { id: 'ai', label: 'AI (Gemini / Grok)', icon: 'fa-solid fa-wand-magic-sparkles', color: '#06b6d4', count: safeProducts.filter(p => p && p.category === 'ai').length },
+                      { id: 'streaming', label: 'Streaming & Video', icon: 'fa-solid fa-film', color: '#f43f5e', count: safeProducts.filter(p => p && p.category === 'streaming').length },
+                      { id: 'produktivitas', label: 'Produktivitas & Desain', icon: 'fa-solid fa-palette', color: '#10b981', count: safeProducts.filter(p => p && p.category === 'produktivitas').length },
+                      { id: 'musik', label: 'Musik', icon: 'fa-solid fa-headphones', color: '#22c55e', count: safeProducts.filter(p => p && p.category === 'musik').length },
+                      { id: 'low', label: 'Stok Menipis / Kosong', icon: 'fa-solid fa-triangle-exclamation', color: '#f59e0b', count: gudangStats.lowStockCount, isAlert: true }
+                    ];
+                  })().map((tab) => {
                     const isActive = gudangCategory === tab.id;
                     return (
                       <button
@@ -3187,15 +3222,15 @@ export default function AdminApp() {
             {/* Products Grid Gudang */}
             <section className="gudang-products-section">
               <div className="gudang-grid">
-                {filteredGudangProducts.map((prod) => {
-                  const s = typeof prod.stock === 'number' ? prod.stock : 0;
+                {filteredGudangProducts.map((prod, index) => {
+                  const s = typeof prod?.stock === 'number' ? prod.stock : 0;
                   const isZero = s === 0;
                   const isLow = s > 0 && s <= 5;
-                  const accountsCount = Array.isArray(prod.accounts) ? prod.accounts.length : 0;
+                  const accountsCount = Array.isArray(prod?.accounts) ? prod.accounts.length : 0;
 
                   return (
                     <div
-                      key={prod.id}
+                      key={prod?.id || index}
                       className={`gudang-card ${isZero ? 'stock-empty' : isLow ? 'stock-low' : 'stock-ok'}`}
                       onClick={() => handleOpenRestockModal(prod)}
                       title={`Klik untuk kelola restock ${prod.name}`}
@@ -3489,7 +3524,7 @@ export default function AdminApp() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredOrders.map((order) => {
+                      {filteredOrders.map((order, index) => {
                         const isProcessing = order.status === 'processing';
                         const isRejected = order.status === 'rejected';
                         const hasCreds =
@@ -3498,19 +3533,19 @@ export default function AdminApp() {
                         const proofTimeInfo = getProofTimeRemaining(order);
 
                         return (
-                          <tr key={order.id} className={isProcessing ? 'row-processing' : isRejected ? 'row-rejected' : 'row-completed'}>
+                          <tr key={order.id || index} className={isProcessing ? 'row-processing' : isRejected ? 'row-rejected' : 'row-completed'}>
                             {/* ID & Date */}
                             <td className="cell-order-id">
-                              <strong className="order-id-badge">{order.id}</strong>
+                              <strong className="order-id-badge">{order.id || '-'}</strong>
                               <span className="order-date-text">
                                 <i className="fa-regular fa-calendar"></i>{' '}
-                                {new Date(order.createdAt).toLocaleString('id-ID', {
+                                {order.createdAt ? new Date(order.createdAt).toLocaleString('id-ID', {
                                   day: 'numeric',
                                   month: 'short',
                                   year: 'numeric',
                                   hour: '2-digit',
                                   minute: '2-digit'
-                                })}
+                                }) : '-'}
                               </span>
                             </td>
 
@@ -4086,17 +4121,17 @@ export default function AdminApp() {
                   </div>
                 ) : (
                   <div className="timeline-list">
-                    {userSpecificActivities.map((act) => {
+                    {userSpecificActivities.map((act, idx) => {
                       const badge = getActionBadge(act.actionType);
                       return (
-                        <div key={act.id} className="timeline-item">
+                        <div key={act.id || idx} className="timeline-item">
                           <div className="timeline-marker">
                             <i className={`fa-solid ${badge.icon}`}></i>
                           </div>
                           <div className="timeline-content">
                             <div className="timeline-header">
                               <span className={`activity-type-badge ${badge.className}`}>{badge.label}</span>
-                              <span className="timeline-time">{formatTimeAgo(act.timestamp)} • {new Date(act.timestamp).toLocaleTimeString('id-ID')} WIB</span>
+                              <span className="timeline-time">{formatTimeAgo(act.timestamp)} • {act.timestamp ? `${new Date(act.timestamp).toLocaleTimeString('id-ID')} WIB` : '-'}</span>
                             </div>
                             <p className="timeline-desc">{act.description}</p>
                             <div className="timeline-footer-meta">
@@ -4696,7 +4731,7 @@ export default function AdminApp() {
                             </tr>
                           </thead>
                           <tbody>
-                            {selectedProductForRestock.accounts.map((acc, idx) => {
+                            {(selectedProductForRestock.accounts || []).map((acc, idx) => {
                               const isPwVisible = !!visibleVaultPasswords[acc.id];
                               const isCopied = copiedAccId === acc.id;
 

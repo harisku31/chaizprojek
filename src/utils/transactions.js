@@ -17,7 +17,7 @@ import {
   createTransactionInSql,
   updateTransactionInSql,
   deleteTransactionProofInSql
-} from './sqlApi';
+} from './sqlApi.js';
 
 const STORAGE_KEY_TRX = 'chaiz_transactions';
 const STORAGE_KEY_USER_PREFIX = 'chaiz_user_trx_';
