@@ -326,32 +326,25 @@ export default function AdminApp() {
     }, 3500);
   };
 
-  // Reload all tracker & orders data across Local & Cloud
+  // Reload all tracker & orders data from local storage
   const reloadAllData = () => {
     setRegisteredUsers(getRegisteredUsers());
     setActivityLogs(getActivityLogs());
     setPermanentVisits(getPermanentVisits());
     setOrdersList(getTransactions());
-
-    // Cloud background fetches
-    syncRegisteredUsersFromCloud().then((fresh) => {
-      if (fresh) setRegisteredUsers(fresh);
-    });
-    syncActivityLogsFromCloud().then((fresh) => {
-      if (fresh) setActivityLogs(fresh);
-    });
-    syncPermanentVisitsFromCloud().then((fresh) => {
-      if (fresh) setPermanentVisits(fresh);
-    });
-    syncTransactionsFromCloud().then((fresh) => {
-      if (fresh && fresh.length > 0) {
-        setOrdersList(fresh);
-      }
-    });
   };
 
   // Sync from Cloud on mount
   useEffect(() => {
+    // 1. Ambil data pesanan transaksi terbaru dari Cloud
+    syncTransactionsFromCloud().then((fresh) => {
+      if (fresh && fresh.length > 0) {
+        setOrdersList(fresh);
+        fresh.forEach((o) => knownOrderIdsRef.current.add(o.id));
+      }
+    });
+
+    // 2. Ambil data pengguna terdaftar dari Cloud
     syncRegisteredUsersFromCloud().then((cloudUsers) => {
       if (cloudUsers && cloudUsers.length > 0) {
         setRegisteredUsers(cloudUsers);
@@ -364,9 +357,13 @@ export default function AdminApp() {
         }
       }
     });
+
+    // 3. Ambil log aktivitas pengguna dari Cloud
     syncActivityLogsFromCloud().then((acts) => {
       if (acts && acts.length > 0) setActivityLogs(acts);
     });
+
+    // 4. Ambil riwayat kunjungan permanen dari Cloud
     syncPermanentVisitsFromCloud().then((visits) => {
       if (visits && visits.length > 0) setPermanentVisits(visits);
     });
@@ -375,10 +372,11 @@ export default function AdminApp() {
   // Real-time synchronization (Storage & BroadcastChannel & Polling)
   useEffect(() => {
     const handleStorageChange = (e) => {
-      reloadAllData();
-      if (e && e.key === 'chaiz_transactions') {
+      if (!e) return;
+      if (e.key === 'chaiz_transactions') {
+        const fresh = getTransactions();
+        setOrdersList(fresh);
         try {
-          const fresh = JSON.parse(e.newValue || '[]');
           const hasNew = fresh.some(
             (o) => !knownOrderIdsRef.current.has(o.id) && (o.status === 'processing' || o.status === 'pending')
           );
@@ -388,6 +386,12 @@ export default function AdminApp() {
           }
           fresh.forEach((o) => knownOrderIdsRef.current.add(o.id));
         } catch {}
+      } else if (e.key === 'chaiz_admin_registered_users') {
+        setRegisteredUsers(getRegisteredUsers());
+      } else if (e.key === 'chaiz_permanent_visit_history') {
+        setPermanentVisits(getPermanentVisits());
+      } else if (e.key === 'chaiz_admin_activity_logs') {
+        setActivityLogs(getActivityLogs());
       }
     };
 
@@ -512,7 +516,7 @@ export default function AdminApp() {
       setTick((t) => t + 1);
     }, 1000);
 
-    // Gentle cloud poll fallback every 20s when page is active
+    // Gentle cloud poll fallback every 25s when page is active
     const cloudPollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       syncTransactionsFromCloud().then((fresh) => {
@@ -520,7 +524,17 @@ export default function AdminApp() {
           setOrdersList(fresh);
         }
       });
-    }, 20000);
+      syncRegisteredUsersFromCloud().then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setRegisteredUsers(fresh);
+        }
+      });
+      syncPermanentVisitsFromCloud().then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setPermanentVisits(fresh);
+        }
+      });
+    }, 25000);
 
     // Realtime streaming daftar pengguna dari Firebase RTDB (Semua, Online, Offline, Masih Login)
     const unsubscribeUsers = listenToRegisteredUsers((liveUsers) => {
@@ -1346,7 +1360,7 @@ export default function AdminApp() {
       loggedOutCount,
       bannedCount
     };
-  }, [registeredUsers]);
+  }, [registeredUsers, tick]);
 
   // Statistics for Activity Logs
   const activityStats = useMemo(() => {
@@ -1389,7 +1403,7 @@ export default function AdminApp() {
 
       return true;
     });
-  }, [registeredUsers, userFilter, userSearchQuery]);
+  }, [registeredUsers, userFilter, userSearchQuery, tick]);
 
   // Filtered Permanent Visits (Riwayat Kunjungan Pengunjung Toko)
   const filteredVisits = useMemo(() => {
@@ -1404,7 +1418,7 @@ export default function AdminApp() {
       }
       return true;
     });
-  }, [permanentVisits, userSearchQuery]);
+  }, [permanentVisits, userSearchQuery, tick]);
 
   // Filtered Activity Logs
   const filteredActivities = useMemo(() => {

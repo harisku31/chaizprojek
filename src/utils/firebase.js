@@ -12,8 +12,11 @@ const inFlightReads = new Map();
 // Helper: Network fetch with automatic exponential backoff retry (up to 3 attempts)
 async function fetchWithRetry(url, options, maxRetries = 2) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
     try {
-      const res = await fetch(url, options);
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.ok) {
         return { success: true, res };
       }
@@ -21,6 +24,7 @@ async function fetchWithRetry(url, options, maxRetries = 2) {
         return { success: false, status: res.status };
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       if (attempt === maxRetries) {
         return { success: false, error: err };
       }
@@ -63,18 +67,24 @@ export async function readFromFirebase(path) {
   }
 
   const readPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
     try {
       const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json?ts=${Date.now()}`, {
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       if (res.ok) {
         return await res.json();
       }
       return null;
     } catch (err) {
+      clearTimeout(timeoutId);
       console.warn(`[Firebase read error on ${cleanPath}]:`, err.message || err);
       return null;
     } finally {
+      clearTimeout(timeoutId);
       // Release in-flight lock after small window
       setTimeout(() => inFlightReads.delete(cleanPath), 100);
     }
@@ -242,17 +252,20 @@ export function listenToFirebase(path, callback) {
     console.warn(`[EventSource init error for ${cleanPath}]:`, esErr);
   }
 
-  // B. Fallback Heartbeat setiap 15 detik jika EventSource terputus atau backgrounding
+  // B. Fallback Heartbeat jika EventSource terputus atau backgrounding
   const pollInterval = setInterval(() => {
     if (isClosed) return;
     if (typeof document !== 'undefined' && document.hidden) return;
+
+    // Jika EventSource sedang terkoneksi aktif (OPEN), tidak perlu polling fallback untuk hemat koneksi
+    if (eventSource && eventSource.readyState === 1) return;
 
     readFromFirebase(cleanPath).then((refreshed) => {
       if (!isClosed && refreshed !== undefined) {
         scheduleDelivery(refreshed);
       }
     });
-  }, 15000);
+  }, 25000);
 
   // Return unsubscribe cleaner
   return () => {

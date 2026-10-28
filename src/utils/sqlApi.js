@@ -29,18 +29,18 @@ let isSqlAvailable = false;
 let lastCheckTime = 0;
 
 /**
- * Periksa apakah server backend PHP MySQL sedang aktif
+ * Periksa apakah server backend PHP MySQL sedang aktif (Fast Circuit Breaker)
  */
 export async function checkSqlBackendHealth() {
   const now = Date.now();
-  if (isSqlChecked && now - lastCheckTime < 10000) {
+  if (isSqlChecked && now - lastCheckTime < 60000) {
     return isSqlAvailable;
   }
 
   try {
     const baseUrl = getSqlApiBaseUrl();
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
 
     const res = await fetch(`${baseUrl}/transactions.php?all=1`, {
       method: 'GET',
@@ -67,16 +67,24 @@ export async function checkSqlBackendHealth() {
  */
 export async function fetchUserTransactionsFromSql(userEmail) {
   if (!userEmail) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
   const baseUrl = getSqlApiBaseUrl();
   const cleanEmail = encodeURIComponent(userEmail.toLowerCase().trim());
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+
     const res = await fetch(`${baseUrl}/transactions.php?user_email=${cleanEmail}`, {
       headers: {
         'Accept': 'application/json',
         'X-User-Email': userEmail.toLowerCase().trim()
-      }
+      },
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -94,9 +102,20 @@ export async function fetchUserTransactionsFromSql(userEmail) {
  * 2. Ambil Semua Transaksi untuk Admin Dashboard dari MySQL
  */
 export async function fetchAllTransactionsFromSql() {
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
   const baseUrl = getSqlApiBaseUrl();
   try {
-    const res = await fetch(`${baseUrl}/transactions.php?all=1`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+    const res = await fetch(`${baseUrl}/transactions.php?all=1`, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && Array.isArray(data.data)) {
@@ -111,16 +130,24 @@ export async function fetchAllTransactionsFromSql() {
  * 3. Simpan Transaksi Baru ke Database MySQL
  */
 export async function createTransactionInSql(transactionData) {
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
   const baseUrl = getSqlApiBaseUrl();
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
     const res = await fetch(`${baseUrl}/transactions.php`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(transactionData)
+      body: JSON.stringify(transactionData),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();

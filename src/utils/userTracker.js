@@ -526,7 +526,7 @@ export async function syncRegisteredUsersFromCloud() {
           userMap.set(id, {
             ...existing,
             ...cu,
-            lastHeartbeat: Math.max(existing.lastHeartbeat || 0, cu.lastHeartbeat || 0),
+            lastHeartbeat: cu.lastHeartbeat !== undefined ? cu.lastHeartbeat : existing.lastHeartbeat,
             lastActiveTime: cloudTime >= existingTime ? cu.lastActiveTime : existing.lastActiveTime,
             sessionStatus: cu.sessionStatus || existing.sessionStatus
           });
@@ -572,7 +572,6 @@ export async function syncRegisteredUsersFromCloud() {
     const merged = Array.from(userMap.values());
     merged.sort((a, b) => new Date(b.lastActiveTime || b.firstLoginTime || 0).getTime() - new Date(a.lastActiveTime || a.firstLoginTime || 0).getTime());
     localStorage.setItem(USERS_KEY, JSON.stringify(merged));
-    broadcastAdminUpdate('USERS_UPDATED', { count: merged.length });
     return merged;
   } catch (err) {
     console.error('Failed to sync registered users from cloud:', err);
@@ -609,7 +608,8 @@ export function listenToRegisteredUsers(callback) {
             map.set(id, {
               ...existing,
               ...cu,
-              lastHeartbeat: Math.max(existing.lastHeartbeat || 0, cu.lastHeartbeat || 0)
+              lastHeartbeat: cu.lastHeartbeat !== undefined ? cu.lastHeartbeat : existing.lastHeartbeat,
+              sessionStatus: cu.sessionStatus || existing.sessionStatus
             });
           }
         });

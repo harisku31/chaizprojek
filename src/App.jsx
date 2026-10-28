@@ -367,18 +367,30 @@ export default function App() {
     recordUserVisit(authUser, 'Membuka beranda toko ChaizStore');
     updateVisitHeartbeat(authUser);
       }
-    }, 4000);
+    }, 8000);
 
     const handleBeforeUnload = () => {
       setUserOffline(authUser);
     };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setUserOffline(authUser);
+      } else if (document.visibilityState === 'visible') {
+        recordUserHeartbeat(authUser);
+        updateVisitHeartbeat(authUser);
+      }
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       if (bc) bc.close();
       window.removeEventListener('storage', handleStorage);
       clearInterval(hbInterval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [authUser, bannedInfo, isBannedModalOpen]);
 
