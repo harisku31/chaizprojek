@@ -14854,3 +14854,95 @@ body.auth-locked {
 .btn-notice-continue:hover i {
   transform: translateX(4px);
 }
+
+/* =========================================================================
+   TOP UP PAGE CYBER AMBIENT & SEARCH STYLES (MATCHING PREMIUM CATALOG)
+   ========================================================================= */
+.topup-page-container {
+  min-height: calc(100vh - 120px);
+  position: relative;
+  background: var(--bg-primary);
+  padding-bottom: 90px;
+  overflow: hidden;
+}
+
+.topup-hero-banner-card {
+  margin-top: 10px;
+  margin-bottom: 32px;
+}
+
+.topup-filter-search-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.topup-search-box {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+}
+
+.topup-search-icon {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #38bdf8;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.topup-search-input {
+  width: 100%;
+  padding: 13px 44px 13px 48px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 9999px;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  outline: none;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  transition: all 0.25s ease;
+}
+
+.topup-search-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.topup-search-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #94a3b8;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.topup-search-clear:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.topup-visual-apps .catalog-v-app {
+  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+
+.topup-visual-apps .catalog-v-app:hover {
+  transform: translateY(-4px) scale(1.06);
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.45);
+}
