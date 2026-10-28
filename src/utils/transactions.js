@@ -157,29 +157,11 @@ function broadcastSync(type, data) {
 function purgeExpiredProofs(list) {
   if (!Array.isArray(list)) return [];
   const now = Date.now();
-  let hasExpired = false;
 
   const sanitized = list.map((trx) => {
-    if (trx.proofUrl) {
+    if (trx && trx.proofUrl) {
       const uploadedTime = new Date(trx.proofUploadedAt || trx.createdAt).getTime();
       if (now - uploadedTime > PROOF_MAX_AGE_MS) {
-        hasExpired = true;
-        // Bersihkan juga dari Firebase Cloud RTDB agar database tetap super ringan & tidak lambat
-        try {
-          updateInFirebase(`${FIREBASE_PATH_TRX}/${trx.id}`, {
-            proofUrl: null,
-            proofExpired: true,
-            proofDeletedReason: 'Foto bukti terhapus otomatis (masa simpan 2 hari telah berakhir)'
-          }).catch(() => {});
-          const uKey = trx.userKey || trx.userId;
-          if (uKey) {
-            updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${uKey}/${trx.id}`, {
-              proofUrl: null,
-              proofExpired: true,
-              proofDeletedReason: 'Foto bukti terhapus otomatis (masa simpan 2 hari telah berakhir)'
-            }).catch(() => {});
-          }
-        } catch {}
         return {
           ...trx,
           proofUrl: null,

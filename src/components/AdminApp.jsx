@@ -326,12 +326,34 @@ export default function AdminApp() {
     }, 3500);
   };
 
-  // Reload all tracker & orders data from local storage
+  // Reload all tracker & orders data from local storage and Cloud
+  const handleForceCloudSync = async () => {
+    setIsRefreshingOrders(true);
+    try {
+      const [freshOrders, freshUsers, freshVisits, freshActs] = await Promise.all([
+        syncTransactionsFromCloud(),
+        syncRegisteredUsersFromCloud(),
+        syncPermanentVisitsFromCloud(),
+        syncActivityLogsFromCloud()
+      ]);
+      if (freshOrders && freshOrders.length > 0) setOrdersList(freshOrders);
+      if (freshUsers && freshUsers.length > 0) setRegisteredUsers(freshUsers);
+      if (freshVisits && freshVisits.length > 0) setPermanentVisits(freshVisits);
+      if (freshActs && freshActs.length > 0) setActivityLogs(freshActs);
+      showToast('Seluruh data berhasil disinkronkan dari Cloud Database!', 'fa-cloud-arrow-down text-success', 'success');
+    } catch {
+      showToast('Gagal menyinkronkan data dari cloud', 'fa-circle-xmark', 'error');
+    } finally {
+      setIsRefreshingOrders(false);
+    }
+  };
+
   const reloadAllData = () => {
     setRegisteredUsers(getRegisteredUsers());
     setActivityLogs(getActivityLogs());
     setPermanentVisits(getPermanentVisits());
     setOrdersList(getTransactions());
+    handleForceCloudSync();
   };
 
   // Sync from Cloud on mount
@@ -1888,6 +1910,26 @@ export default function AdminApp() {
             >
               <i className="fa-solid fa-volume-high"></i>
               <span>Tes Suara</span>
+            </button>
+
+            <button
+              type="button"
+              className="admin-nav-btn"
+              onClick={handleForceCloudSync}
+              disabled={isRefreshingOrders}
+              style={{
+                background: 'rgba(168, 85, 247, 0.15)',
+                border: '1px solid rgba(168, 85, 247, 0.4)',
+                color: '#c084fc',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: isRefreshingOrders ? 'not-allowed' : 'pointer'
+              }}
+              title="Sinkronkan ulang seluruh data pesanan, pengguna, dan aktivitas dari Cloud Firebase"
+            >
+              <i className={`fa-solid fa-cloud-arrow-down ${isRefreshingOrders ? 'fa-spin' : ''}`}></i>
+              <span>{isRefreshingOrders ? 'Sinkron...' : 'Sync Cloud'}</span>
             </button>
 
             <button

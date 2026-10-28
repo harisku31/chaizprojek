@@ -147,8 +147,11 @@ function applyDeepDelta(target, pathParts, value, isPatch = false) {
   return target;
 }
 
-// 5. Langganan Realtime Listener (SSE EventSource + Smart In-Memory Delta + Debounced Deliver)
-export function listenToFirebase(path, callback) {
+// Active persistent SSE counter to prevent browser socket pool exhaustion (HTTP/1.1 limit: 6 connections)
+let activeSseCount = 0;
+
+// 5. Langganan Realtime Listener (Smart SSE for Critical Path + Adaptive Non-Holding Polling)
+export function listenToFirebase(path, callback, options = {}) {
   if (typeof window === 'undefined' || typeof callback !== 'function') return () => {};
 
   const cleanPath = path.replace(/^\/+|\/+$/g, '');
@@ -159,6 +162,12 @@ export function listenToFirebase(path, callback) {
   let lastDataString = '';
   let currentData = null;
   let debounceTimer = null;
+
+  // Interval polling adaptif agar soket browser tidak pernah habis/terkunci
+  const pollIntervalMs = options.intervalMs || (
+    cleanPath === 'transactions' ? 3500 :
+    cleanPath.includes('user') ? 5000 : 7000
+  );
 
   // Hanya deliver callback jika data benar-benar berubah, hemat memori & 60fps
   const deliverIfChanged = (data) => {
@@ -184,7 +193,7 @@ export function listenToFirebase(path, callback) {
     }, 40);
   };
 
-  // Initial immediate fetch
+  // 1. Initial immediate fetch
   readFromFirebase(cleanPath).then((initData) => {
     if (!isClosed && initData !== undefined) {
       currentData = initData;
@@ -192,10 +201,14 @@ export function listenToFirebase(path, callback) {
     }
   });
 
-  // A. Realtime Streaming via Native Browser EventSource (Server-Sent Events)
-  try {
-    if (typeof EventSource !== 'undefined') {
+  // 2. Batasi EventSource PERSISTEN HANYA untuk 1 koneksi paling kritis ('transactions')
+  // Mencegah browser error ERR_INSUFFICIENT_RESOURCES karena kehabisan soket TCP (maks 6 per domain)
+  const allowSse = cleanPath === 'transactions' && activeSseCount < 1;
+
+  if (allowSse && typeof EventSource !== 'undefined') {
+    try {
       eventSource = new EventSource(url);
+      activeSseCount++;
 
       // Handle PUT events (root replace or child node set)
       eventSource.addEventListener('put', (e) => {
@@ -251,17 +264,18 @@ export function listenToFirebase(path, callback) {
       eventSource.onerror = () => {
         // Browser handles auto-reconnect automatically
       };
+    } catch (esErr) {
+      console.warn(`[EventSource init error for ${cleanPath}]:`, esErr);
     }
-  } catch (esErr) {
-    console.warn(`[EventSource init error for ${cleanPath}]:`, esErr);
   }
 
-  // B. Fallback Heartbeat jika EventSource terputus atau backgrounding
+  // 3. Polling Non-Holding Cepat:
+  // Setiap fetch hanya meminjam soket ~50ms lalu segera MELEPASKANNYA kembali ke browser pool.
   const pollInterval = setInterval(() => {
     if (isClosed) return;
     if (typeof document !== 'undefined' && document.hidden) return;
 
-    // Jika EventSource sedang terkoneksi aktif (OPEN), tidak perlu polling fallback untuk hemat koneksi
+    // Jika EventSource sedang terkoneksi aktif & normal pada transaksi, lewati polling
     if (eventSource && eventSource.readyState === 1) return;
 
     readFromFirebase(cleanPath).then((refreshed) => {
@@ -269,7 +283,7 @@ export function listenToFirebase(path, callback) {
         scheduleDelivery(refreshed);
       }
     });
-  }, 25000);
+  }, pollIntervalMs);
 
   // Return unsubscribe cleaner
   return () => {
@@ -279,6 +293,7 @@ export function listenToFirebase(path, callback) {
     if (eventSource) {
       try {
         eventSource.close();
+        activeSseCount = Math.max(0, activeSseCount - 1);
       } catch {}
     }
   };
