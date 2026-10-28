@@ -13,7 +13,7 @@ const inFlightReads = new Map();
 async function fetchWithRetry(url, options, maxRetries = 2) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4500);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(timeoutId);
@@ -68,7 +68,7 @@ export async function readFromFirebase(path) {
 
   const readPromise = (async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4500);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     try {
       const res = await fetch(`${FIREBASE_DB_URL}/${cleanPath}.json?ts=${Date.now()}`, {
         cache: 'no-store',
@@ -78,11 +78,11 @@ export async function readFromFirebase(path) {
       if (res.ok) {
         return await res.json();
       }
-      return null;
+      return undefined;
     } catch (err) {
       clearTimeout(timeoutId);
       console.warn(`[Firebase read error on ${cleanPath}]:`, err.message || err);
-      return null;
+      return undefined;
     } finally {
       clearTimeout(timeoutId);
       // Release in-flight lock after small window
@@ -168,7 +168,8 @@ export function listenToFirebase(path, callback) {
       if (serialized !== lastDataString) {
         lastDataString = serialized;
         currentData = data;
-        callback(data);
+        const cloned = Array.isArray(data) ? [...data] : (data && typeof data === 'object' ? { ...data } : data);
+        callback(cloned);
       }
     } catch {
       callback(data);
@@ -206,15 +207,16 @@ export function listenToFirebase(path, callback) {
             scheduleDelivery(currentData);
           } else {
             const parts = parsed.path.replace(/^\/+|\/+$/g, '').split('/');
-            if (currentData && typeof currentData === 'object') {
-              applyDeepDelta(currentData, parts, parsed.data, false);
-              scheduleDelivery(currentData);
-            } else {
-              readFromFirebase(cleanPath).then(scheduleDelivery);
+            if (!currentData || typeof currentData !== 'object') {
+              currentData = {};
             }
+            applyDeepDelta(currentData, parts, parsed.data, false);
+            scheduleDelivery(currentData);
           }
         } catch {
-          readFromFirebase(cleanPath).then(scheduleDelivery);
+          readFromFirebase(cleanPath).then((refreshed) => {
+            if (refreshed !== undefined) scheduleDelivery(refreshed);
+          });
         }
       });
 
@@ -228,19 +230,21 @@ export function listenToFirebase(path, callback) {
               currentData = { ...currentData, ...parsed.data };
               scheduleDelivery(currentData);
             } else {
-              readFromFirebase(cleanPath).then(scheduleDelivery);
+              currentData = parsed.data;
+              scheduleDelivery(currentData);
             }
           } else {
             const parts = parsed.path.replace(/^\/+|\/+$/g, '').split('/');
-            if (currentData && typeof currentData === 'object') {
-              applyDeepDelta(currentData, parts, parsed.data, true);
-              scheduleDelivery(currentData);
-            } else {
-              readFromFirebase(cleanPath).then(scheduleDelivery);
+            if (!currentData || typeof currentData !== 'object') {
+              currentData = {};
             }
+            applyDeepDelta(currentData, parts, parsed.data, true);
+            scheduleDelivery(currentData);
           }
         } catch {
-          readFromFirebase(cleanPath).then(scheduleDelivery);
+          readFromFirebase(cleanPath).then((refreshed) => {
+            if (refreshed !== undefined) scheduleDelivery(refreshed);
+          });
         }
       });
 

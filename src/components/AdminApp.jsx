@@ -52,7 +52,7 @@ import {
   listenToAllTransactions
 } from '../utils/transactions';
 import { compressImageFile } from '../utils/format';
-import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled } from '../utils/audioNotification';
+import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled, unlockAudio, isAudioContextUnlocked } from '../utils/audioNotification';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -336,11 +336,13 @@ export default function AdminApp() {
 
   // Sync from Cloud on mount
   useEffect(() => {
+    // Siapkan & buka audio context di background
+    unlockAudio();
+
     // 1. Ambil data pesanan transaksi terbaru dari Cloud
     syncTransactionsFromCloud().then((fresh) => {
       if (fresh && fresh.length > 0) {
         setOrdersList(fresh);
-        fresh.forEach((o) => knownOrderIdsRef.current.add(o.id));
       }
     });
 
@@ -495,6 +497,11 @@ export default function AdminApp() {
     const unsubscribeAllTrx = listenToAllTransactions((liveOrders) => {
       if (Array.isArray(liveOrders)) {
         if (isInitialLoadRef.current) {
+          const pendingCount = liveOrders.filter((o) => o && o.status === 'processing').length;
+          if (pendingCount > 0) {
+            playAdminOrderSound();
+            showToast(`🔔 Ada ${pendingCount} pesanan masuk yang sedang menunggu diproses!`, 'fa-bell text-warning', 'info');
+          }
           liveOrders.forEach((o) => knownOrderIdsRef.current.add(o.id));
           isInitialLoadRef.current = false;
         } else {
@@ -521,6 +528,14 @@ export default function AdminApp() {
       if (typeof document !== 'undefined' && document.hidden) return;
       syncTransactionsFromCloud().then((fresh) => {
         if (fresh && fresh.length > 0) {
+          const hasNew = fresh.some(
+            (o) => !knownOrderIdsRef.current.has(o.id) && (o.status === 'processing' || o.status === 'pending')
+          );
+          if (hasNew) {
+            playAdminOrderSound();
+            showToast('🔔 Pesanan baru masuk dari pelanggan!', 'fa-bell text-warning', 'success');
+          }
+          fresh.forEach((o) => knownOrderIdsRef.current.add(o.id));
           setOrdersList(fresh);
         }
       });

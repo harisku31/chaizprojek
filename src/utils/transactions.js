@@ -164,6 +164,22 @@ function purgeExpiredProofs(list) {
       const uploadedTime = new Date(trx.proofUploadedAt || trx.createdAt).getTime();
       if (now - uploadedTime > PROOF_MAX_AGE_MS) {
         hasExpired = true;
+        // Bersihkan juga dari Firebase Cloud RTDB agar database tetap super ringan & tidak lambat
+        try {
+          updateInFirebase(`${FIREBASE_PATH_TRX}/${trx.id}`, {
+            proofUrl: null,
+            proofExpired: true,
+            proofDeletedReason: 'Foto bukti terhapus otomatis (masa simpan 2 hari telah berakhir)'
+          }).catch(() => {});
+          const uKey = trx.userKey || trx.userId;
+          if (uKey) {
+            updateInFirebase(`${FIREBASE_PATH_USER_TRX}/${uKey}/${trx.id}`, {
+              proofUrl: null,
+              proofExpired: true,
+              proofDeletedReason: 'Foto bukti terhapus otomatis (masa simpan 2 hari telah berakhir)'
+            }).catch(() => {});
+          }
+        } catch {}
         return {
           ...trx,
           proofUrl: null,
@@ -348,7 +364,16 @@ export function listenToUserTransactions(user, callback) {
   if (!key) return () => {};
 
   return listenToFirebase(`${FIREBASE_PATH_USER_TRX}/${key}`, (cloudData) => {
-    if (cloudData === null || cloudData === undefined) {
+    // Jika undefined (gangguan koneksi/timeout), JANGAN timpa riwayat user dengan array kosong!
+    if (cloudData === undefined) {
+      const cached = getUserTransactions(user);
+      if (cached && cached.length > 0) {
+        callback(cached);
+      }
+      return;
+    }
+
+    if (cloudData === null) {
       saveUserTransactions(user, [], { broadcast: false });
       callback([]);
       return;
@@ -471,7 +496,17 @@ export function listenToAllTransactions(callback) {
   if (typeof window === 'undefined' || typeof callback !== 'function') return () => {};
 
   return listenToFirebase(FIREBASE_PATH_TRX, (cloudData) => {
-    if (cloudData === null || cloudData === undefined) {
+    // Jika undefined (gangguan koneksi/timeout), JANGAN hapus cache lokal! Gunakan data transaksi yang tersimpan
+    if (cloudData === undefined) {
+      const cached = getTransactions();
+      if (cached && cached.length > 0) {
+        callback(cached);
+      }
+      return;
+    }
+
+    if (cloudData === null) {
+      // Hanya jika node benar-benar kosong di database Firebase
       saveTransactions([], { broadcast: false });
       callback([]);
       return;

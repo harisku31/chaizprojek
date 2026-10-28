@@ -105,8 +105,8 @@ export async function copyToClipboard(text) {
   }
 }
 
-// Kompresi foto bukti transfer via Canvas agar ringan (~50-80KB) dan aman di localStorage
-export function compressImageFile(file, maxWidth = 900, maxHeight = 1200, quality = 0.72) {
+// Kompresi foto bukti transfer via Canvas agar super ringan (~25-45KB), cepat di-upload dan aman di localStorage
+export function compressImageFile(file, maxWidth = 720, maxHeight = 960, quality = 0.62) {
   return new Promise((resolve) => {
     try {
       const reader = new FileReader();

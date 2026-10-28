@@ -52,19 +52,23 @@ export function unlockAudio() {
       } catch (e) {}
     }
 
-    // Preload file suara di background
-    if (!cachedAudios.success) {
-      cachedAudios.success = new Audio('/sounds/user-success.wav');
-      cachedAudios.success.load();
-    }
-    if (!cachedAudios.rejected) {
-      cachedAudios.rejected = new Audio('/sounds/rejected.wav');
-      cachedAudios.rejected.load();
-    }
-    if (!cachedAudios.notice) {
-      cachedAudios.notice = new Audio('/sounds/notice.wav');
-      cachedAudios.notice.load();
-    }
+      // Preload file suara di background
+      if (!cachedAudios.admin) {
+        cachedAudios.admin = new Audio('/sounds/admin-order.wav');
+        cachedAudios.admin.load();
+      }
+      if (!cachedAudios.success) {
+        cachedAudios.success = new Audio('/sounds/user-success.wav');
+        cachedAudios.success.load();
+      }
+      if (!cachedAudios.rejected) {
+        cachedAudios.rejected = new Audio('/sounds/rejected.wav');
+        cachedAudios.rejected.load();
+      }
+      if (!cachedAudios.notice) {
+        cachedAudios.notice = new Audio('/sounds/notice.wav');
+        cachedAudios.notice.load();
+      }
   } catch (e) {}
 }
 
@@ -78,6 +82,11 @@ if (typeof window !== 'undefined') {
   window.addEventListener('click', handleInteraction, { passive: true });
   window.addEventListener('touchstart', handleInteraction, { passive: true });
   window.addEventListener('keydown', handleInteraction, { passive: true });
+}
+
+export function isAudioContextUnlocked() {
+  if (typeof window === 'undefined') return false;
+  return isAudioUnlocked && (!audioContext || audioContext.state === 'running');
 }
 
 /**
@@ -210,8 +219,12 @@ export function playAdminOrderSound() {
 
   let wavStarted = false;
   try {
-    const audio = cachedAudios.admin || new Audio('/sounds/admin-order.wav');
+    if (!cachedAudios.admin) {
+      cachedAudios.admin = new Audio('/sounds/admin-order.wav');
+    }
+    const audio = cachedAudios.admin;
     audio.volume = 1.0;
+    audio.currentTime = 0;
     const p = audio.play();
     if (p !== undefined) {
       p.then(() => {
@@ -224,13 +237,16 @@ export function playAdminOrderSound() {
     playAdminSynthFallback();
   }
 
-  // Backup instan jika audio HTML5 tidak memicu play dalam 80ms
+  // Backup instan jika audio HTML5 tidak memicu play dalam 100ms
   try {
     const ctx = getAudioContext();
-    if (ctx && ctx.state === 'running' && !wavStarted) {
+    if (ctx) {
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       setTimeout(() => {
         if (!wavStarted) playAdminSynthFallback();
-      }, 80);
+      }, 100);
     }
   } catch (e) {}
 }
