@@ -8,6 +8,7 @@ import {
   writeToFirebase,
   updateInFirebase,
   readFromFirebase,
+  deleteFromFirebase,
   listenToFirebase
 } from './firebase.js';
 
@@ -15,6 +16,9 @@ const STORAGE_KEY = 'chaiz_admin_user_logs';
 const USERS_KEY = 'chaiz_admin_registered_users';
 const ACTIVITY_KEY = 'chaiz_admin_activity_logs';
 const PERMANENT_VISITS_KEY = 'chaiz_permanent_visit_history';
+const FIREBASE_PATH_USERS = 'registered_users';
+const FIREBASE_PATH_ACTIVITIES = 'activity_logs';
+const FIREBASE_PATH_BANNED = 'banned_users';
 const FIREBASE_PATH_VISITS = 'permanent_visits';
 const BANNED_KEY = 'chaiz_admin_banned_users';
 const ADMIN_AUTH_KEY = 'chaiz_admin_credentials';
@@ -481,6 +485,146 @@ export function saveRegisteredUsers(users) {
   }
 }
 
+/**
+ * Sinkronkan seluruh data akun pengguna dari Cloud Firebase Realtime Database
+ * Menggabungkan akun yang login dari Ponsel/HP & Laptop secara otomatis
+ */
+export async function syncRegisteredUsersFromCloud() {
+  if (typeof window === 'undefined') return getRegisteredUsers();
+
+  try {
+    const [cloudUsersData, cloudVisitsData] = await Promise.all([
+      readFromFirebase(FIREBASE_PATH_USERS).catch(() => null),
+      readFromFirebase(FIREBASE_PATH_VISITS).catch(() => null)
+    ]);
+
+    const localUsers = getRegisteredUsers();
+    const userMap = new Map();
+
+    // 1. Data lokal sebagai dasar awal
+    localUsers.forEach((u) => {
+      if (u && (u.id || u.userId)) {
+        userMap.set(u.id || u.userId, u);
+      }
+    });
+
+    // 2. Gabungkan data akun dari Firebase node registered_users
+    if (cloudUsersData) {
+      const cloudList = Array.isArray(cloudUsersData)
+        ? cloudUsersData.filter(Boolean)
+        : Object.values(cloudUsersData).filter(Boolean);
+
+      cloudList.forEach((cu) => {
+        if (!cu || (!cu.id && !cu.userId)) return;
+        const id = cu.id || cu.userId;
+        const existing = userMap.get(id);
+        if (!existing) {
+          userMap.set(id, cu);
+        } else {
+          const existingTime = new Date(existing.lastActiveTime || existing.lastHeartbeat || 0).getTime();
+          const cloudTime = new Date(cu.lastActiveTime || cu.lastHeartbeat || 0).getTime();
+          userMap.set(id, {
+            ...existing,
+            ...cu,
+            lastHeartbeat: Math.max(existing.lastHeartbeat || 0, cu.lastHeartbeat || 0),
+            lastActiveTime: cloudTime >= existingTime ? cu.lastActiveTime : existing.lastActiveTime,
+            sessionStatus: cu.sessionStatus || existing.sessionStatus
+          });
+        }
+      });
+    }
+
+    // 3. Gabungkan juga akun yang tercatat di kunjungan permanen agar tidak ada akun HP yang terlewat
+    if (cloudVisitsData) {
+      const visitsList = Array.isArray(cloudVisitsData)
+        ? cloudVisitsData.filter(Boolean)
+        : Object.values(cloudVisitsData).filter(Boolean);
+
+      visitsList.forEach((v) => {
+        if (!v || (!v.userId && !v.id)) return;
+        const id = v.userId || v.id;
+        const existing = userMap.get(id);
+        if (!existing && v.email && v.email !== 'tanpa_email@chaizstore.id') {
+          const newUser = {
+            id,
+            name: v.name || 'Pengguna Chaiz',
+            email: v.email,
+            picture: v.picture || null,
+            sessionStatus: 'logged_in',
+            lastHeartbeat: v.lastHeartbeat || Date.now(),
+            firstLoginTime: v.firstVisitedAt || new Date().toISOString(),
+            lastActiveTime: v.lastActiveAt || new Date().toISOString(),
+            loginCount: v.totalVisitsCount || 1,
+            activitiesCount: (v.activityHistory || []).length || 1,
+            deviceType: v.isMobile ? 'Smartphone / Mobile' : 'Laptop / PC Desktop',
+            os: v.os || 'Android',
+            isMobile: Boolean(v.isMobile),
+            browser: v.browser || 'Google Chrome',
+            banStatus: v.banStatus || null,
+            lastActivitySummary: v.currentActivity || 'Login ke akun toko'
+          };
+          userMap.set(id, newUser);
+          writeToFirebase(`${FIREBASE_PATH_USERS}/${id}`, newUser).catch(() => {});
+        }
+      });
+    }
+
+    const merged = Array.from(userMap.values());
+    merged.sort((a, b) => new Date(b.lastActiveTime || b.firstLoginTime || 0).getTime() - new Date(a.lastActiveTime || a.firstLoginTime || 0).getTime());
+    localStorage.setItem(USERS_KEY, JSON.stringify(merged));
+    broadcastAdminUpdate('USERS_UPDATED', { count: merged.length });
+    return merged;
+  } catch (err) {
+    console.error('Failed to sync registered users from cloud:', err);
+    return getRegisteredUsers();
+  }
+}
+
+/**
+ * Langganan realtime streaming (Firebase SSE) untuk seluruh perubahan akun pengguna
+ * Memberikan update instan (<50ms) saat pengguna login di ponsel/HP
+ */
+export function listenToRegisteredUsers(callback) {
+  if (typeof window === 'undefined') return () => {};
+
+  return listenToFirebase(FIREBASE_PATH_USERS, (cloudData) => {
+    if (!cloudData) return;
+    try {
+      const cloudList = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+
+      if (cloudList.length > 0) {
+        const local = getRegisteredUsers();
+        const map = new Map();
+        local.forEach((u) => map.set(u.id || u.userId, u));
+
+        cloudList.forEach((cu) => {
+          if (!cu || (!cu.id && !cu.userId)) return;
+          const id = cu.id || cu.userId;
+          const existing = map.get(id);
+          if (!existing) {
+            map.set(id, cu);
+          } else {
+            map.set(id, {
+              ...existing,
+              ...cu,
+              lastHeartbeat: Math.max(existing.lastHeartbeat || 0, cu.lastHeartbeat || 0)
+            });
+          }
+        });
+
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.lastActiveTime || b.firstLoginTime || 0).getTime() - new Date(a.lastActiveTime || a.firstLoginTime || 0).getTime());
+        localStorage.setItem(USERS_KEY, JSON.stringify(merged));
+        callback(merged);
+      }
+    } catch (e) {
+      console.warn('Error in listenToRegisteredUsers:', e);
+    }
+  });
+}
+
 // =========================================================================
 // 3. AKTIVITAS (HISTORY AKTIF PENGGUNA)
 // =========================================================================
@@ -502,6 +646,49 @@ export function saveActivityLogs(activities) {
   } catch (err) {
     console.error('Failed to save activity logs:', err);
   }
+}
+
+export async function syncActivityLogsFromCloud() {
+  if (typeof window === 'undefined') return getActivityLogs();
+  try {
+    const cloudData = await readFromFirebase(FIREBASE_PATH_ACTIVITIES);
+    if (cloudData) {
+      const cloudList = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+      const local = getActivityLogs();
+      const map = new Map();
+      local.forEach((a) => map.set(a.id, a));
+      cloudList.forEach((a) => map.set(a.id, a));
+      const merged = Array.from(map.values());
+      merged.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+      localStorage.setItem(ACTIVITY_KEY, JSON.stringify(merged.slice(0, 399)));
+      return merged;
+    }
+  } catch (e) {}
+  return getActivityLogs();
+}
+
+export function listenToActivityLogs(callback) {
+  if (typeof window === 'undefined') return () => {};
+  return listenToFirebase(FIREBASE_PATH_ACTIVITIES, (cloudData) => {
+    if (!cloudData) return;
+    try {
+      const cloudList = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+      if (cloudList.length > 0) {
+        const local = getActivityLogs();
+        const map = new Map();
+        local.forEach((a) => map.set(a.id, a));
+        cloudList.forEach((a) => map.set(a.id, a));
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+        localStorage.setItem(ACTIVITY_KEY, JSON.stringify(merged.slice(0, 399)));
+        callback(merged);
+      }
+    } catch (e) {}
+  });
 }
 
 /**
@@ -530,6 +717,11 @@ export function recordUserActivity(user, actionType, description) {
   const updatedActivities = [newActivity, ...activities.slice(0, 399)]; // Keep up to 400 latest activities
   saveActivityLogs(updatedActivities);
 
+  // Sync to Firebase Cloud
+  try {
+    writeToFirebase(`${FIREBASE_PATH_ACTIVITIES}/${newActivity.id}`, newActivity).catch(() => {});
+  } catch (e) {}
+
   // Also touch registered user active time & heartbeat if not banned
   const users = getRegisteredUsers();
   const existingIndex = users.findIndex((u) => u.id === userId);
@@ -539,6 +731,15 @@ export function recordUserActivity(user, actionType, description) {
     users[existingIndex].activitiesCount = (users[existingIndex].activitiesCount || 0) + 1;
     users[existingIndex].lastActivitySummary = description;
     saveRegisteredUsers(users);
+
+    try {
+      updateInFirebase(`${FIREBASE_PATH_USERS}/${userId}`, {
+        lastActiveTime: newActivity.timestamp,
+        lastHeartbeat: Date.now(),
+        activitiesCount: users[existingIndex].activitiesCount,
+        lastActivitySummary: description
+      }).catch(() => {});
+    } catch (e) {}
   }
 
   // Sinkronkan ke riwayat kunjungan abadi (permanen tanpa bisa dihapus)
@@ -714,6 +915,38 @@ export function updateVisitHeartbeat(user) {
       localStorage.setItem(PERMANENT_VISITS_KEY, JSON.stringify(visits));
     }
   } catch (e) {}
+}
+
+export async function syncPermanentVisitsFromCloud() {
+  if (typeof window === 'undefined') return getPermanentVisits();
+  try {
+    const cloudData = await readFromFirebase(FIREBASE_PATH_VISITS);
+    if (cloudData) {
+      const cloudList = Array.isArray(cloudData)
+        ? cloudData.filter(Boolean)
+        : Object.values(cloudData).filter(Boolean);
+
+      const local = getPermanentVisits();
+      const map = new Map();
+      local.forEach((v) => map.set(v.userId || v.id, v));
+      cloudList.forEach((v) => {
+        if (v && (v.userId || v.id)) {
+          const key = v.userId || v.id;
+          const existing = map.get(key);
+          if (!existing || new Date(v.lastActiveAt || 0) >= new Date(existing.lastActiveAt || 0)) {
+            map.set(key, { ...existing, ...v });
+          }
+        }
+      });
+      const merged = Array.from(map.values());
+      merged.sort((a, b) => new Date(b.lastActiveAt || 0).getTime() - new Date(a.lastActiveAt || 0).getTime());
+      localStorage.setItem(PERMANENT_VISITS_KEY, JSON.stringify(merged));
+      return merged;
+    }
+  } catch (e) {
+    console.warn('Failed to sync permanent visits from cloud:', e);
+  }
+  return getPermanentVisits();
 }
 
 export function listenToPermanentVisits(callback) {
@@ -1016,6 +1249,11 @@ export async function recordUserLogin(user) {
   }
   saveRegisteredUsers(users);
 
+  // Sync atomic ke Firebase Cloud Realtime Database (Sub-50ms instant lintas perangkat)
+  try {
+    writeToFirebase(`${FIREBASE_PATH_USERS}/${userId}`, userRecord).catch(() => {});
+  } catch (e) {}
+
   // 2. Record Login in Activity History
   recordUserActivity(user, 'LOGIN', 'Berhasil masuk ke akun toko');
 
@@ -1049,11 +1287,21 @@ export function recordUserLogout(user) {
   const existingIndex = users.findIndex((u) => u.id === userId);
 
   if (existingIndex !== -1) {
+    const nowIso = new Date().toISOString();
     users[existingIndex].sessionStatus = 'logged_out'; // Status Sesi: Sudah Logout
     users[existingIndex].lastHeartbeat = 0; // Offline
-    users[existingIndex].lastActiveTime = new Date().toISOString();
+    users[existingIndex].lastActiveTime = nowIso;
     users[existingIndex].lastActivitySummary = 'Logout dari akun';
     saveRegisteredUsers(users);
+
+    try {
+      updateInFirebase(`${FIREBASE_PATH_USERS}/${userId}`, {
+        sessionStatus: 'logged_out',
+        lastHeartbeat: 0,
+        lastActiveTime: nowIso,
+        lastActivitySummary: 'Logout dari akun'
+      }).catch(() => {});
+    } catch (e) {}
   }
 
   // Record in activity history
@@ -1076,8 +1324,23 @@ export function recordUserHeartbeat(user) {
 
   if (existingIndex !== -1) {
     if (users[existingIndex].sessionStatus !== 'logged_out' && !users[existingIndex].banStatus?.isBanned) {
-      users[existingIndex].lastHeartbeat = Date.now();
+      const now = Date.now();
+      const nowIso = new Date().toISOString();
+      users[existingIndex].lastHeartbeat = now;
+      users[existingIndex].lastActiveTime = nowIso;
       saveRegisteredUsers(users);
+
+      try {
+        updateInFirebase(`${FIREBASE_PATH_USERS}/${userId}`, {
+          lastHeartbeat: now,
+          lastActiveTime: nowIso,
+          sessionStatus: 'logged_in'
+        }).catch(() => {});
+        updateInFirebase(`${FIREBASE_PATH_VISITS}/${userId}`, {
+          lastHeartbeat: now,
+          lastActiveAt: nowIso
+        }).catch(() => {});
+      } catch (e) {}
     }
   }
 }
@@ -1094,6 +1357,11 @@ export function setUserOffline(user) {
   if (existingIndex !== -1) {
     users[existingIndex].lastHeartbeat = 0; // Offline
     saveRegisteredUsers(users);
+
+    try {
+      updateInFirebase(`${FIREBASE_PATH_USERS}/${userId}`, { lastHeartbeat: 0 }).catch(() => {});
+      updateInFirebase(`${FIREBASE_PATH_VISITS}/${userId}`, { lastHeartbeat: 0 }).catch(() => {});
+    } catch (e) {}
   }
 }
 
@@ -1122,11 +1390,17 @@ export function deleteActivityLog(activityId) {
   const activities = getActivityLogs();
   const filtered = activities.filter((a) => a.id !== activityId);
   saveActivityLogs(filtered);
+  try {
+    deleteFromFirebase(`${FIREBASE_PATH_ACTIVITIES}/${activityId}`).catch(() => {});
+  } catch (e) {}
   return filtered;
 }
 
 export function clearAllActivityLogs() {
   saveActivityLogs([]);
+  try {
+    deleteFromFirebase(FIREBASE_PATH_ACTIVITIES).catch(() => {});
+  } catch (e) {}
   return [];
 }
 
@@ -1134,11 +1408,17 @@ export function deleteUserFromDirectory(userId) {
   const users = getRegisteredUsers();
   const filtered = users.filter((u) => u.id !== userId);
   saveRegisteredUsers(filtered);
+  try {
+    deleteFromFirebase(`${FIREBASE_PATH_USERS}/${userId}`).catch(() => {});
+  } catch (e) {}
   return filtered;
 }
 
 export function clearAllUsersDirectory() {
   saveRegisteredUsers([]);
+  try {
+    deleteFromFirebase(FIREBASE_PATH_USERS).catch(() => {});
+  } catch (e) {}
   return [];
 }
 

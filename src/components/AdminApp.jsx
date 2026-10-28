@@ -1,10 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   getRegisteredUsers,
+  saveRegisteredUsers,
+  syncRegisteredUsersFromCloud,
+  listenToRegisteredUsers,
   getActivityLogs,
+  saveActivityLogs,
+  syncActivityLogsFromCloud,
+  listenToActivityLogs,
   getUserLogs,
   isUserOnline,
   getPermanentVisits,
+  syncPermanentVisitsFromCloud,
   listenToPermanentVisits,
   isVisitOnline,
   deleteUserFromDirectory,
@@ -319,12 +326,23 @@ export default function AdminApp() {
     }, 3500);
   };
 
-  // Reload all tracker & orders data
+  // Reload all tracker & orders data across Local & Cloud
   const reloadAllData = () => {
     setRegisteredUsers(getRegisteredUsers());
     setActivityLogs(getActivityLogs());
     setPermanentVisits(getPermanentVisits());
     setOrdersList(getTransactions());
+
+    // Cloud background fetches
+    syncRegisteredUsersFromCloud().then((fresh) => {
+      if (fresh) setRegisteredUsers(fresh);
+    });
+    syncActivityLogsFromCloud().then((fresh) => {
+      if (fresh) setActivityLogs(fresh);
+    });
+    syncPermanentVisitsFromCloud().then((fresh) => {
+      if (fresh) setPermanentVisits(fresh);
+    });
     syncTransactionsFromCloud().then((fresh) => {
       if (fresh && fresh.length > 0) {
         setOrdersList(fresh);
@@ -332,14 +350,26 @@ export default function AdminApp() {
     });
   };
 
-  // Seed demo data if totally empty
+  // Sync from Cloud on mount
   useEffect(() => {
-    const currentUsers = getRegisteredUsers();
-    if (currentUsers.length === 0) {
-      const seeded = seedDemoUsersAndActivities();
-      setRegisteredUsers(seeded.users);
-      setActivityLogs(seeded.activities);
-    }
+    syncRegisteredUsersFromCloud().then((cloudUsers) => {
+      if (cloudUsers && cloudUsers.length > 0) {
+        setRegisteredUsers(cloudUsers);
+      } else {
+        const currentUsers = getRegisteredUsers();
+        if (currentUsers.length === 0) {
+          const seeded = seedDemoUsersAndActivities();
+          setRegisteredUsers(seeded.users);
+          setActivityLogs(seeded.activities);
+        }
+      }
+    });
+    syncActivityLogsFromCloud().then((acts) => {
+      if (acts && acts.length > 0) setActivityLogs(acts);
+    });
+    syncPermanentVisitsFromCloud().then((visits) => {
+      if (visits && visits.length > 0) setPermanentVisits(visits);
+    });
   }, []);
 
   // Real-time synchronization (Storage & BroadcastChannel & Polling)
@@ -492,6 +522,20 @@ export default function AdminApp() {
       });
     }, 20000);
 
+    // Realtime streaming daftar pengguna dari Firebase RTDB (Semua, Online, Offline, Masih Login)
+    const unsubscribeUsers = listenToRegisteredUsers((liveUsers) => {
+      if (Array.isArray(liveUsers) && liveUsers.length > 0) {
+        setRegisteredUsers(liveUsers);
+      }
+    });
+
+    // Realtime streaming riwayat aktivitas dari Firebase RTDB
+    const unsubscribeActivities = listenToActivityLogs((liveActs) => {
+      if (Array.isArray(liveActs) && liveActs.length > 0) {
+        setActivityLogs(liveActs);
+      }
+    });
+
     // Realtime streaming kunjungan permanen dari Firebase RTDB
     const unsubscribeVisits = listenToPermanentVisits((liveVisits) => {
       if (Array.isArray(liveVisits) && liveVisits.length > 0) {
@@ -501,6 +545,8 @@ export default function AdminApp() {
 
     return () => {
       if (unsubscribeAllTrx) unsubscribeAllTrx();
+      if (unsubscribeUsers) unsubscribeUsers();
+      if (unsubscribeActivities) unsubscribeActivities();
       if (unsubscribeVisits) unsubscribeVisits();
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);

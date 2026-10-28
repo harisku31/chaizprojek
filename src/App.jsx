@@ -238,6 +238,20 @@ export default function App() {
     if (window.location.hash === '#admin') {
       window.location.href = '/admin.html';
     }
+
+    // Lacak kunjungan awal pengunjung (baik tamu belum login maupun pengguna login di ponsel/laptop)
+    try {
+      const visitorId = localStorage.getItem('chaiz_visitor_id') || `vis_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      localStorage.setItem('chaiz_visitor_id', visitorId);
+
+      const target = authUser || {
+        id: visitorId,
+        userId: visitorId,
+        name: 'Pengunjung Toko',
+        email: 'pengunjung@chaizstore.id'
+      };
+      recordUserVisit(target, 'Membuka beranda toko ChaizStore');
+    } catch (e) {}
   }, []);
 
   // Heartbeat & Presence tracking (Sedang Online vs Offline & Auto-detect ban / unban)
