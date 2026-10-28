@@ -316,7 +316,7 @@ export default function AdminApp() {
   const [toasts, setToasts] = useState([]);
 
   // Live timer tick for countdown and realtime updates
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
 
   const showToast = (message, icon = 'fa-circle-check', type = 'success') => {
     const id = Date.now() + Math.random();
