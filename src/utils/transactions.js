@@ -16,7 +16,8 @@ import {
   fetchAllTransactionsFromSql,
   createTransactionInSql,
   updateTransactionInSql,
-  deleteTransactionProofInSql
+  deleteTransactionProofInSql,
+  clearAllTransactionsInSql
 } from './sqlApi.js';
 
 const STORAGE_KEY_TRX = 'chaiz_transactions';
@@ -680,6 +681,7 @@ export function clearAllTransactions() {
   saveTransactions([]);
   deleteFromFirebase(FIREBASE_PATH_TRX);
   deleteFromFirebase(FIREBASE_PATH_USER_TRX);
+  clearAllTransactionsInSql().catch(() => {});
 
   try {
     if (typeof localStorage !== 'undefined') {

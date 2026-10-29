@@ -53,6 +53,8 @@ import {
 } from '../utils/transactions';
 import { compressImageFile } from '../utils/format';
 import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled, unlockAudio, isAudioContextUnlocked } from '../utils/audioNotification';
+import { subscribeAdminSocket, isSocketConnected } from '../utils/socketClient';
+import { checkSqlBackendHealth } from '../utils/sqlApi';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -252,6 +254,7 @@ export default function AdminApp() {
  
   // Orders / Transaksi Masuk State (Menu 4)
   const [ordersList, setOrdersList] = useState(() => getTransactions());
+  const [isServerOnline, setIsServerOnline] = useState(false);
   const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'processing' | 'completed' | 'rejected'
   const [orderSearch, setOrderSearch] = useState('');
   const [selectedOrderForFulfill, setSelectedOrderForFulfill] = useState(null);
@@ -594,7 +597,55 @@ export default function AdminApp() {
       }
     });
 
+    // Check initial dedicated server health
+    checkSqlBackendHealth().then((healthy) => {
+      setIsServerOnline(healthy);
+    });
+
+    const handleServerStatus = (e) => {
+      if (e.detail && typeof e.detail.online === 'boolean') {
+        setIsServerOnline(e.detail.online);
+      }
+    };
+    window.addEventListener('chaiz_server_status', handleServerStatus);
+
+    // ⚡ Socket.io Realtime WebSocket Engine (Sub-10ms Bel Chime & Sinyal Instan)
+    const unsubscribeSocket = subscribeAdminSocket({
+      onIncomingOrder: ({ newTrx }) => {
+        if (!newTrx || !newTrx.id) return;
+        knownOrderIdsRef.current.add(newTrx.id);
+        setOrdersList((prev) => {
+          if (prev.some((o) => o.id === newTrx.id)) return prev;
+          return [newTrx, ...prev];
+        });
+        playAdminOrderSound();
+        showToast(`🔔 [INSTAN] Pesanan masuk: ${newTrx.productName} dari ${newTrx.customerName || 'Pelanggan'}!`, 'fa-bell text-warning', 'success');
+      },
+      onOrderUpdated: (updatedTrx) => {
+        if (!updatedTrx || !updatedTrx.id) return;
+        setOrdersList((prev) => prev.map((o) => (o.id === updatedTrx.id ? { ...o, ...updatedTrx } : o)));
+      },
+      onOrdersCleared: () => {
+        setOrdersList([]);
+      },
+      onPresenceUpdated: (user) => {
+        if (!user || (!user.id && !user.userId)) return;
+        const uid = user.id || user.userId;
+        setRegisteredUsers((prev) => {
+          const idx = prev.findIndex((u) => (u.id || u.userId) === uid);
+          if (idx >= 0) {
+            const copy = [...prev];
+            copy[idx] = { ...copy[idx], ...user };
+            return copy;
+          }
+          return [user, ...prev];
+        });
+      }
+    });
+
     return () => {
+      if (unsubscribeSocket) unsubscribeSocket();
+      window.removeEventListener('chaiz_server_status', handleServerStatus);
       if (unsubscribeAllTrx) unsubscribeAllTrx();
       if (unsubscribeUsers) unsubscribeUsers();
       if (unsubscribeActivities) unsubscribeActivities();
@@ -1911,6 +1962,33 @@ export default function AdminApp() {
               <i className="fa-solid fa-volume-high"></i>
               <span>Tes Suara</span>
             </button>
+
+            <div
+              className="admin-nav-server-badge"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '600',
+                background: isServerOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                border: `1px solid ${isServerOnline ? 'rgba(16, 185, 129, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`,
+                color: isServerOnline ? '#34d399' : '#facc15'
+              }}
+              title={isServerOnline ? "Node.js Server Dedicated + Socket.io Online (Sub-10ms Bel Chime Aktif)" : "Mode Cloud Firebase Aktif"}
+            >
+              <span style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: isServerOnline ? '#10b981' : '#eab308',
+                boxShadow: isServerOnline ? '0 0 10px #10b981' : 'none',
+                display: 'inline-block'
+              }} />
+              <span>{isServerOnline ? '⚡ Server Node.js (0ms)' : '☁️ Firebase Cloud'}</span>
+            </div>
 
             <button
               type="button"

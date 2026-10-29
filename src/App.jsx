@@ -53,6 +53,7 @@ import {
 } from './utils/transactions';
 import { listenToFirebase } from './utils/firebase';
 import { syncUserToSql } from './utils/sqlApi';
+import { subscribeUserSocket } from './utils/socketClient';
 import {
   playUserSuccessSound,
   playUserRejectSound,
@@ -541,8 +542,9 @@ export default function App() {
       }
     };
 
-    // 1. Firebase RTDB Watcher: Langganan node privat user jika login
+    // 1. Firebase RTDB Watcher & Socket.io: Langganan node privat user jika login
     let unsubscribeUserTrx = () => {};
+    let unsubscribeSocketUser = () => {};
     if (authUser) {
       unsubscribeUserTrx = listenToUserTransactions(authUser, (userList) => {
         if (Array.isArray(userList)) {
@@ -550,6 +552,17 @@ export default function App() {
           updateBadge();
         }
       });
+      const uKey = authUser.id || authUser.userId || (authUser.email ? getUserKey(authUser) : null);
+      if (uKey) {
+        unsubscribeSocketUser = subscribeUserSocket(uKey, {
+          onOrderUpdated: (updatedTrx) => {
+            if (updatedTrx) {
+              handleOrderStatusChange(updatedTrx, 'socket_user_trx');
+              updateBadge();
+            }
+          }
+        });
+      }
     }
 
     // 2. Firebase RTDB Watcher: Langganan langsung ke ID pesanan yang masih 'processing'
@@ -618,6 +631,7 @@ export default function App() {
 
     return () => {
       unsubscribeUserTrx();
+      unsubscribeSocketUser();
       unsubsOrders.forEach((fn) => {
         try { fn(); } catch {}
       });

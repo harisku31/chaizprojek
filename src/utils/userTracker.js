@@ -11,6 +11,16 @@ import {
   deleteFromFirebase,
   listenToFirebase
 } from './firebase.js';
+import {
+  fetchAllUsersFromSql,
+  saveUserToSql,
+  banUserInSql,
+  deleteUserFromSql,
+  fetchAllVisitsFromSql,
+  saveVisitToSql,
+  fetchAllActivitiesFromSql,
+  saveActivityToSql
+} from './sqlApi.js';
 
 const STORAGE_KEY = 'chaiz_admin_user_logs';
 const USERS_KEY = 'chaiz_admin_registered_users';
@@ -331,7 +341,8 @@ export function banUser(userOrId, banType = 'temporary', durationMinutes = 60, r
     savePermanentVisits(visits);
   }
 
-  // 4. Log Activity
+  // 4. Log Activity & Sync Ban to Dedicated SQL Server
+  banUserInSql(finalUserId, banRecord).catch(() => {});
   const banLabel = banType === 'permanent' ? 'Banned Permanen' : `Banned Sementara (${minutes} menit)`;
   recordUserActivity(
     { id: finalUserId, name: finalName, email: finalEmail },
@@ -493,9 +504,10 @@ export async function syncRegisteredUsersFromCloud() {
   if (typeof window === 'undefined') return getRegisteredUsers();
 
   try {
-    const [cloudUsersData, cloudVisitsData] = await Promise.all([
+    const [cloudUsersData, cloudVisitsData, sqlUsersData] = await Promise.all([
       readFromFirebase(FIREBASE_PATH_USERS).catch(() => null),
-      readFromFirebase(FIREBASE_PATH_VISITS).catch(() => null)
+      readFromFirebase(FIREBASE_PATH_VISITS).catch(() => null),
+      fetchAllUsersFromSql().catch(() => null)
     ]);
 
     const localUsers = getRegisteredUsers();
@@ -508,7 +520,29 @@ export async function syncRegisteredUsersFromCloud() {
       }
     });
 
-    // 2. Gabungkan data akun dari Firebase node registered_users
+    // 2. Gabungkan data akun dari Database Dedicated Node/SQL
+    if (Array.isArray(sqlUsersData)) {
+      sqlUsersData.forEach((su) => {
+        if (!su || (!su.id && !su.userId)) return;
+        const id = su.id || su.userId;
+        const existing = userMap.get(id);
+        if (!existing) {
+          userMap.set(id, su);
+        } else {
+          const existingTime = new Date(existing.lastActiveTime || existing.lastHeartbeat || 0).getTime();
+          const sqlTime = new Date(su.lastActiveTime || su.lastHeartbeat || 0).getTime();
+          userMap.set(id, {
+            ...existing,
+            ...su,
+            lastHeartbeat: su.lastHeartbeat !== undefined ? su.lastHeartbeat : existing.lastHeartbeat,
+            lastActiveTime: sqlTime >= existingTime ? su.lastActiveTime : existing.lastActiveTime,
+            sessionStatus: su.sessionStatus || existing.sessionStatus
+          });
+        }
+      });
+    }
+
+    // 3. Gabungkan data akun dari Firebase node registered_users
     if (cloudUsersData) {
       const cloudList = Array.isArray(cloudUsersData)
         ? cloudUsersData.filter(Boolean)
@@ -717,9 +751,10 @@ export function recordUserActivity(user, actionType, description) {
   const updatedActivities = [newActivity, ...activities.slice(0, 399)]; // Keep up to 400 latest activities
   saveActivityLogs(updatedActivities);
 
-  // Sync to Firebase Cloud
+  // Sync to Firebase Cloud & Dedicated SQL Server
   try {
     writeToFirebase(`${FIREBASE_PATH_ACTIVITIES}/${newActivity.id}`, newActivity).catch(() => {});
+    saveActivityToSql(newActivity).catch(() => {});
   } catch (e) {}
 
   // Also touch registered user active time & heartbeat if not banned
@@ -1249,9 +1284,10 @@ export async function recordUserLogin(user) {
   }
   saveRegisteredUsers(users);
 
-  // Sync atomic ke Firebase Cloud Realtime Database (Sub-50ms instant lintas perangkat)
+  // Sync atomic ke Firebase Cloud Realtime Database & Dedicated SQL Backend
   try {
     writeToFirebase(`${FIREBASE_PATH_USERS}/${userId}`, userRecord).catch(() => {});
+    saveUserToSql(userRecord).catch(() => {});
   } catch (e) {}
 
   // 2. Record Login in Activity History
