@@ -4,6 +4,12 @@
 // Instant 0ms Order Chimes, Unlimited Data Capacity, Zero Browser Limits
 // ===================================================================
 
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    process.loadEnvFile();
+  }
+} catch (_) {}
+
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -100,6 +106,212 @@ app.get('/health', (req, res) => {
     database: 'SQLite (Native WAL Mode)',
     timestamp: new Date().toISOString()
   });
+});
+
+// -------------------------------------------------------------------
+// JANSPAYMENT REALTIME QRIS GATEWAY (KEY: js_c2ae56533ce1a2da9470e1e5916bd8cc67c732718d7b9c43)
+// -------------------------------------------------------------------
+const JANSPAYMENT_BASE_URL = 'https://janspayment.com';
+const JANSPAYMENT_API_KEY = process.env.JANSPAYMENT_API_KEY || 'js_c2ae56533ce1a2da9470e1e5916bd8cc67c732718d7b9c43';
+
+// Inisialisasi Sesi QRIS Dinamis JansPayment
+app.post('/api/gateway/create-qris', async (req, res) => {
+  try {
+    const { orderId, amount, customerName, note } = req.body || {};
+    if (!orderId || !amount) {
+      return res.status(400).json({ success: false, error: 'orderId and amount are required' });
+    }
+    const cleanAmount = Math.max(1000, Math.round(Number(amount)));
+
+    const jansRes = await fetch(`${JANSPAYMENT_BASE_URL}/gateaway/qris/create`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${JANSPAYMENT_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: cleanAmount,
+        ref: orderId,
+        note: note || `Pesanan #${orderId} ${customerName || 'ChaizStore'}`
+      })
+    });
+
+    const data = await jansRes.json();
+    console.log(`💳 [JansPayment]: Create QRIS Order ${orderId}: Rp ${cleanAmount} -> Result:`, data.success ? data.data.payment_id : data.message);
+    res.status(jansRes.status).json(data);
+  } catch (err) {
+    console.error('❌ [JansPayment Create Error]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Cek Status Pembayaran Realtime JansPayment
+app.post('/api/gateway/check-status', async (req, res) => {
+  try {
+    const { payment_id, paymentId } = req.body || {};
+    const pId = payment_id || paymentId;
+    if (!pId) {
+      return res.status(400).json({ success: false, error: 'payment_id is required' });
+    }
+
+    const jansRes = await fetch(`${JANSPAYMENT_BASE_URL}/gateaway/payment/check`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${JANSPAYMENT_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ payment_id: pId })
+    });
+
+    const data = await jansRes.json();
+    res.status(jansRes.status).json(data);
+  } catch (err) {
+    console.error('❌ [JansPayment Check Error]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/gateway/check-status/:paymentId', async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const jansRes = await fetch(`${JANSPAYMENT_BASE_URL}/gateaway/payment/check`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${JANSPAYMENT_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ payment_id: paymentId })
+    });
+    const data = await jansRes.json();
+    res.status(jansRes.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------------
+// MIDTRANS PAYMENT GATEWAY (PRODUCTION)
+// -------------------------------------------------------------------
+const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
+const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || '';
+const MIDTRANS_SNAP_URL = 'https://app.midtrans.com/snap/v1/transactions';
+
+// 1. Buat Snap Token untuk QRIS / E-Wallet Otomatis
+app.post('/api/midtrans/create-transaction', async (req, res) => {
+  try {
+    const { orderId, amount, customerName, customerEmail, customerPhone, items } = req.body;
+
+    if (!orderId || !amount) {
+      return res.status(400).json({ success: false, error: 'orderId and amount are required' });
+    }
+
+    if (!MIDTRANS_SERVER_KEY) {
+      return res.status(500).json({ success: false, error: 'MIDTRANS_SERVER_KEY is not configured in environment variables' });
+    }
+
+    const authHeader = 'Basic ' + Buffer.from(`${MIDTRANS_SERVER_KEY}:`).toString('base64');
+
+    const payload = {
+      transaction_details: {
+        order_id: String(orderId),
+        gross_amount: Math.round(Number(amount))
+      },
+      customer_details: {
+        first_name: customerName || 'Pelanggan ChaizStore',
+        email: customerEmail && customerEmail.includes('@') ? customerEmail : 'order@chaizstore.my.id',
+        phone: customerPhone || '081234567890'
+      }
+    };
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      payload.item_details = items.map((it, idx) => ({
+        id: String(it.productId || it.id || `item-${idx + 1}`).slice(0, 50),
+        price: Math.round(Number(it.price || it.total || amount)),
+        quantity: Number(it.qty || 1),
+        name: String(it.name || 'Produk Digital').slice(0, 50)
+      }));
+    }
+
+    const response = await fetch(MIDTRANS_SNAP_URL, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': authHeader
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ [Midtrans API Error]:', data);
+      return res.status(response.status).json({ success: false, error: data.error_messages || data.message || 'Midtrans error', details: data });
+    }
+
+    console.log(`✅ [Midtrans Snap Token Created]: Order ${orderId} -> Token: ${data.token}`);
+    res.json({ success: true, token: data.token, redirect_url: data.redirect_url, clientKey: MIDTRANS_CLIENT_KEY });
+  } catch (err) {
+    console.error('❌ [Midtrans Error]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Webhook / Notification Handler dari Midtrans (Instant Callback)
+app.post('/api/midtrans/notification', (req, res) => {
+  try {
+    const notif = req.body;
+    console.log('⚡ [Midtrans Webhook Received]:', notif.order_id, notif.transaction_status);
+
+    const orderId = notif.order_id;
+    const status = notif.transaction_status;
+    const fraudStatus = notif.fraud_status;
+
+    let orderStatus = 'Menunggu Pembayaran';
+    let isPaid = false;
+
+    if (status === 'capture') {
+      if (fraudStatus === 'accept') {
+        orderStatus = 'Diproses';
+        isPaid = true;
+      }
+    } else if (status === 'settlement') {
+      orderStatus = 'Diproses';
+      isPaid = true;
+    } else if (status === 'pending') {
+      orderStatus = 'Menunggu Pembayaran';
+    } else if (status === 'deny' || status === 'expire' || status === 'cancel') {
+      orderStatus = 'Gagal';
+    }
+
+    // Update transaksi di database SQLite
+    const updated = updateTransaction(orderId, {
+      status: isPaid ? 'Diproses' : orderStatus,
+      paymentStatus: isPaid ? 'Lunas' : (orderStatus === 'Gagal' ? 'Gagal' : 'Menunggu'),
+      paymentMethod: `Midtrans (${notif.payment_type || 'QRIS'})`,
+      midtransStatus: status,
+      settlementTime: notif.settlement_time || new Date().toISOString()
+    });
+
+    if (updated) {
+      if (updated.userKey || updated.userId) {
+        io.to(`user-${updated.userKey || updated.userId}`).emit('order:user_updated', updated);
+      }
+      io.to('admin-room').emit('order:updated', updated);
+      if (isPaid) {
+        io.to('admin-room').emit('order:incoming', {
+          newTrx: updated,
+          timestamp: Date.now(),
+          sound: true
+        });
+      }
+    }
+
+    res.status(200).json({ status: 'OK', message: 'Notification processed' });
+  } catch (err) {
+    console.error('❌ [Midtrans Webhook Error]:', err.message);
+    res.status(500).json({ status: 'Error', error: err.message });
+  }
 });
 
 // -------------------------------------------------------------------

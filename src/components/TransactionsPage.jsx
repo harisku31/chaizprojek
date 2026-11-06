@@ -420,22 +420,10 @@ export default function TransactionsPage({
 
             <button
               type="button"
-              className="btn btn-outline"
+              className="btn trx-refresh-btn"
               onClick={handleManualRefresh}
               disabled={isRefreshing}
               title="Segarkan status pesanan langsung dari Cloud Database Firebase"
-              style={{
-                background: 'rgba(6, 182, 212, 0.12)',
-                border: '1px solid rgba(6, 182, 212, 0.35)',
-                color: '#22d3ee',
-                borderRadius: '999px',
-                padding: '6px 14px',
-                fontSize: '13px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: isRefreshing ? 'wait' : 'pointer'
-              }}
             >
               <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? 'fa-spin' : ''}`}></i>
               <span>{isRefreshing ? 'Memperbarui...' : 'Segarkan Status'}</span>
@@ -443,24 +431,12 @@ export default function TransactionsPage({
 
             <button
               type="button"
-              className="btn btn-outline"
+              className="btn trx-sound-test-btn"
               onClick={() => {
                 playUserSuccessSound();
                 onShowToast?.('🎉 Ting-Ting! Suara notifikasi pesanan selesai berbunyi.', 'fa-volume-high text-success');
               }}
               title="Klik untuk tes suara notifikasi pesanan selesai"
-              style={{
-                background: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: '#34d399',
-                borderRadius: '999px',
-                padding: '6px 14px',
-                fontSize: '13px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
             >
               <i className="fa-solid fa-volume-high"></i>
               <span>Tes Suara Notif</span>

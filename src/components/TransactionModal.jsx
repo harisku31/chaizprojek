@@ -144,8 +144,30 @@ export default function TransactionModal({
             </div>
           </div>
 
-          {/* Bukti Pembayaran yang Terkirim */}
-          {transaction.proofUrl ? (
+          {/* Status Pembayaran / Verifikasi */}
+          {(transaction.isGatewayPaid || transaction.proofUrl === 'JANSPAYMENT_SETTLED' || transaction.proofUrl === 'GATEWAY_SUCCESS' || transaction.paymentStatus === 'Lunas') ? (
+            <div
+              className="trx-proof-sent-box"
+              style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.06))',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                borderRadius: '12px',
+                padding: '12px 14px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-circle-check text-emerald" style={{ fontSize: '1.3rem' }}></i>
+                <div>
+                  <strong style={{ color: '#10b981', fontSize: '0.88rem', display: 'block' }}>
+                    Pembayaran Terverifikasi Resmi
+                  </strong>
+                  <small style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                    Transaksi telah divalidasi dan pesanan otomatis masuk ke sistem pemrosesan Admin.
+                  </small>
+                </div>
+              </div>
+            </div>
+          ) : (transaction.proofUrl && typeof transaction.proofUrl === 'string' && (transaction.proofUrl.startsWith('data:image') || (transaction.proofUrl.startsWith('http') && !transaction.proofUrl.includes('JANSPAYMENT')))) ? (
             <div className="trx-proof-sent-box">
               <div className="proof-sent-header">
                 <i className="fa-solid fa-receipt text-cyan"></i>
@@ -155,16 +177,8 @@ export default function TransactionModal({
                 <img src={transaction.proofUrl} alt="Bukti Transfer" className="proof-sent-thumb" />
                 <div className="proof-sent-details">
                   <strong>{transaction.proofFileName || 'Bukti_Pembayaran.png'}</strong>
-                  <small className="text-muted">
-                    <i className="fa-regular fa-clock"></i> Foto bukti otomatis terhapus setelah 2 hari demi privasi & kebersihan data.
-                  </small>
                 </div>
               </div>
-            </div>
-          ) : transaction.proofExpired ? (
-            <div className="trx-proof-expired-notice">
-              <i className="fa-solid fa-clock-rotate-left"></i>
-              <span>{transaction.proofDeletedReason || 'Foto bukti transfer telah otomatis terhapus setelah masa aktif 2 hari.'}</span>
             </div>
           ) : null}
 
@@ -211,39 +225,15 @@ export default function TransactionModal({
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
+                      className="btn-proof-full"
                       onClick={() => window.open(transaction.adminProofUrl, '_blank')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        border: '1px solid rgba(16, 185, 129, 0.45)',
-                        color: '#34d399',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
                     >
                       <i className="fa-solid fa-up-right-from-square"></i> Lihat Ukuran Penuh
                     </button>
                     <a
                       href={transaction.adminProofUrl}
                       download={transaction.adminProofFileName || 'Bukti_Pengiriman_Admin.jpg'}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.35)',
-                        color: '#38bdf8',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
+                      className="btn-proof-dl"
                     >
                       <i className="fa-solid fa-download"></i> Unduh Foto
                     </a>

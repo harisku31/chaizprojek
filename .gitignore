@@ -7,3 +7,6 @@ dist-ssr/
 !.env.example
 .DS_Store
 server/data/*.db*
+.vscode/
+scratch/
+backroundabstrak.png

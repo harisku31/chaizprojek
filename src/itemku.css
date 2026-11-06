@@ -1,0 +1,5521 @@
+/* ==========================================================================
+   CHAIZSTORE - ITEMKU.COM DESIGN SYSTEM & STYLESHEET
+   Inspired by https://www.itemku.com/id/
+   Brand Colors: Itemku Royal Electric Blue (#0066FF) & Action Orange (#FF5C00)
+   Canvas: Crisp Clean Modern Marketplace (#F4F6FA & #FFFFFF)
+   ========================================================================== */
+
+:root {
+  /* Itemku Color Palette */
+  --itemku-blue: #0066ff;
+  --itemku-blue-hover: #0052d6;
+  --itemku-blue-light: #eef4ff;
+  --itemku-blue-border: #bfdbfe;
+
+  --itemku-orange: #ff5c00;
+  --itemku-orange-hover: #e05200;
+  --itemku-orange-light: #fff4ed;
+
+  --itemku-bg: #f4f6fa;
+  --itemku-card: #ffffff;
+  --itemku-border: #e2e8f0;
+  --itemku-border-light: #f1f5f9;
+
+  --itemku-text-dark: #0f172a;
+  --itemku-text-body: #334155;
+  --itemku-text-muted: #64748b;
+  --itemku-text-sub: #94a3b8;
+
+  --itemku-success: #10b981;
+  --itemku-danger: #ef4444;
+  --itemku-warning: #f59e0b;
+
+  /* Global Overrides for ChaizStore CSS Variables */
+  --bg-dark: #f4f6fa;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-input: #f8fafc;
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-dark: #94a3b8;
+
+  --primary: #0066ff;
+  --primary-hover: #0052d6;
+  --primary-glow: rgba(0, 102, 255, 0.15);
+
+  --accent-cyan: #0ea5e9;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #ef4444;
+  --accent-purple: #8b5cf6;
+
+  --border-subtle: #e2e8f0;
+  --border-focus: #0066ff;
+
+  --grad-primary: linear-gradient(135deg, #0066ff 0%, #0052d6 100%);
+  --grad-fire: linear-gradient(135deg, #ff5c00 0%, #ff8c00 100%);
+}
+
+/* Base Body & Reset */
+body {
+  background-color: var(--itemku-bg) !important;
+  color: var(--itemku-text-dark) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding-bottom: 70px; /* Space for mobile bottom nav */
+}
+
+@media (min-width: 992px) {
+  body {
+    padding-bottom: 0;
+  }
+}
+
+/* ==========================================================================
+   1. ITEMKU TOP UTILITY BAR (AnnouncementBar)
+   ========================================================================== */
+.itemku-top-bar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #eef2f6 !important;
+  color: var(--itemku-text-muted) !important;
+  font-size: 12px;
+  padding: 8px 0 !important;
+}
+
+.itemku-top-bar .announcement-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.itemku-top-bar .announcement-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemku-top-bar .announcement-badge {
+  background: #eef4ff;
+  color: var(--itemku-blue);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.itemku-top-bar .announcement-text {
+  color: var(--itemku-text-body);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.itemku-top-bar .announcement-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.itemku-top-bar .top-bar-link {
+  background: none;
+  border: none;
+  color: var(--itemku-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s ease;
+  text-decoration: none;
+}
+
+.itemku-top-bar .top-bar-link:hover {
+  color: var(--itemku-blue);
+}
+
+/* ==========================================================================
+   2. ITEMKU HEADER & NAVBAR
+   ========================================================================== */
+.itemku-navbar {
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--itemku-border) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+  padding: 12px 0 0 0 !important;
+}
+
+.itemku-navbar .nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+/* Logo Itemku Style */
+.itemku-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.itemku-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.itemku-logo-icon .logo-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.itemku-logo-text {
+  display: flex;
+  align-items: baseline;
+  position: relative;
+}
+
+.brand-itemku {
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--itemku-blue);
+  letter-spacing: -0.5px;
+}
+
+.brand-itemku span {
+  color: var(--itemku-text-dark);
+}
+
+.itemku-dot {
+  width: 7px;
+  height: 7px;
+  background-color: var(--itemku-orange);
+  border-radius: 50%;
+  margin-left: 2px;
+  display: inline-block;
+}
+
+/* Kategori Dropdown Button */
+.itemku-cat-dropdown-wrap {
+  position: relative;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .itemku-cat-dropdown-wrap {
+    display: block;
+  }
+}
+
+.btn-itemku-kategori {
+  background: #f8fafc;
+  border: 1px solid var(--itemku-border);
+  color: var(--itemku-text-body);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-itemku-kategori:hover,
+.btn-itemku-kategori.active {
+  background: var(--itemku-blue-light);
+  border-color: var(--itemku-blue-border);
+  color: var(--itemku-blue);
+}
+
+.chevron-icon {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+.itemku-kategori-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 240px;
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  z-index: 1050;
+  animation: fadeInDown 0.18s ease;
+}
+
+.kategori-popover-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--itemku-text-sub);
+  padding: 6px 10px;
+  letter-spacing: 0.5px;
+}
+
+.kategori-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kategori-popover-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--itemku-text-body);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.kategori-popover-item i {
+  width: 18px;
+  color: var(--itemku-blue);
+  font-size: 14px;
+}
+
+.kategori-popover-item:hover {
+  background: var(--itemku-blue-light);
+  color: var(--itemku-blue);
+}
+
+/* Center Omnibox Search Bar */
+.itemku-search-center {
+  flex: 1;
+  max-width: 580px;
+  position: relative;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .itemku-search-center {
+    display: block;
+  }
+}
+
+.itemku-search-omnibox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1.5px solid var(--itemku-border);
+  border-radius: 9999px;
+  height: 42px;
+  padding: 2px 4px 2px 14px;
+  transition: all 0.2s ease;
+}
+
+.itemku-search-omnibox.focused {
+  background: #ffffff;
+  border-color: var(--itemku-blue);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
+}
+
+.itemku-search-icon {
+  color: var(--itemku-text-sub);
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.itemku-search-omnibox input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  color: var(--itemku-text-dark);
+}
+
+.itemku-search-omnibox input::placeholder {
+  color: var(--itemku-text-sub);
+}
+
+.itemku-search-clear {
+  background: none;
+  border: none;
+  color: var(--itemku-text-sub);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.itemku-search-clear:hover {
+  color: var(--itemku-text-dark);
+}
+
+.itemku-search-submit {
+  background: var(--itemku-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.itemku-search-submit:hover {
+  background: var(--itemku-blue-hover);
+}
+
+.itemku-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  padding: 14px;
+  z-index: 1050;
+}
+
+.search-dropdown-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--itemku-text-muted);
+  margin-bottom: 10px;
+}
+
+.search-dropdown-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.search-tag-chip {
+  background: #f1f5f9;
+  border: 1px solid var(--itemku-border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--itemku-text-body);
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.search-tag-chip:hover {
+  background: var(--itemku-blue-light);
+  border-color: var(--itemku-blue-border);
+  color: var(--itemku-blue);
+}
+
+/* Right Action Buttons */
+.itemku-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.itemku-action-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--itemku-text-body);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.itemku-action-btn:hover,
+.itemku-action-btn.active {
+  background: #f1f5f9;
+  color: var(--itemku-blue);
+}
+
+.cart-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.itemku-cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--itemku-orange);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.itemku-install-btn {
+  background: var(--itemku-blue-light);
+  border: 1px solid var(--itemku-blue-border);
+  color: var(--itemku-blue);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.itemku-install-btn:hover {
+  background: var(--itemku-blue);
+  color: #ffffff;
+}
+
+.btn-itemku-login {
+  background: var(--itemku-blue) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-itemku-login:hover {
+  background: var(--itemku-blue-hover) !important;
+}
+
+.itemku-user-chip {
+  background: #f8fafc !important;
+  border: 1px solid var(--itemku-border) !important;
+  border-radius: 9999px !important;
+  padding: 4px 10px 4px 4px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.itemku-user-chip .nav-user-name {
+  color: var(--itemku-text-dark) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+.itemku-user-chip .nav-user-email {
+  color: var(--itemku-blue) !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+}
+
+/* Subnav Category Strip */
+.itemku-subnav-strip {
+  background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.itemku-subnav-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.itemku-subnav-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.subnav-pill {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--itemku-text-muted);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.subnav-pill:hover {
+  color: var(--itemku-blue);
+  background: #f8fafc;
+}
+
+.subnav-pill.active {
+  background: var(--itemku-blue-light);
+  border-color: var(--itemku-blue-border);
+  color: var(--itemku-blue);
+}
+
+/* ==========================================================================
+   3. ITEMKU HERO BANNER CAROUSEL & TRUST BAR
+   ========================================================================== */
+.itemku-hero-section {
+  padding: 16px 0 20px 0 !important;
+  background: transparent !important;
+}
+
+.itemku-carousel-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  background: #111827;
+}
+
+.itemku-carousel-track {
+  display: flex;
+  transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+  width: 100%;
+}
+
+.itemku-slide {
+  min-width: 100%;
+  position: relative;
+  aspect-ratio: 21 / 8;
+  max-height: 380px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .itemku-slide {
+    aspect-ratio: 16 / 9;
+    max-height: 260px;
+  }
+}
+
+.itemku-slide-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.85);
+}
+
+.itemku-slide-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.5) 60%, transparent 100%);
+  display: flex;
+  align-items: center;
+  padding: 0 40px;
+}
+
+@media (max-width: 768px) {
+  .itemku-slide-overlay {
+    padding: 0 20px;
+  }
+}
+
+.itemku-slide-content {
+  max-width: 580px;
+  color: #ffffff;
+  z-index: 2;
+}
+
+.itemku-slide-top-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.slide-badge-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.slide-badge-pill.badge-blue {
+  background: var(--itemku-blue);
+  color: #ffffff;
+}
+
+.slide-badge-pill.badge-orange {
+  background: var(--itemku-orange);
+  color: #ffffff;
+}
+
+.slide-badge-pill.badge-red {
+  background: var(--itemku-danger);
+  color: #ffffff;
+}
+
+.slide-badge-pill.badge-cyan {
+  background: #0ea5e9;
+  color: #ffffff;
+}
+
+.slide-tag-promo {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.itemku-slide-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 8px;
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .itemku-slide-title {
+    font-size: 18px;
+  }
+}
+
+.itemku-slide-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .itemku-slide-desc {
+    display: none;
+  }
+}
+
+.itemku-slide-action-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-itemku-hero-cta {
+  background: var(--itemku-orange);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(255, 92, 0, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-itemku-hero-cta:hover {
+  background: var(--itemku-orange-hover);
+  transform: translateY(-1px);
+}
+
+.itemku-slide-features-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.itemku-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  border: none;
+  color: var(--itemku-text-dark);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+.itemku-arrow:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.itemku-arrow.prev {
+  left: 14px;
+}
+
+.itemku-arrow.next {
+  right: 14px;
+}
+
+.itemku-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
+.itemku-dot-item {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.4);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.itemku-dot-item.active {
+  width: 22px;
+  background: var(--itemku-orange);
+}
+
+/* Trust Bar (4 Cards) */
+.itemku-trust-bar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+@media (min-width: 992px) {
+  .itemku-trust-bar {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.trust-card {
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trust-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.trust-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.bg-blue-soft {
+  background: var(--itemku-blue-light);
+  color: var(--itemku-blue);
+}
+
+.bg-green-soft {
+  background: #ecfdf5;
+  color: var(--itemku-success);
+}
+
+.bg-orange-soft {
+  background: var(--itemku-orange-light);
+  color: var(--itemku-orange);
+}
+
+.bg-purple-soft {
+  background: #f5f3ff;
+  color: var(--accent-purple);
+}
+
+.trust-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.trust-text strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--itemku-text-dark);
+}
+
+.trust-text small {
+  font-size: 11px;
+  color: var(--itemku-text-muted);
+}
+
+/* ==========================================================================
+   4. ITEMKU CATEGORY GRID (Game & Akun Icon Grid)
+   ========================================================================== */
+.itemku-category-section {
+  padding: 20px 0;
+}
+
+.itemku-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.itemku-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.itemku-title-icon {
+  font-size: 18px;
+}
+
+.itemku-section-title h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--itemku-text-dark);
+}
+
+.itemku-see-all-link {
+  background: none;
+  border: none;
+  color: var(--itemku-blue);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.itemku-see-all-link:hover {
+  text-decoration: underline;
+}
+
+.itemku-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .itemku-cat-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .itemku-cat-grid {
+    grid-template-columns: repeat(12, 1fr);
+  }
+}
+
+.itemku-cat-card {
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 12px;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.itemku-cat-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--itemku-blue);
+  box-shadow: 0 6px 16px rgba(0, 102, 255, 0.1);
+}
+
+.itemku-cat-icon-wrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.itemku-cat-img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.itemku-cat-icon-fallback {
+  font-size: 24px;
+  color: var(--itemku-blue);
+}
+
+.itemku-cat-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  font-size: 8px;
+  font-weight: 800;
+  color: #ffffff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.itemku-cat-badge.badge-orange {
+  background: var(--itemku-orange);
+}
+
+.itemku-cat-badge.badge-blue {
+  background: var(--itemku-blue);
+}
+
+.itemku-cat-badge.badge-red {
+  background: var(--itemku-danger);
+}
+
+.itemku-cat-badge.badge-green {
+  background: var(--itemku-success);
+}
+
+.itemku-cat-badge.badge-cyan {
+  background: #0ea5e9;
+}
+
+.itemku-cat-badge.badge-purple {
+  background: var(--accent-purple);
+}
+
+.itemku-cat-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--itemku-text-body);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   5. ITEMKU FLASH DEALS SECTION
+   ========================================================================== */
+.itemku-flash-section {
+  padding: 16px 0 24px 0;
+}
+
+.itemku-flash-header {
+  background: linear-gradient(135deg, #fff4ed 0%, #ffffff 100%);
+  border: 1px solid #fed7aa;
+  border-radius: 14px 14px 0 0;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.itemku-flash-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.itemku-flash-tag {
+  background: var(--itemku-orange);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.5px;
+}
+
+.itemku-flash-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--itemku-text-dark);
+}
+
+.itemku-countdown-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.countdown-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--itemku-text-muted);
+}
+
+.countdown-digits {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.digit-box {
+  background: #0f172a;
+  color: #ffffff;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.digit-colon {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Navigation Controls & Floating Arrows for Rekomendasi Sale */
+.itemku-flash-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-flash-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #fed7aa;
+  color: var(--itemku-orange);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(255, 92, 0, 0.12);
+  transition: all 0.2s ease;
+}
+
+.btn-flash-nav:hover {
+  background: var(--itemku-orange);
+  color: #ffffff;
+  border-color: var(--itemku-orange);
+  transform: scale(1.08);
+}
+
+.itemku-flash-grid-wrap {
+  position: relative;
+}
+
+.flash-float-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(254, 215, 170, 0.85);
+  color: #ff5c00;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18), 0 0 10px rgba(255, 92, 0, 0.2);
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.flash-float-arrow:hover {
+  background: #ff5c00;
+  color: #ffffff;
+  border-color: #ff5c00;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(255, 92, 0, 0.35);
+}
+
+.flash-float-arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.flash-float-arrow.prev {
+  left: -14px;
+}
+
+.flash-float-arrow.next {
+  right: -14px;
+}
+
+@media (max-width: 640px) {
+  .flash-float-arrow.prev {
+    left: 4px;
+  }
+  .flash-float-arrow.next {
+    right: 4px;
+  }
+}
+
+@media (min-width: 992px) {
+  .flash-float-arrow,
+  .itemku-flash-nav-controls {
+    display: none;
+  }
+}
+
+.itemku-flash-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  gap: 12px;
+  background-image: url('/backroundabstrak.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 1px solid var(--itemku-border);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  padding: 16px;
+  position: relative;
+  scrollbar-width: none;
+}
+
+.itemku-flash-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.itemku-flash-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 14px 14px;
+  background: rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.itemku-flash-card {
+  flex: 0 0 160px;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
+  scroll-snap-align: start;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 1;
+}
+
+.itemku-flash-card:hover {
+  transform: translateY(-3px);
+  background: #ffffff;
+  border-color: var(--itemku-orange);
+  box-shadow: 0 8px 24px rgba(255, 92, 0, 0.2);
+}
+
+@media (min-width: 992px) {
+  .itemku-flash-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  .itemku-flash-card {
+    flex: initial;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.itemku-flash-thumb-wrap {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.itemku-flash-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.itemku-flash-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--itemku-blue);
+}
+
+.itemku-discount-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: var(--itemku-danger);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.itemku-instant-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 102, 255, 0.9);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.itemku-flash-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.itemku-flash-cat {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--itemku-text-sub);
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.itemku-flash-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--itemku-text-dark);
+  line-height: 1.35;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.itemku-flash-merchant {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--itemku-text-muted);
+  margin-bottom: 8px;
+}
+
+.itemku-flash-price-wrap {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  margin-bottom: 8px;
+}
+
+.itemku-flash-old-price {
+  font-size: 11px;
+  color: var(--itemku-text-sub);
+  text-decoration: line-through;
+}
+
+.itemku-flash-curr-price {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--itemku-orange);
+}
+
+.itemku-sold-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.itemku-sold-bar {
+  width: 100%;
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.itemku-sold-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #ff5c00 0%, #f97316 100%);
+  border-radius: 9999px;
+}
+
+.itemku-sold-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--itemku-text-muted);
+}
+
+.btn-itemku-flash-buy {
+  margin-top: 10px;
+  width: 100%;
+  background: var(--itemku-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-itemku-flash-buy:hover {
+  background: var(--itemku-blue-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.28);
+}
+
+.btn-itemku-flash-buy:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   6. ITEMKU PRODUCT CATALOG & MARKETPLACE CARDS
+   ========================================================================== */
+.itemku-catalog-section {
+  padding: 24px 0 36px 0;
+  position: relative;
+}
+
+/* Hide old dark wallpaper overlays */
+.catalog-wallpaper-bg-wrap {
+  display: none !important;
+}
+
+.itemku-catalog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.catalog-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--itemku-blue);
+  background: var(--itemku-blue-light);
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.catalog-main-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--itemku-text-dark);
+  margin-bottom: 4px;
+}
+
+.catalog-subtitle {
+  font-size: 13px;
+  color: var(--itemku-text-muted);
+}
+
+.catalog-service-switcher {
+  display: flex;
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.switcher-tab {
+  background: none;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--itemku-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.switcher-tab.active {
+  background: var(--itemku-blue);
+  color: #ffffff;
+}
+
+.switcher-mini-tag {
+  background: var(--itemku-orange);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Filter Bar */
+.itemku-filter-bar {
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.itemku-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-pills-scroll {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-pill-item {
+  background: #f8fafc;
+  border: 1px solid var(--itemku-border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--itemku-text-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.filter-pill-item:hover {
+  background: var(--itemku-blue-light);
+  border-color: var(--itemku-blue-border);
+  color: var(--itemku-blue);
+}
+
+.filter-pill-item.active {
+  background: var(--itemku-blue);
+  border-color: var(--itemku-blue);
+  color: #ffffff;
+}
+
+/* Search notice */
+.itemku-search-notice {
+  background: #ffffff;
+  border: 1px solid var(--itemku-blue-border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.search-notice-text {
+  font-size: 13px;
+  color: var(--itemku-text-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-reset-search {
+  background: none;
+  border: none;
+  color: var(--itemku-danger);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Grid of Products */
+.itemku-products-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .itemku-products-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .itemku-products-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .itemku-products-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Itemku Product Card */
+.itemku-product-card {
+  background: #ffffff !important;
+  border: 1px solid var(--itemku-border) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+  cursor: pointer;
+}
+
+.itemku-product-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--itemku-blue) !important;
+  box-shadow: 0 10px 24px rgba(0, 102, 255, 0.12) !important;
+}
+
+.itemku-card-thumb-wrap {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.itemku-card-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.itemku-product-card:hover .itemku-card-thumb-img {
+  transform: scale(1.04);
+}
+
+.itemku-card-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.itemku-card-top-badges {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.itemku-badge-instant {
+  background: rgba(0, 102, 255, 0.95);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.itemku-badge-discount {
+  background: var(--itemku-danger);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.itemku-badge-category {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+
+.itemku-card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.itemku-card-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--itemku-text-dark);
+  line-height: 1.35;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 36px;
+}
+
+.itemku-card-seller {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+}
+
+.seller-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--itemku-text-body);
+  font-weight: 600;
+}
+
+.seller-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--itemku-text-muted);
+  font-size: 11px;
+}
+
+.bullet-dot {
+  font-size: 8px;
+  opacity: 0.5;
+}
+
+.itemku-card-stock {
+  margin-bottom: 10px;
+}
+
+.stock-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-ready {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.tag-empty {
+  background: #fef2f2;
+  color: var(--itemku-danger);
+}
+
+.tag-sealed {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.itemku-card-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--itemku-border);
+}
+
+.itemku-card-price-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-label-sub {
+  font-size: 10px;
+  color: var(--itemku-text-sub);
+}
+
+.itemku-price-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemku-old-price {
+  font-size: 11px;
+  color: var(--itemku-text-sub);
+  text-decoration: line-through;
+}
+
+.itemku-curr-price {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--itemku-blue);
+}
+
+.btn-itemku-buy {
+  background: var(--itemku-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-itemku-buy:hover {
+  background: var(--itemku-blue-hover);
+}
+
+.btn-itemku-sealed {
+  background: #fef3c7;
+  color: #d97706;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Empty state */
+.itemku-empty-state {
+  background: #ffffff;
+  border: 1px solid var(--itemku-border);
+  border-radius: 12px;
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  color: var(--itemku-text-sub);
+  margin-bottom: 14px;
+}
+
+.itemku-empty-state h3 {
+  font-size: 18px;
+  color: var(--itemku-text-dark);
+  margin-bottom: 6px;
+}
+
+.itemku-empty-state p {
+  color: var(--itemku-text-muted);
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+.btn-itemku-primary {
+  background: var(--itemku-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   7. ITEMKU MOBILE BOTTOM NAVIGATION
+   ========================================================================== */
+.itemku-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #ffffff;
+  border-top: 1px solid var(--itemku-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 990;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+}
+
+@media (min-width: 992px) {
+  .itemku-bottom-nav {
+    display: none !important;
+  }
+}
+
+.bottom-nav-item {
+  flex: 1;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--itemku-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.15s ease;
+}
+
+.bottom-nav-item.active {
+  color: var(--itemku-blue);
+}
+
+.bottom-nav-icon {
+  position: relative;
+  font-size: 18px;
+}
+
+.bottom-nav-mini-badge {
+  position: absolute;
+  top: -6px;
+  right: -14px;
+  background: var(--itemku-orange);
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.bottom-nav-cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: var(--itemku-orange);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.bottom-nav-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ==========================================================================
+   8. ITEMKU FOOTER
+   ========================================================================== */
+.itemku-footer {
+  background: #ffffff !important;
+  border-top: 1px solid var(--itemku-border) !important;
+  color: var(--itemku-text-body) !important;
+  padding: 40px 0 20px 0 !important;
+  margin-top: 40px;
+}
+
+.itemku-footer .footer-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+@media (min-width: 768px) {
+  .itemku-footer .footer-content {
+    grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  }
+}
+
+.itemku-footer .footer-brand .footer-desc {
+  font-size: 13px;
+  color: var(--itemku-text-muted);
+  line-height: 1.6;
+  margin: 12px 0 16px 0;
+}
+
+.itemku-footer-trust-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.trust-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--itemku-text-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemku-footer .social-links {
+  display: flex;
+  gap: 8px;
+}
+
+.itemku-footer .social-links a {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: var(--itemku-text-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: all 0.15s ease;
+}
+
+.itemku-footer .social-links a:hover {
+  background: var(--itemku-blue);
+  color: #ffffff;
+}
+
+.itemku-footer .social-links .social-icon-wa {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.itemku-footer .social-links .social-icon-wa:hover {
+  background: #059669;
+  color: #ffffff;
+}
+
+.itemku-footer .footer-col h4 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--itemku-text-dark);
+  margin-bottom: 14px;
+}
+
+.itemku-footer .footer-col ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itemku-footer .footer-col ul li a {
+  font-size: 13px;
+  color: var(--itemku-text-muted);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s ease;
+}
+
+.itemku-footer .footer-col ul li a:hover {
+  color: var(--itemku-blue);
+}
+
+.itemku-payment-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.itemku-payment-badges .pay-badge {
+  background: #f8fafc;
+  border: 1px solid var(--itemku-border);
+  color: var(--itemku-text-dark);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.itemku-payment-badges .qris-badge {
+  background: #eef4ff;
+  border-color: var(--itemku-blue-border);
+  color: var(--itemku-blue);
+  width: 100%;
+}
+
+.itemku-footer .footer-bottom {
+  border-top: 1px solid var(--itemku-border);
+  padding-top: 18px;
+  font-size: 12px;
+  color: var(--itemku-text-sub);
+}
+
+.itemku-footer .footer-bottom-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   9. MODALS, DRAWERS & DIALOG OVERRIDES (Clean Marketplace Style)
+   ========================================================================== */
+.modal-box,
+.checkout-modal-content,
+.product-modal-content,
+.cart-drawer,
+.profile-dropdown-box {
+  background: #ffffff !important;
+  color: var(--itemku-text-dark) !important;
+  border: 1px solid var(--itemku-border) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+.modal-header,
+.checkout-header,
+.product-modal-header,
+.cart-header {
+  border-bottom: 1px solid var(--itemku-border) !important;
+  color: var(--itemku-text-dark) !important;
+}
+
+.modal-footer,
+.checkout-footer,
+.cart-footer {
+  border-top: 1px solid var(--itemku-border) !important;
+  background: #f8fafc !important;
+}
+
+.form-control,
+.form-input,
+.checkout-input {
+  background: #f8fafc !important;
+  border: 1px solid var(--itemku-border) !important;
+  color: var(--itemku-text-dark) !important;
+}
+
+.form-control:focus,
+.form-input:focus,
+.checkout-input:focus {
+  background: #ffffff !important;
+  border-color: var(--itemku-blue) !important;
+}
+
+/* Secondary Pages Overrides: Steam, Roblox, TopUp, Transaksi */
+.steam-page-container,
+.roblox-page-container,
+.topup-page-container,
+.transactions-container,
+.profile-container {
+  background: var(--itemku-bg) !important;
+  color: var(--itemku-text-dark) !important;
+}
+
+.steam-card,
+.topup-service-card,
+.trx-card,
+.profile-card {
+  background: var(--itemku-card) !important;
+  border: 1px solid var(--itemku-border) !important;
+  color: var(--itemku-text-dark) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Clean text colors inside cards */
+.text-cyan {
+  color: #0284c7 !important;
+}
+
+.text-blue {
+  color: var(--itemku-blue) !important;
+}
+
+.text-orange {
+  color: var(--itemku-orange) !important;
+}
+
+/* ==========================================================================
+   9B. ROBLOX TOP UP & CHECKOUT MODAL (Itemku Marketplace Style)
+   Clean High-Contrast Light Mode (Default)
+   ========================================================================== */
+.roblox-page-container {
+  background-color: var(--itemku-bg) !important;
+  color: var(--itemku-text-dark) !important;
+  min-height: 80vh;
+}
+
+.roblox-page-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 24px 0 36px;
+}
+
+.roblox-page-nav-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.roblox-nav-back-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(2, 132, 199, 0.45);
+  background: rgba(2, 132, 199, 0.08);
+  color: #0284c7 !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.roblox-nav-back-btn:hover {
+  background: #0284c7;
+  color: #ffffff !important;
+  border-color: #0284c7;
+}
+
+.roblox-nav-home-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--itemku-border);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--itemku-text-body) !important;
+}
+
+.roblox-status-pill {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.roblox-hero-badge {
+  background: rgba(56, 189, 248, 0.18) !important;
+  border: 1px solid rgba(56, 189, 248, 0.45) !important;
+  color: #38bdf8 !important;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roblox-hero-subbadge {
+  font-size: 11px;
+  padding: 4px 10px;
+  background: rgba(56, 189, 248, 0.2) !important;
+  border: 1px solid rgba(56, 189, 248, 0.45) !important;
+  color: #38bdf8 !important;
+  border-radius: 6px;
+}
+
+.roblox-hero-title {
+  color: #ffffff !important;
+  font-size: 32px;
+  font-weight: 800;
+  margin: 12px 0 8px;
+}
+
+.roblox-text-accent {
+  color: #38bdf8 !important;
+}
+
+.roblox-hero-sub {
+  color: #cbd5e1 !important;
+  font-size: 14px;
+  max-width: 680px;
+  line-height: 1.6;
+}
+
+.roblox-hero-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.roblox-hero-stats .topup-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 8px 16px;
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+}
+
+.roblox-hero-stats .topup-stat-item strong {
+  display: block;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.roblox-hero-stats .topup-stat-item small {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* Roblox Section Heading */
+.roblox-katalog-section {
+  padding-top: 28px;
+  padding-bottom: 48px;
+}
+
+.roblox-subheading {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+  border: 1px solid #bae6fd !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  padding: 4px 12px !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.roblox-section-h2 {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  color: var(--itemku-text-dark) !important;
+  margin: 10px 0 6px !important;
+}
+
+.roblox-section-p {
+  color: var(--itemku-text-muted) !important;
+  font-size: 13.5px !important;
+  max-width: 620px !important;
+  margin: 0 auto !important;
+}
+
+/* Category Filter Tabs */
+#robloxCategoryTabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 22px 0 28px;
+}
+
+#robloxCategoryTabs .cat-btn {
+  padding: 9px 18px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1.5px solid var(--itemku-border);
+  color: var(--itemku-text-body);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#robloxCategoryTabs .cat-btn:hover {
+  border-color: #0284c7;
+  color: #0284c7;
+  background: #f0f9ff;
+}
+
+#robloxCategoryTabs .cat-btn.active {
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+  border-color: #0284c7 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+}
+
+/* Roblox Product Card */
+.roblox-card {
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+  color: var(--itemku-text-dark) !important;
+  cursor: pointer;
+  transition: all 0.25s ease !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.roblox-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 14px 30px rgba(2, 132, 199, 0.16) !important;
+}
+
+.roblox-card .card-top-bar {
+  padding: 14px 16px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+}
+
+.roblox-card-pill {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+  border: 1px solid #bae6fd !important;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.roblox-card-banner {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+  border-bottom: 1.5px solid #bae6fd !important;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.roblox-card-bg-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.15;
+  filter: contrast(1.1) saturate(1.2);
+}
+
+.roblox-card-icon-wrap {
+  position: relative;
+  z-index: 2;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+  border: 1.5px solid #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #ffffff;
+  margin-bottom: 10px;
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.28);
+}
+
+.roblox-card-title {
+  position: relative;
+  z-index: 2;
+  color: #0f172a !important;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 2px;
+}
+
+.roblox-card-symbol {
+  position: relative;
+  z-index: 2;
+  color: #0284c7 !important;
+  font-size: 13px;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.roblox-card-features {
+  margin: 14px 0 10px;
+  padding: 0 20px;
+  list-style: none;
+}
+
+.roblox-card-features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #334155 !important;
+  margin-bottom: 6px;
+}
+
+.roblox-card-features li i {
+  color: #0284c7 !important;
+  font-size: 14px;
+}
+
+.roblox-card-stock {
+  margin: 0 20px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.roblox-card-stock .stock-mkt-label {
+  color: #64748b !important;
+}
+
+.roblox-card-stock .stock-mkt-badge {
+  background: #f0fdf4 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.roblox-card-price-box {
+  padding: 0 20px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: auto;
+}
+
+.roblox-card-price-box .price-label {
+  color: #64748b !important;
+  font-size: 11px;
+  display: block;
+}
+
+.roblox-card-price-box .current-price {
+  color: #0284c7 !important;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.roblox-card-price-box .price-unit {
+  color: #64748b !important;
+  font-size: 12px;
+}
+
+.roblox-card-actions {
+  padding: 0 20px 20px;
+}
+
+.roblox-buy-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+  border: 1.5px solid #0284c7 !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  padding: 11px 16px !important;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.3) !important;
+  transition: all 0.2s ease;
+}
+
+.roblox-buy-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(14, 165, 233, 0.45) !important;
+}
+
+/* ==========================================================================
+   ROBLOX BUY MODAL (Clean Light Mode Default)
+   ========================================================================== */
+.roblox-buy-modal-box {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18) !important;
+  max-width: 640px;
+  width: 95%;
+  position: relative;
+  overflow: hidden;
+}
+
+.roblox-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.roblox-modal-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.roblox-modal-header {
+  text-align: center;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.roblox-header-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0f2fe;
+  border: 1.5px solid #bae6fd;
+  color: #0284c7;
+  font-size: 24px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.15);
+}
+
+.roblox-modal-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0284c7 !important;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.roblox-modal-title {
+  color: #0f172a !important;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+
+.roblox-modal-desc {
+  color: #475569 !important;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.roblox-modal-body {
+  padding: 20px 24px;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.roblox-section-group {
+  margin-bottom: 22px;
+}
+
+.roblox-form-label-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  color: #0f172a !important;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.roblox-current-deco-symbol {
+  font-size: 12px;
+  color: #0284c7 !important;
+  font-family: monospace;
+}
+
+/* Packages Grid in Modal */
+.roblox-packages-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.roblox-pkg-card {
+  padding: 12px 10px;
+  border-radius: 10px;
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.roblox-pkg-card:hover {
+  background: #f0f9ff !important;
+  border-color: #0284c7 !important;
+}
+
+.roblox-pkg-card.active {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.18) !important;
+}
+
+.roblox-pkg-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a !important;
+}
+
+.roblox-pkg-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0284c7 !important;
+  margin-top: 2px;
+}
+
+.roblox-pkg-card.active .roblox-pkg-name {
+  color: #0284c7 !important;
+}
+
+.roblox-pkg-card.active .roblox-pkg-price {
+  color: #0369a1 !important;
+}
+
+.roblox-pkg-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 11px;
+  color: #0284c7;
+}
+
+/* Username Card */
+.roblox-username-card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #f0f9ff !important;
+  border: 1.5px solid #bae6fd !important;
+  margin-bottom: 22px;
+}
+
+.roblox-username-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.roblox-form-label {
+  display: block;
+  margin: 0;
+  color: #0f172a !important;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.roblox-verified-badge {
+  font-size: 11px;
+  color: #059669;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.roblox-input-wrap {
+  position: relative;
+}
+
+.roblox-username-input {
+  width: 100% !important;
+  padding: 12px 42px !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.roblox-username-input:focus {
+  background: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
+}
+
+.roblox-username-input.is-valid {
+  border-color: #10b981 !important;
+}
+
+.roblox-username-input.is-invalid {
+  border-color: #ef4444 !important;
+}
+
+.roblox-input-icon-left {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #0284c7;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.roblox-input-icon-right {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.roblox-status-box {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.roblox-status-box.searching {
+  background: #e0f2fe;
+  border: 1px dashed #0284c7;
+  color: #0369a1;
+}
+
+.roblox-status-box.error {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  color: #b91c1c;
+}
+
+.roblox-error-sub {
+  font-size: 11px;
+  color: #7f1d1d;
+  margin-top: 2px;
+}
+
+.roblox-profile-found-card {
+  margin-top: 12px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: #ecfdf5 !important;
+  border: 1.5px solid #a7f3d0 !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.12);
+}
+
+.roblox-profile-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.roblox-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.roblox-avatar-img {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2.5px solid #10b981;
+  background: #e2e8f0;
+  object-fit: cover;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+}
+
+.roblox-avatar-check {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+}
+
+.roblox-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.roblox-profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.roblox-profile-display-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #065f46 !important;
+  letter-spacing: 0.3px;
+}
+
+.roblox-tag-verified {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.roblox-profile-id-row {
+  font-size: 12px;
+  color: #047857;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.roblox-profile-notice {
+  font-size: 11.5px;
+  color: #065f46;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.roblox-field-helper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #475569;
+}
+
+/* Customer Data */
+.roblox-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.roblox-full-col {
+  grid-column: span 2;
+}
+
+.roblox-input-label {
+  font-size: 12px;
+  color: #334155 !important;
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.roblox-input-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.roblox-required-hint {
+  font-size: 10px;
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.roblox-input {
+  width: 100% !important;
+  padding: 10px 12px !important;
+  border-radius: 8px !important;
+  background: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  font-size: 13.5px !important;
+}
+
+.roblox-input:focus {
+  background: #ffffff !important;
+  border-color: #0284c7 !important;
+}
+
+/* Payment Methods */
+.roblox-method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.roblox-method-card {
+  padding: 12px 8px;
+  border-radius: 10px;
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  text-align: center;
+  cursor: pointer;
+  color: #334155 !important;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.roblox-method-card:hover {
+  background: #f0f9ff !important;
+  border-color: #0284c7 !important;
+}
+
+.roblox-method-card.active {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15) !important;
+}
+
+.roblox-method-card .method-icon {
+  font-size: 20px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.roblox-method-card .method-title {
+  font-size: 13px;
+  display: block;
+  color: #0f172a !important;
+}
+
+.roblox-method-card .method-sub {
+  font-size: 11px;
+  color: #64748b !important;
+}
+
+.roblox-method-card.active .method-title {
+  color: #0284c7 !important;
+}
+
+.roblox-method-detail-box {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+}
+
+.roblox-qris-wrap {
+  text-align: center;
+}
+
+.roblox-qris-img-container {
+  display: inline-block;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.roblox-qris-img {
+  width: 150px;
+  height: 150px;
+  display: block;
+}
+
+.roblox-qris-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.roblox-btn-copy {
+  font-size: 12px !important;
+  padding: 6px 14px !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roblox-btn-copy:hover {
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+  background: #f0f9ff !important;
+}
+
+.roblox-rekening-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roblox-rek-title {
+  display: block;
+  color: #0f172a !important;
+  font-size: 14px;
+}
+
+.roblox-rek-sub {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Proof Upload */
+.roblox-dropzone {
+  border: 2px dashed #cbd5e1 !important;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fafc !important;
+  transition: all 0.2s ease;
+}
+
+.roblox-dropzone:hover {
+  border-color: #0284c7 !important;
+  background: #f0f9ff !important;
+}
+
+.roblox-dropzone .upload-icon {
+  font-size: 28px;
+  color: #0284c7;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.roblox-dropzone .upload-title {
+  display: block;
+  color: #0f172a !important;
+  font-size: 14px;
+}
+
+.roblox-dropzone .upload-sub {
+  color: #64748b !important;
+  font-size: 12px;
+}
+
+.roblox-uploaded-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #ecfdf5 !important;
+  border: 1.5px solid #a7f3d0 !important;
+}
+
+.roblox-proof-preview-img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #10b981;
+}
+
+.roblox-proof-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.roblox-proof-filename {
+  display: block;
+  color: #065f46 !important;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.roblox-proof-status {
+  color: #047857 !important;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.roblox-remove-proof-btn {
+  color: #ef4444 !important;
+  border-color: #fecaca !important;
+  background: #ffffff !important;
+}
+
+.roblox-remove-proof-btn:hover {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
+}
+
+/* Order Summary Box */
+.roblox-order-summary-box {
+  padding: 16px;
+  border-radius: 12px;
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  margin-bottom: 20px;
+}
+
+.roblox-order-summary-box .summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.roblox-order-summary-box .summary-label {
+  color: #64748b !important;
+}
+
+.roblox-order-summary-box .summary-val {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+.roblox-order-summary-box .summary-total-row {
+  border-top: 1.5px solid #e2e8f0;
+  padding-top: 10px;
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roblox-order-summary-box .total-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a !important;
+}
+
+.roblox-order-summary-box .total-val {
+  font-size: 20px;
+  color: #0284c7 !important;
+  font-weight: 800;
+}
+
+/* Submit Order Button */
+.roblox-modal-submit-btn {
+  width: 100% !important;
+  padding: 14px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+  border: 1.5px solid #0284c7 !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35) !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.roblox-modal-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(14, 165, 233, 0.5) !important;
+}
+
+/* ==========================================================================
+   10. HOW TO ORDER, FAQ, TESTIMONIALS & CTA (Clean Itemku Style)
+   ========================================================================== */
+.how-to-order-section,
+.testimonials-section,
+.faq-section {
+  padding: 36px 0;
+}
+
+.section-title.text-center {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.section-title .subheading {
+  background: var(--itemku-blue-light) !important;
+  color: var(--itemku-blue) !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+}
+
+.section-title h2 {
+  font-family: 'Outfit', sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  color: var(--itemku-text-dark) !important;
+  margin: 8px 0 !important;
+}
+
+.section-title p {
+  color: var(--itemku-text-muted) !important;
+  font-size: 13.5px !important;
+  max-width: 600px !important;
+  margin: 0 auto !important;
+}
+
+/* Steps Grid */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .steps-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.step-card {
+  background: #ffffff !important;
+  border: 1px solid var(--itemku-border) !important;
+  border-radius: 14px !important;
+  padding: 24px 18px !important;
+  text-align: center !important;
+  position: relative !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.step-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+  border-color: var(--itemku-blue) !important;
+}
+
+.step-badge {
+  position: absolute !important;
+  top: 12px !important;
+  left: 12px !important;
+  background: var(--itemku-blue) !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.step-icon {
+  width: 52px !important;
+  height: 52px !important;
+  margin: 0 auto 14px auto !important;
+  border-radius: 14px !important;
+  background: var(--itemku-blue-light) !important;
+  color: var(--itemku-blue) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 22px !important;
+}
+
+.step-card h3 {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important; /* Sharp black in light mode */
+  margin-bottom: 8px !important;
+}
+
+.step-card p {
+  font-size: 13px !important;
+  color: #334155 !important; /* Clear dark text in light mode */
+  line-height: 1.55 !important;
+}
+
+/* FAQ Accordion */
+.faq-list {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faq-item {
+  background: #ffffff !important;
+  border: 1px solid var(--itemku-border) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  transition: all 0.2s ease !important;
+}
+
+.faq-item.active {
+  border-color: var(--itemku-blue) !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.08) !important;
+}
+
+.faq-question {
+  padding: 16px 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important; /* Sharp black question in light mode */
+  background: #ffffff !important;
+}
+
+.faq-question span {
+  color: #0f172a !important;
+}
+
+.faq-question i {
+  color: var(--itemku-blue) !important;
+}
+
+.faq-answer {
+  padding: 0 20px 16px 20px !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
+  color: #334155 !important; /* Clear dark text in light mode */
+  background: #ffffff !important;
+}
+
+.faq-answer p {
+  color: #334155 !important;
+}
+
+.faq-answer strong {
+  color: #0066ff !important;
+}
+
+/* Testimonial Cards */
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .testimonials-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .testimonials-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.review-card,
+.testi-card {
+  background: #ffffff !important;
+  border: 1px solid var(--itemku-border) !important;
+  border-radius: 12px !important;
+  padding: 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+.testi-text {
+  font-size: 0.92rem !important;
+  color: #1e293b !important; /* Sharp dark text in light mode, NEVER washed out grey! */
+  font-style: italic !important;
+  line-height: 1.6 !important;
+  margin-bottom: 16px !important;
+}
+
+.testi-author h4,
+.reviewer-name {
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  color: #0f172a !important; /* Sharp black in light mode */
+}
+
+.testi-author span {
+  font-size: 12px !important;
+  color: #0066ff !important; /* Blue tag in light mode */
+  font-weight: 600 !important;
+}
+
+.review-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.reviewer-name {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--itemku-text-dark);
+}
+
+.review-comment {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--itemku-text-body);
+  margin-bottom: 12px;
+}
+
+/* CTA Card */
+.cta-section {
+  padding: 24px 0 36px 0;
+}
+
+.cta-card {
+  background: linear-gradient(135deg, #0066ff 0%, #0050d6 100%) !important;
+  border-radius: 16px !important;
+  padding: 36px 28px !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: 0 8px 30px rgba(0, 102, 255, 0.25) !important;
+}
+
+.cta-content h2 {
+  font-family: 'Outfit', sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  margin-bottom: 8px !important;
+}
+
+.cta-content p {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 13.5px !important;
+  max-width: 520px !important;
+  margin-bottom: 16px !important;
+}
+
+.cta-content .btn-primary {
+  background: var(--itemku-orange) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 20px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(255, 92, 0, 0.35) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+}
+
+.cta-icon-box {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.footer-btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--itemku-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.footer-btn-link:hover {
+  color: var(--itemku-blue);
+}
+
+/* ==========================================================================
+   10. THEME TOGGLE (DARK / LIGHT MODE) STYLES
+   ========================================================================== */
+.itemku-theme-toggle {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 12px;
+  user-select: none;
+}
+
+.itemku-theme-toggle:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.itemku-theme-toggle:active {
+  transform: scale(0.96);
+}
+
+.itemku-theme-toggle .theme-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  width: 18px;
+  height: 18px;
+}
+
+.itemku-theme-toggle .theme-sun {
+  color: #f59e0b;
+  animation: sunSpin 0.35s ease;
+}
+
+.itemku-theme-toggle .theme-moon {
+  color: #6366f1;
+  animation: moonWobble 0.35s ease;
+}
+
+@keyframes sunSpin {
+  0% { transform: rotate(-90deg) scale(0.6); opacity: 0; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes moonWobble {
+  0% { transform: rotate(45deg) scale(0.6); opacity: 0; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+.itemku-theme-toggle .theme-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.itemku-theme-toggle .theme-label strong {
+  font-weight: 800;
+}
+
+/* Dark state of theme toggle */
+[data-theme="dark"] .itemku-theme-toggle {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .itemku-theme-toggle:hover {
+  background: #334155;
+  border-color: #475569;
+}
+
+/* Navbar mobile adjustments */
+@media (max-width: 991px) {
+  .desktop-only-action {
+    display: none !important;
+  }
+
+  .itemku-actions {
+    gap: 6px;
+  }
+
+  .itemku-action-btn:not(.itemku-theme-toggle) .action-btn-label {
+    display: none !important;
+  }
+
+  .itemku-action-btn {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  .itemku-theme-toggle {
+    padding: 5px 9px;
+    border-radius: 16px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .itemku-theme-toggle .theme-label {
+    font-size: 11px;
+  }
+
+  .itemku-cat-dropdown-wrap {
+    display: none; /* Hide category dropdown from header on mobile, category grid is on page */
+  }
+
+  .itemku-search-bar-wrap {
+    display: none; /* Mobile uses omnibox toggle */
+  }
+
+  .btn-search-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  [data-theme="dark"] .btn-search-toggle {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+}
+
+/* ==========================================================================
+   11. FLOATING BUTTONS REDESIGN ("LEBIH LAYAK BAGUS" & "GESER KEATAS")
+   Floating CS AI, Quick Menu, Langganan, Transaksi
+   ========================================================================== */
+
+/* Universal Floating Button Base */
+.floating-cs,
+.floating-setting-btn,
+.floating-langganan-btn,
+.floating-transaksi-btn {
+  position: fixed !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, background 0.25s ease !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* 1. CS AI Floating Button */
+.floating-cs {
+  background: linear-gradient(135deg, #0066ff 0%, #0052d6 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 6px 20px rgba(0, 102, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+}
+
+.floating-cs:hover {
+  transform: translateY(-2px) scale(1.06) !important;
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.55), 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.floating-cs:active {
+  transform: scale(0.95) !important;
+}
+
+.floating-cs .cs-badge-text {
+  position: absolute !important;
+  bottom: -3px !important;
+  right: -3px !important;
+  background: #10b981 !important;
+  color: #ffffff !important;
+  font-size: 8.5px !important;
+  font-weight: 800 !important;
+  padding: 1px 4px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #ffffff !important;
+  letter-spacing: 0.3px !important;
+  line-height: 1.1 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 2. Menu Navigasi / FAQ / Quick Setting Floating Button */
+.floating-setting-btn {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #e2e8f0 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+  animation: none !important; /* Stop garish rainbow flashing */
+  z-index: 1000 !important;
+}
+
+.floating-setting-btn:hover {
+  transform: translateY(-2px) scale(1.06) !important;
+  border-color: #0066ff !important;
+  color: #0066ff !important;
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.25) !important;
+}
+
+.floating-setting-btn:active {
+  transform: scale(0.95) !important;
+}
+
+.floating-setting-btn.active {
+  background: #0066ff !important;
+  border-color: #0066ff !important;
+  color: #ffffff !important;
+}
+
+/* 3. Langganan (Pilihan Akun & Top Up) Floating Button */
+.floating-langganan-btn {
+  background: linear-gradient(135deg, #ff5c00 0%, #ff7722 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 6px 20px rgba(255, 92, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+}
+
+.floating-langganan-btn:hover {
+  transform: translateY(-2px) scale(1.06) !important;
+  box-shadow: 0 8px 24px rgba(255, 92, 0, 0.55) !important;
+}
+
+.floating-langganan-btn:active {
+  transform: scale(0.95) !important;
+}
+
+/* 4. Transaksi Floating Button */
+.floating-transaksi-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+}
+
+.floating-transaksi-btn:hover {
+  transform: translateY(-2px) scale(1.06) !important;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.55) !important;
+}
+
+.floating-transaksi-btn:active {
+  transform: scale(0.95) !important;
+}
+
+/* Pulse rings - refined and gentle */
+.cs-btn-pulse,
+.setting-btn-pulse {
+  position: absolute !important;
+  inset: -4px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(0, 102, 255, 0.35) !important;
+  animation: cleanPulseAnim 2.8s infinite ease-out !important;
+  pointer-events: none !important;
+}
+
+.transaksi-pulse {
+  border-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+.langganan-pulse {
+  border-color: rgba(255, 92, 0, 0.4) !important;
+}
+
+@keyframes cleanPulseAnim {
+  0% { transform: scale(0.98); opacity: 0.7; }
+  60% { transform: scale(1.25); opacity: 0; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+/* ==========================================================================
+   DESKTOP FLOATING BUTTONS POSITIONS (Min-width: 992px)
+   ========================================================================== */
+@media (min-width: 992px) {
+  .floating-cs {
+    bottom: 24px !important;
+    right: 24px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.25rem !important;
+  }
+
+  .floating-setting-btn {
+    bottom: 82px !important;
+    right: 24px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .floating-langganan-btn {
+    bottom: 140px !important;
+    right: 24px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .floating-transaksi-btn {
+    bottom: 198px !important;
+    right: 24px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.15rem !important;
+  }
+}
+
+/* ==========================================================================
+   MOBILE FLOATING BUTTONS POSITIONS ("GESER KEATAS" DI ATAS BOTTOM NAV 60px)
+   (Max-width: 991px)
+   Bottom nav takes bottom: 0 to 60px.
+   Floating buttons start from bottom: 76px and stack cleanly!
+   ========================================================================== */
+@media (max-width: 991px) {
+  /* Hide the wide protruding text badge labels on mobile to avoid screen clutter */
+  .setting-live-badge {
+    display: none !important;
+  }
+
+  /* Compact 44px ergonomic circular buttons shifted upwards */
+  .floating-cs {
+    bottom: 76px !important;
+    right: 14px !important;
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .floating-setting-btn {
+    bottom: 128px !important;
+    right: 14px !important;
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.05rem !important;
+  }
+
+  .floating-langganan-btn {
+    bottom: 180px !important;
+    right: 14px !important;
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.05rem !important;
+  }
+
+  .floating-transaksi-btn {
+    bottom: 232px !important;
+    right: 14px !important;
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.05rem !important;
+  }
+
+  /* Chat & Quick setting popup widgets safe space above mobile bottom bar */
+  .cs-chat-widget {
+    bottom: 76px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: 520px !important;
+    max-height: calc(100vh - 150px) !important;
+    border-radius: 16px !important;
+    z-index: 1005 !important;
+  }
+
+  .quick-setting-menu-card {
+    bottom: 76px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100vh - 150px) !important;
+    border-radius: 16px !important;
+    z-index: 1005 !important;
+  }
+
+  .langganan-popup-menu {
+    bottom: 76px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    border-radius: 16px !important;
+    z-index: 1005 !important;
+  }
+}
+
+/* ==========================================================================
+   12. COMPLETE DARK THEME SPECIFICATION ([data-theme="dark"])
+   Modern Itemku Dark Mode: Deep Obsidian Canvas & Vibrant Glow Accents
+   ========================================================================== */
+[data-theme="dark"] {
+  --itemku-bg: #090d16;
+  --itemku-card: #111827;
+  --itemku-border: #1e293b;
+  --itemku-border-light: #1e293b;
+
+  --itemku-text-dark: #f8fafc;
+  --itemku-text-body: #cbd5e1;
+  --itemku-text-muted: #94a3b8;
+  --itemku-text-sub: #64748b;
+
+  --itemku-blue-light: rgba(0, 102, 255, 0.15);
+  --itemku-blue-border: rgba(0, 102, 255, 0.35);
+
+  --itemku-orange-light: rgba(255, 92, 0, 0.15);
+
+  /* Overrides for global ChaizStore variables */
+  --bg-dark: #090d16;
+  --bg-card: #111827;
+  --bg-card-hover: #172033;
+  --bg-surface: #1e293b;
+  --bg-input: #0f172a;
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dark: #64748b;
+
+  --border-subtle: #1e293b;
+}
+
+/* Body & HTML */
+[data-theme="dark"] body {
+  background-color: #090d16 !important;
+  color: #f8fafc !important;
+}
+
+/* 1. Announcement Bar */
+[data-theme="dark"] .itemku-top-bar {
+  background: #0b1120 !important;
+  border-bottom: 1px solid #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .itemku-top-bar .announcement-badge {
+  background: rgba(0, 102, 255, 0.2) !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .itemku-top-bar .announcement-text {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .itemku-top-bar .top-bar-link {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .itemku-top-bar .top-bar-link:hover {
+  color: #60a5fa !important;
+}
+
+/* 2. Navbar & Omnibox */
+[data-theme="dark"] .itemku-navbar {
+  background: #0f172a !important;
+  border-bottom: 1px solid #1e293b !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .itemku-brand-logo .brand-itemku {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .btn-itemku-kategori {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .btn-itemku-kategori:hover,
+[data-theme="dark"] .btn-itemku-kategori.active {
+  background: #334155 !important;
+  border-color: #0066ff !important;
+}
+
+[data-theme="dark"] .itemku-kategori-popover {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .kategori-popover-header {
+  border-bottom-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .kategori-popover-item {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .kategori-popover-item:hover {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .itemku-search-omnibox {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .itemku-search-omnibox:focus-within {
+  border-color: #0066ff !important;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.25) !important;
+}
+
+[data-theme="dark"] .itemku-search-input {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .itemku-search-input::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .itemku-search-dropdown {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .search-dropdown-title {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .search-tag-chip {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .search-tag-chip:hover {
+  background: rgba(0, 102, 255, 0.2) !important;
+  border-color: #0066ff !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .itemku-action-btn {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .itemku-action-btn:hover,
+[data-theme="dark"] .itemku-action-btn.active {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .itemku-user-chip {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .itemku-user-chip .nav-user-name {
+  color: #f8fafc !important;
+}
+
+/* 2.5 Subnav Category Strip */
+[data-theme="dark"] .itemku-subnav-strip {
+  background: #0f172a !important;
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .subnav-pill {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .subnav-pill:hover {
+  background: #334155 !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .subnav-pill.active {
+  background: #0066ff !important;
+  border-color: #0066ff !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .itemku-arrow {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: #f8fafc !important;
+  border: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .itemku-arrow:hover {
+  background: #1e293b !important;
+}
+
+/* 3. Category Grid Cards */
+[data-theme="dark"] .itemku-cat-card {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .itemku-cat-card:hover {
+  background: #172033 !important;
+  border-color: #0066ff !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .itemku-cat-icon-wrap {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .itemku-cat-name {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .itemku-see-all-link {
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .category-circle-card {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .category-circle-card:hover {
+  border-color: #0066ff !important;
+  background: #172033 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .category-icon-disc {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .category-name {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .category-subtitle {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .category-badge-chip {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+}
+
+/* 4. Trust Bar */
+[data-theme="dark"] .trust-card {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .trust-text strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .trust-text small {
+  color: #94a3b8 !important;
+}
+
+/* 5. Flash Deals */
+[data-theme="dark"] .itemku-flash-deals,
+[data-theme="dark"] .itemku-flash-section {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .itemku-flash-header {
+  background: linear-gradient(135deg, #162032 0%, #0f172a 100%) !important;
+  border: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .btn-flash-nav {
+  background: #162032 !important;
+  border-color: #1e293b !important;
+  color: #ff5c00 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .btn-flash-nav:hover {
+  background: #ff5c00 !important;
+  color: #ffffff !important;
+  border-color: #ff5c00 !important;
+}
+
+[data-theme="dark"] .flash-float-arrow {
+  background: rgba(17, 24, 39, 0.92) !important;
+  border-color: rgba(255, 92, 0, 0.4) !important;
+  color: #ff5c00 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 14px rgba(255, 92, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .flash-float-arrow:hover {
+  background: #ff5c00 !important;
+  color: #ffffff !important;
+  border-color: #ff5c00 !important;
+}
+
+[data-theme="dark"] .itemku-flash-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .countdown-label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .digit-box {
+  background: #0066ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(0, 102, 255, 0.4) !important;
+}
+
+[data-theme="dark"] .digit-colon {
+  color: #38bdf8 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .itemku-flash-grid {
+  background-image: url('/backroundabstrak.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  border: 1px solid #1e293b !important;
+  border-top: none !important;
+}
+
+[data-theme="dark"] .itemku-flash-grid::before {
+  background: rgba(10, 15, 29, 0.65) !important;
+}
+
+[data-theme="dark"] .itemku-flash-card,
+[data-theme="dark"] .flash-deal-card {
+  background: rgba(17, 24, 39, 0.9) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .itemku-flash-card:hover,
+[data-theme="dark"] .flash-deal-card:hover {
+  background: rgba(22, 32, 50, 0.96) !important;
+  border-color: #ff5c00 !important;
+  box-shadow: 0 8px 24px rgba(255, 92, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .itemku-flash-thumb-wrap {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .itemku-flash-cat {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .itemku-flash-name,
+[data-theme="dark"] .flash-prod-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .itemku-flash-merchant {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .itemku-flash-old-price,
+[data-theme="dark"] .flash-price-strike {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .itemku-flash-curr-price {
+  color: #ff5c00 !important;
+}
+
+[data-theme="dark"] .itemku-sold-bar,
+[data-theme="dark"] .flash-bar-bg {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .itemku-sold-text {
+  color: #cbd5e1 !important;
+}
+
+/* 6. Product Cards & Catalog Service Switcher */
+[data-theme="dark"] .catalog-title,
+[data-theme="dark"] .itemku-sec-title,
+[data-theme="dark"] .section-title h2,
+[data-theme="dark"] .section-title h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .catalog-subtitle,
+[data-theme="dark"] .itemku-sec-subtitle,
+[data-theme="dark"] .section-title p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .subheading {
+  background: rgba(0, 102, 255, 0.15) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+
+[data-theme="dark"] .catalog-service-switcher {
+  background: #111827 !important;
+  border: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .switcher-tab {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .switcher-tab:hover {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .switcher-tab.active {
+  background: #0066ff !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .itemku-filter-bar {
+  background: #0d1322 !important;
+  border: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .filter-pill-item {
+  background: #111827 !important;
+  border: 1px solid #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .filter-pill-item:hover {
+  background: #1e293b !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .filter-pill-item.active {
+  background: #0066ff !important;
+  border-color: #0066ff !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .itemku-search-notice {
+  background: #111827 !important;
+  border: 1px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .btn-reset-search {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .btn-reset-search:hover {
+  background: #334155 !important;
+  color: #ff5c00 !important;
+}
+
+[data-theme="dark"] .itemku-sort-select {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .itemku-pill {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .itemku-pill:hover,
+[data-theme="dark"] .itemku-pill.active {
+  background: #0066ff !important;
+  border-color: #0066ff !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .itemku-product-card {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .itemku-product-card:hover {
+  border-color: #0066ff !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .itemku-card-body {
+  background: #111827 !important;
+}
+
+[data-theme="dark"] .itemku-card-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .itemku-price-strike {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .itemku-seller-name {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .itemku-sold-count {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .itemku-rating-val {
+  color: #cbd5e1 !important;
+}
+
+/* 7. How To Order (4 Langkah Mudah Berbelanja) */
+[data-theme="dark"] .step-card {
+  background: #111827 !important;
+  border: 1px solid #1e293b !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .step-card:hover {
+  border-color: #38bdf8 !important;
+  transform: translateY(-3px) !important;
+}
+
+[data-theme="dark"] .step-card h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .step-card p {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .step-icon {
+  background: rgba(0, 102, 255, 0.18) !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .step-badge {
+  background: #0066ff !important;
+  color: #ffffff !important;
+}
+
+/* 8. Testimonials & Reviews */
+[data-theme="dark"] .testi-card,
+[data-theme="dark"] .review-card,
+[data-theme="dark"] .review-card-itemku {
+  background: #111827 !important;
+  border: 1px solid #1e293b !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .testi-card:hover,
+[data-theme="dark"] .review-card:hover,
+[data-theme="dark"] .review-card-itemku:hover {
+  border-color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .testi-text,
+[data-theme="dark"] .review-comment {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .testi-author h4,
+[data-theme="dark"] .reviewer-name {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .testi-author span {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .testi-date-tag {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .author-avatar {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #38bdf8 !important;
+}
+
+/* 9. FAQ Accordion */
+[data-theme="dark"] .faq-item {
+  background: #111827 !important;
+  border: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .faq-item.active {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.15) !important;
+}
+
+[data-theme="dark"] .faq-question {
+  background: #111827 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .faq-question span {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .faq-question i {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .faq-answer {
+  background: #111827 !important;
+  color: #cbd5e1 !important;
+  border-top: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .faq-answer p {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .faq-answer strong {
+  color: #38bdf8 !important;
+}
+
+/* 10. Footer & Payment Badges */
+[data-theme="dark"] .itemku-footer {
+  background: #0b1120 !important;
+  border-top: 1px solid #1e293b !important;
+}
+
+[data-theme="dark"] .footer-brand-name {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .footer-brand-desc {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .footer-col-title,
+[data-theme="dark"] .footer-col h4 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .payment-note {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .footer-links a,
+[data-theme="dark"] .footer-btn-link {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .footer-links a:hover,
+[data-theme="dark"] .footer-btn-link:hover {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .itemku-payment-badges .pay-badge,
+[data-theme="dark"] .footer-payment-badge {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .itemku-payment-badges .pay-badge:hover {
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .itemku-payment-badges .qris-badge {
+  background: rgba(0, 102, 255, 0.2) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .itemku-payment-badges .dana-badge { color: #38bdf8 !important; }
+[data-theme="dark"] .itemku-payment-badges .gopay-badge { color: #10b981 !important; }
+[data-theme="dark"] .itemku-payment-badges .ovo-badge { color: #a855f7 !important; }
+[data-theme="dark"] .itemku-payment-badges .spay-badge { color: #ff5c00 !important; }
+[data-theme="dark"] .itemku-payment-badges .bca-badge,
+[data-theme="dark"] .itemku-payment-badges .mandiri-badge,
+[data-theme="dark"] .itemku-payment-badges .bri-badge { color: #60a5fa !important; }
+
+[data-theme="dark"] .footer-bottom-bar,
+[data-theme="dark"] .footer-bottom {
+  border-top-color: #1e293b !important;
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .footer-bottom-inner p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .terms-link span,
+[data-theme="dark"] .admin-footer-link {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .admin-footer-link:hover {
+  color: #38bdf8 !important;
+}
+
+/* 9. Mobile Bottom Nav */
+[data-theme="dark"] .itemku-bottom-nav {
+  background: #0f172a !important;
+  border-top: 1px solid #1e293b !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .bottom-nav-item {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .bottom-nav-item.active {
+  color: #38bdf8 !important;
+}
+
+/* 10. Floating Setting Button in Dark Mode */
+[data-theme="dark"] .floating-setting-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .floating-setting-btn:hover {
+  border-color: #0066ff !important;
+  color: #60a5fa !important;
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .floating-setting-btn.active {
+  background: #0066ff !important;
+  border-color: #0066ff !important;
+  color: #ffffff !important;
+}
+
+/* 11. Modals & Widgets in Dark Mode */
+[data-theme="dark"] .quick-setting-menu-card {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .cs-chat-widget {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .langganan-popup-menu {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .langganan-popup-header {
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .langganan-popup-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .langganan-popup-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .langganan-option-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .langganan-option-card:hover {
+  background: #334155 !important;
+  border-color: #0066ff !important;
+}
+
+[data-theme="dark"] .option-text-wrap strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .option-text-wrap small {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .cart-drawer {
+  background: #0f172a !important;
+  border-left-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .cart-item {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .cart-item-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .cart-footer {
+  background: #0f172a !important;
+  border-top-color: #1e293b !important;
+}
+
+[data-theme="dark"] .modal-overlay,
+[data-theme="dark"] .modal-backdrop {
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+[data-theme="dark"] .auth-modal-card,
+[data-theme="dark"] .steam-modal-card,
+[data-theme="dark"] .roblox-modal-card,
+[data-theme="dark"] .profile-topup-modal-card,
+[data-theme="dark"] .order-detail-modal-card {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+/* ==========================================================================
+   12B. EXPLICIT LIGHT MODE RULES ([data-theme="light"])
+   Ensure Crisp Dark Typography & Clean Cards in Light Mode!
+   ========================================================================== */
+[data-theme="light"] .roblox-buy-modal-box,
+:root:not([data-theme="dark"]) .roblox-buy-modal-box {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #e2e8f0 !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18) !important;
+}
+
+[data-theme="light"] .roblox-modal-title,
+:root:not([data-theme="dark"]) .roblox-modal-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-modal-desc,
+:root:not([data-theme="dark"]) .roblox-modal-desc {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .roblox-form-label-header,
+:root:not([data-theme="dark"]) .roblox-form-label-header {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-pkg-card,
+:root:not([data-theme="dark"]) .roblox-pkg-card {
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-pkg-name,
+:root:not([data-theme="dark"]) .roblox-pkg-name {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-pkg-price,
+:root:not([data-theme="dark"]) .roblox-pkg-price {
+  color: #0284c7 !important;
+}
+
+[data-theme="light"] .roblox-pkg-card.active,
+:root:not([data-theme="dark"]) .roblox-pkg-card.active {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+}
+
+[data-theme="light"] .roblox-username-card,
+:root:not([data-theme="dark"]) .roblox-username-card {
+  background: #f0f9ff !important;
+  border: 1.5px solid #bae6fd !important;
+}
+
+[data-theme="light"] .roblox-form-label,
+:root:not([data-theme="dark"]) .roblox-form-label {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-username-input,
+:root:not([data-theme="dark"]) .roblox-username-input {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-username-input:focus,
+:root:not([data-theme="dark"]) .roblox-username-input:focus {
+  background: #ffffff !important;
+  border-color: #0284c7 !important;
+}
+
+[data-theme="light"] .roblox-input-label,
+:root:not([data-theme="dark"]) .roblox-input-label {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .roblox-input,
+:root:not([data-theme="dark"]) .roblox-input {
+  background: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-method-card,
+:root:not([data-theme="dark"]) .roblox-method-card {
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .roblox-method-card .method-title,
+:root:not([data-theme="dark"]) .roblox-method-card .method-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .roblox-method-card.active,
+:root:not([data-theme="dark"]) .roblox-method-card.active {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+}
+
+[data-theme="light"] .roblox-order-summary-box,
+:root:not([data-theme="dark"]) .roblox-order-summary-box {
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .summary-label,
+:root:not([data-theme="dark"]) .summary-label {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .summary-val,
+:root:not([data-theme="dark"]) .summary-val {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .total-label,
+:root:not([data-theme="dark"]) .total-label {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .total-val,
+:root:not([data-theme="dark"]) .total-val {
+  color: #0284c7 !important;
+}
+
+/* ==========================================================================
+   13. DARK MODE MODAL & DIALOG OVERRIDES ([data-theme="dark"])
+   Ensure ZERO White Boxes appear in Dark Mode!
+   ========================================================================== */
+[data-theme="dark"] .modal-box,
+[data-theme="dark"] .checkout-modal-content,
+[data-theme="dark"] .product-modal-content,
+[data-theme="dark"] .cart-drawer,
+[data-theme="dark"] .profile-dropdown-box,
+[data-theme="dark"] .modal-box-redesign,
+[data-theme="dark"] .roblox-buy-modal-box,
+[data-theme="dark"] .steam-buy-modal-box {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1.5px solid #1e293b !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .checkout-header,
+[data-theme="dark"] .product-modal-header,
+[data-theme="dark"] .cart-header {
+  border-bottom: 1px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .modal-footer,
+[data-theme="dark"] .checkout-footer {
+  border-top: 1px solid #1e293b !important;
+  background: #090d16 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .checkout-input {
+  background: #111827 !important;
+  border: 1.5px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-input:focus,
+[data-theme="dark"] .checkout-input:focus {
+  background: #162032 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   14. DARK MODE ROBLOX PAGE & MODAL OVERRIDES ([data-theme="dark"])
+   High Contrast Obsidian Theme with Vibrant Cyan & Emerald Accents
+   ========================================================================== */
+[data-theme="dark"] .roblox-page-container {
+  background-color: #090d16 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .roblox-nav-back-btn {
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  background: rgba(56, 189, 248, 0.1) !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-nav-back-btn:hover {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-nav-home-btn {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .roblox-section-h2 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .roblox-section-p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-subheading {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+[data-theme="dark"] #robloxCategoryTabs .cat-btn {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] #robloxCategoryTabs .cat-btn:hover {
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+  background: #162032 !important;
+}
+
+[data-theme="dark"] #robloxCategoryTabs .cat-btn.active {
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35) !important;
+}
+
+/* Roblox Cards in Dark Mode - Deep Obsidian Gradient & Crisp Cyan */
+[data-theme="dark"] .roblox-card {
+  background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%) !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.35) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .roblox-card:hover {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 16px 36px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .roblox-card .card-top-bar {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .roblox-card-banner {
+  background: linear-gradient(135deg, #091322 0%, #0f243c 100%) !important;
+  border-bottom: 1.5px solid rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .roblox-card-icon-wrap {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.4) 0%, rgba(56, 189, 248, 0.4) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.7) !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4) !important;
+}
+
+[data-theme="dark"] .roblox-card-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-card-symbol {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-card-features li {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .roblox-card-features li i {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-card-stock {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .roblox-card-stock .stock-mkt-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-card-stock .stock-mkt-badge {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+[data-theme="dark"] .roblox-card-price-box .price-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-card-price-box .current-price {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-card-price-box .price-unit {
+  color: #94a3b8 !important;
+}
+
+/* Roblox Modal in Dark Mode - NO WHITE BOXES! */
+[data-theme="dark"] .roblox-buy-modal-box {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1.5px solid #1e293b !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85) !important;
+}
+
+[data-theme="dark"] .roblox-modal-close {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-modal-close:hover {
+  background: #334155 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-modal-header {
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .roblox-header-icon {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.3) 0%, rgba(56, 189, 248, 0.3) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  color: #38bdf8 !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .roblox-modal-tag {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-modal-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-modal-desc {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-form-label-header {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .roblox-current-deco-symbol {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-pkg-card {
+  background: #162032 !important;
+  border: 1.5px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .roblox-pkg-card:hover {
+  background: #1e293b !important;
+  border-color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-pkg-card.active {
+  background: rgba(56, 189, 248, 0.2) !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .roblox-pkg-name {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-pkg-price {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-pkg-card.active .roblox-pkg-price {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .roblox-pkg-check {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-username-card {
+  background: rgba(2, 132, 199, 0.1) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+[data-theme="dark"] .roblox-form-label {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-username-input {
+  background: #090d16 !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-username-input:focus {
+  background: #0b1329 !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
+}
+
+[data-theme="dark"] .roblox-status-box.searching {
+  background: rgba(2, 132, 199, 0.18) !important;
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-status-box.error {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .roblox-error-sub {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+[data-theme="dark"] .roblox-profile-found-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(2, 132, 199, 0.2) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  box-shadow: 0 8px 24px -6px rgba(16, 185, 129, 0.25) !important;
+}
+
+[data-theme="dark"] .roblox-avatar-img {
+  background: #0b1329 !important;
+}
+
+[data-theme="dark"] .roblox-avatar-check {
+  border-color: #0f172a !important;
+}
+
+[data-theme="dark"] .roblox-profile-display-name {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-tag-verified {
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+[data-theme="dark"] .roblox-profile-id-row {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .roblox-profile-notice {
+  color: #a7f3d0 !important;
+}
+
+[data-theme="dark"] .roblox-field-helper {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .roblox-input-label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .roblox-input {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-input:focus {
+  background: #162032 !important;
+  border-color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-method-card {
+  background: #162032 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .roblox-method-card:hover {
+  background: #1e293b !important;
+  border-color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-method-card.active {
+  background: rgba(56, 189, 248, 0.18) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.2) !important;
+}
+
+[data-theme="dark"] .roblox-method-card .method-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-method-card .method-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-method-card.active .method-title {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .roblox-method-detail-box {
+  background: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .roblox-qris-img-container {
+  background: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .roblox-btn-copy {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .roblox-btn-copy:hover {
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .roblox-rek-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-dropzone {
+  background: #111827 !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .roblox-dropzone:hover {
+  border-color: #38bdf8 !important;
+  background: #162032 !important;
+}
+
+[data-theme="dark"] .roblox-dropzone .upload-icon {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .roblox-dropzone .upload-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-dropzone .upload-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-uploaded-card {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="dark"] .roblox-proof-filename {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-proof-status {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .roblox-remove-proof-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ef4444 !important;
+}
+
+[data-theme="dark"] .roblox-order-summary-box {
+  background: #090d16 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .roblox-order-summary-box .summary-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .roblox-order-summary-box .summary-val {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-order-summary-box .summary-total-row {
+  border-top-color: #1e293b !important;
+}
+
+[data-theme="dark"] .roblox-order-summary-box .total-label {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roblox-order-summary-box .total-val {
+  color: #fbbf24 !important;
+}
+

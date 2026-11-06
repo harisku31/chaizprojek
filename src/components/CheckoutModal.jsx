@@ -9,6 +9,13 @@ import {
 } from '../utils/format';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
+import {
+  generateQrisDataUrl,
+  QRIS_GATEWAY_CLIENT_KEY,
+  MERCHANT_NMID,
+  verifyGatewayPayment
+} from '../utils/qrisGateway';
+import { QrisLogo, GopayLogo } from './PaymentLogos';
 
 export default function CheckoutModal({
   isOpen,
@@ -18,6 +25,7 @@ export default function CheckoutModal({
   authUser,
   initialVoucher,
   onOrderSuccess,
+  onProceedToPayment,
   onShowToast
 }) {
   const [buyerUsername, setBuyerUsername] = useState('');
@@ -31,14 +39,15 @@ export default function CheckoutModal({
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [selectedBonusItem, setSelectedBonusItem] = useState('Canva Pro (1 Bulan)');
 
+  const [selectedMethod, setSelectedMethod] = useState('qris'); // 'qris' | 'gopay' | 'ewallet' | 'bank'
+
   // Reset voucher on modal open/close or pre-fill from initialVoucher
   useEffect(() => {
     if (!isOpen) {
       setVoucherCodeInput('');
       setAppliedVoucher(null);
       setSelectedBonusItem('Canva Pro (1 Bulan)');
-      setSelectedMethod(null);
-      setUploadedProof(null);
+      setSelectedMethod('qris');
     } else if (initialVoucher) {
       setAppliedVoucher(initialVoucher);
       setVoucherCodeInput(initialVoucher.code);
@@ -64,15 +73,12 @@ export default function CheckoutModal({
     }
   }, [isOpen, authUser]);
 
-  const [selectedMethod, setSelectedMethod] = useState(null); // 'qris' | 'ewallet' | 'bank'
-  const [uploadedProof, setUploadedProof] = useState(null); // { file, name, size, dataUrl, uploadedUrl, uploadPromise }
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dynamicQrisUrl, setDynamicQrisUrl] = useState(null);
+  const [isGeneratingQris, setIsGeneratingQris] = useState(false);
+  const [qrisTimerSeconds, setQrisTimerSeconds] = useState(900);
 
-  const fileInputRef = useRef(null);
-
-  if (!isOpen) return null;
-
-  const totalAmount = items.reduce((acc, curr) => acc + (curr.total || curr.price || 0), 0);
+  const totalAmount = (items || []).reduce((acc, curr) => acc + (curr.total || curr.price || 0), 0);
 
   // Discount calculation
   let discountAmount = 0;
@@ -84,6 +90,44 @@ export default function CheckoutModal({
     }
   }
   const finalTotal = Math.max(0, totalAmount - discountAmount);
+
+  // Dynamic QRIS Generator untuk Total Tagihan (misal Canva Rp 3.000)
+  useEffect(() => {
+    let isCancelled = false;
+    if (isOpen && finalTotal > 0) {
+      setIsGeneratingQris(true);
+      generateQrisDataUrl({
+        amount: finalTotal,
+        orderId: `CHZ-${Date.now().toString().slice(-6)}`
+      })
+        .then((res) => {
+          if (!isCancelled) {
+            setDynamicQrisUrl(res.dataUrl);
+            setIsGeneratingQris(false);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) setIsGeneratingQris(false);
+        });
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, finalTotal]);
+
+  // Countdown Timer 15 Menit untuk Sesi QRIS Gateway
+  useEffect(() => {
+    if (!isOpen) {
+      setQrisTimerSeconds(900);
+      return;
+    }
+    const timer = setInterval(() => {
+      setQrisTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const hasCapcutOwnAccount = items.some((item) => {
     const nameMatch = (item.name || '').toLowerCase().includes('capcut');
@@ -106,69 +150,14 @@ export default function CheckoutModal({
 
   const handleDownloadQris = (e) => {
     e.preventDefault();
-    fetch('/Qris.png')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.blob();
-      })
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'QRIS-ChaizStore.png';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        onShowToast('Foto QRIS berhasil di-download!', 'fa-circle-check');
-      })
-      .catch(() => {
-        const a = document.createElement('a');
-        a.href = '/Qris.png';
-        a.download = 'QRIS-ChaizStore.png';
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        onShowToast('Foto QRIS sedang di-download...', 'fa-circle-check');
-      });
-  };
-
-  const handleProofChange = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      onShowToast('Harap pilih file foto bukti transfer (JPG / PNG / WEBP)', 'fa-triangle-exclamation');
-      e.target.value = '';
-      return;
-    }
-
-    try {
-      const compressedDataUrl = await compressImageFile(file, 900, 1200, 0.72);
-      const sizeKb = ((compressedDataUrl?.length || file.size) * 0.75 / 1024).toFixed(1);
-      const proofObj = {
-        file: file,
-        name: file.name,
-        size: `${sizeKb} KB (Tervalidasi)`,
-        dataUrl: compressedDataUrl,
-        uploadedUrl: compressedDataUrl,
-        uploadPromise: Promise.resolve(compressedDataUrl)
-      };
-
-      setUploadedProof(proofObj);
-      onShowToast('Bukti pembayaran berhasil di-upload! Silakan klik tombol Kirim Pesanan.', 'fa-circle-check');
-    } catch {
-      onShowToast('Gagal memproses foto bukti transfer', 'fa-triangle-exclamation');
-    }
-  };
-
-  const handleRemoveProof = (e) => {
-    e.stopPropagation();
-    setUploadedProof(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    onShowToast('Foto bukti pembayaran dihapus', 'fa-trash-can');
+    const qrUrl = dynamicQrisUrl || '/Qris.png';
+    const a = document.createElement('a');
+    a.href = qrUrl;
+    a.download = `QRIS-ChaizStore-${finalTotal || 0}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    onShowToast(`Foto QRIS Dinamis (${formatRupiah(finalTotal)}) berhasil di-download!`, 'fa-circle-check');
   };
 
   const handleApplyVoucher = (codeOverride) => {
@@ -236,56 +225,58 @@ export default function CheckoutModal({
       return;
     }
 
-    if (finalTotal > 0 && !selectedMethod) {
-      onShowToast('Silakan klik salah satu metode pembayaran terlebih dahulu!', 'fa-triangle-exclamation');
-      return;
-    }
-
-    if (finalTotal > 0 && !uploadedProof) {
-      onShowToast('Harap upload foto bukti transfer terlebih dahulu!', 'fa-triangle-exclamation');
-      return;
-    }
-
     if (hasCapcutOwnAccount && !capcutAccount.trim()) {
       onShowToast('Nama Akun CapCut wajib diisi untuk paket Akun Sendiri!', 'fa-triangle-exclamation');
       return;
     }
 
+    const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
+    const finalUserId =
+      authUser?.id ||
+      getUserKey(authUser) ||
+      (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
+
+    // ===================================================================
+    // JANSPAYMENT REALTIME QRIS / GOPAY GATEWAY (ANTI-FRAUD)
+    // SELALU MENGALIHKAN KE HALAMAN QRIS REALTIME JANSPAYMENT
+    // ===================================================================
+    if (finalTotal > 0 && (selectedMethod === 'qris' || selectedMethod === 'gopay')) {
+      const orderId = `CHZ-${Date.now().toString().slice(-6)}`;
+      const orderPayload = {
+        id: orderId,
+        amount: finalTotal,
+        total: finalTotal,
+        items,
+        customerName: name || authUser?.name || 'Pelanggan ChaizStore',
+        customerPhone: wa,
+        customerEmail: finalEmail !== '-' ? finalEmail : 'order@chaizstore.my.id',
+        customerUsername: username || authUser?.username || '',
+        paymentMethod: selectedMethod === 'gopay' ? 'GoPay Instant Otomatis' : 'QRIS Payment Gateway Otomatis',
+        subMethod: selectedMethod,
+        source: source
+      };
+
+      if (typeof onProceedToPayment === 'function') {
+        onProceedToPayment(orderPayload);
+      } else {
+        try {
+          localStorage.setItem('chaiz_active_payment', JSON.stringify(orderPayload));
+          window.location.hash = `#pembayaran?trx=${orderId}&total=${finalTotal}&method=${selectedMethod}`;
+        } catch {}
+        onClose();
+      }
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // 1. Get uploaded photo URL
-    let photoUrl = uploadedProof ? uploadedProof.uploadedUrl || null : null;
-    if (uploadedProof) {
-      if (!photoUrl && uploadedProof.uploadPromise) {
-        try {
-          photoUrl = await uploadedProof.uploadPromise;
-        } catch {
-          photoUrl = null;
-        }
-      } else if (!photoUrl && uploadedProof.file) {
-        try {
-          photoUrl = await uploadProofImage(uploadedProof.file);
-        } catch {
-          photoUrl = null;
-        }
-      }
-    }
-
-    // 2. Copy image blob to clipboard on desktop
-    let isCopiedToClipboard = false;
-    if (uploadedProof && uploadedProof.file) {
-      try {
-        isCopiedToClipboard = await copyImageBlobToClipboard(uploadedProof.file);
-      } catch {
-        isCopiedToClipboard = false;
-      }
-    }
-
-    let methodTitle = 'QRIS Instant';
+    let methodTitle = 'QRIS Payment Gateway Otomatis';
     if (finalTotal === 0) {
       methodTitle = `Voucher Promo Bebas Biaya (100% Full Gratis - ${appliedVoucher ? appliedVoucher.code : 'GRATIS'})`;
+    } else if (selectedMethod === 'gopay') {
+      methodTitle = 'GoPay Instant Otomatis';
     } else if (selectedMethod === 'ewallet') {
-      methodTitle = 'E-Wallet (081809730331)';
+      methodTitle = 'E-Wallet Transfer (081809730331)';
     } else if (selectedMethod === 'bank') {
       methodTitle = 'Bank Muamalat (1410043224)';
     }
@@ -314,26 +305,7 @@ export default function CheckoutModal({
       totalHargaText = `💰 *TOTAL HARGA:* ${formatRupiah(totalAmount)}`;
     }
 
-    let buktiPembayaranText = '';
-    if (photoUrl) {
-      buktiPembayaranText = `📸 *FOTO BUKTI PEMBAYARAN:*
-• Status: Lunas & Terverifikasi
-• Masa Aktif Link Foto: 2 Hari (48 Jam)
-• Link Foto Bukti Transfer:
-${photoUrl}
-_(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sah)_`;
-    } else if (uploadedProof) {
-      buktiPembayaranText = `📸 *BUKTI PEMBAYARAN:*
-• Status: Foto bukti telah di-upload (${uploadedProof.name} - ${uploadedProof.size})
-• Gambar bukti transfer terlampir pada chat WhatsApp ini.`;
-    } else if (finalTotal === 0) {
-      buktiPembayaranText = `🎉 *STATUS PEMBAYARAN:*
-• Status: LUNAS & KLAIM GRATIS 100% (Voucher ${appliedVoucher ? appliedVoucher.code : 'FULLGRATIS'})
-• Total Transfer: Rp 0 (Bebas Biaya Transfer)`;
-    }
-
     let capcutAccountLine = '';
-    const proofImg = (uploadedProof ? uploadedProof.dataUrl : null) || photoUrl || null;
 
     // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
     try {
@@ -359,9 +331,9 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
           customerEmail: finalEmail || email,
           customerPhone: wa,
           paymentMethod: methodTitle,
-          proofUrl: proofImg,
-          proofFileName: uploadedProof?.name || (proofImg ? 'Bukti_Transfer.png' : null),
-          proofSize: uploadedProof?.size || null,
+          proofUrl: null,
+          proofFileName: null,
+          proofSize: null,
           warrantyPeriod: `Garansi Full ${item.duration || 'Aktif'}`
         });
       });
@@ -693,74 +665,89 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
               </div>
             )}
 
-            <div className="checkout-methods-grid">
-              {/* QRIS */}
-              <label
-                className={`checkout-method-card ${selectedMethod === 'qris' ? 'active' : ''}`}
+            {/* Pilihan Metode Pembayaran (Grid Bersih, Rapi & Responsif) */}
+            <div className="checkout-payment-methods-grid">
+              {/* 1. QRIS Gateway */}
+              <div
+                className={`checkout-pay-card ${selectedMethod === 'qris' ? 'active' : ''}`}
                 onClick={() => handleMethodSelect('qris')}
               >
-                <input
-                  type="radio"
-                  name="checkoutPaymentRadio"
-                  checked={selectedMethod === 'qris'}
-                  onChange={() => handleMethodSelect('qris')}
-                />
-                <div className="method-icon-box"><i className="fa-solid fa-qrcode"></i></div>
-                <div className="method-details">
-                  <strong>QRIS Instant</strong>
-                  <small>Semua Bank & E-Wallet</small>
+                <div className="pay-card-top">
+                  <div className="pay-card-logo-wrap">
+                    <QrisLogo />
+                  </div>
+                  <span className="pay-card-badge badge-emerald">Dinamis Otomatis</span>
                 </div>
-                <i className="fa-solid fa-circle-check method-check"></i>
-              </label>
+                <div className="pay-card-body">
+                  <strong>QRIS Gateway</strong>
+                  <small>Semua Bank & E-Wallet (BCA, Mandiri, BRI, DANA, OVO, dll)</small>
+                </div>
+                <div className="pay-card-indicator">
+                  <i className={selectedMethod === 'qris' ? "fa-solid fa-circle-check text-emerald" : "fa-regular fa-circle"}></i>
+                </div>
+              </div>
 
-              {/* E-Wallet */}
-              <label
-                className={`checkout-method-card ${selectedMethod === 'ewallet' ? 'active' : ''}`}
+              {/* 2. GoPay Instant */}
+              <div
+                className={`checkout-pay-card ${selectedMethod === 'gopay' ? 'active' : ''}`}
+                onClick={() => handleMethodSelect('gopay')}
+              >
+                <div className="pay-card-top">
+                  <div className="pay-card-logo-wrap gopay-wrap">
+                    <GopayLogo />
+                  </div>
+                  <span className="pay-card-badge badge-cyan">Buka App Langsung</span>
+                </div>
+                <div className="pay-card-body">
+                  <strong>GoPay Instant</strong>
+                  <small>Bayar via Aplikasi GoPay di HP / Salin Nomor / QR</small>
+                </div>
+                <div className="pay-card-indicator">
+                  <i className={selectedMethod === 'gopay' ? "fa-solid fa-circle-check text-cyan" : "fa-regular fa-circle"}></i>
+                </div>
+              </div>
+
+              {/* 3. DANA / E-Wallet Manual */}
+              <div
+                className={`checkout-pay-card ${selectedMethod === 'ewallet' ? 'active' : ''}`}
                 onClick={() => handleMethodSelect('ewallet')}
               >
-                <input
-                  type="radio"
-                  name="checkoutPaymentRadio"
-                  checked={selectedMethod === 'ewallet'}
-                  onChange={() => handleMethodSelect('ewallet')}
-                />
-                <div className="method-icon-box"><i className="fa-solid fa-mobile-screen-button"></i></div>
-                <div className="method-details">
-                  <strong>E-Wallet</strong>
-                  <small>081809730331</small>
+                <div className="pay-card-top">
+                  <div className="pay-card-icon-wrap text-cyan">
+                    <i className="fa-solid fa-wallet"></i>
+                  </div>
+                  <span className="pay-card-badge badge-blue">Bebas Biaya</span>
                 </div>
-                <i className="fa-solid fa-circle-check method-check"></i>
-              </label>
+                <div className="pay-card-body">
+                  <strong>DANA / E-Wallet</strong>
+                  <small>0818-0973-0331 (a.n ChaizStore)</small>
+                </div>
+                <div className="pay-card-indicator">
+                  <i className={selectedMethod === 'ewallet' ? "fa-solid fa-circle-check text-cyan" : "fa-regular fa-circle"}></i>
+                </div>
+              </div>
 
-              {/* Bank */}
-              <label
-                className={`checkout-method-card ${selectedMethod === 'bank' ? 'active' : ''}`}
+              {/* 4. Transfer Bank */}
+              <div
+                className={`checkout-pay-card ${selectedMethod === 'bank' ? 'active' : ''}`}
                 onClick={() => handleMethodSelect('bank')}
               >
-                <input
-                  type="radio"
-                  name="checkoutPaymentRadio"
-                  checked={selectedMethod === 'bank'}
-                  onChange={() => handleMethodSelect('bank')}
-                />
-                <div className="method-icon-box"><i className="fa-solid fa-building-columns"></i></div>
-                <div className="method-details">
-                  <strong>Bank Transfer</strong>
-                  <small>Bank Muamalat</small>
+                <div className="pay-card-top">
+                  <div className="pay-card-icon-wrap text-purple">
+                    <i className="fa-solid fa-building-columns"></i>
+                  </div>
+                  <span className="pay-card-badge badge-purple">Bank Syariah</span>
                 </div>
-                <i className="fa-solid fa-circle-check method-check"></i>
-              </label>
+                <div className="pay-card-body">
+                  <strong>Bank Muamalat</strong>
+                  <small>1410043224 (a.n ChaizStore)</small>
+                </div>
+                <div className="pay-card-indicator">
+                  <i className={selectedMethod === 'bank' ? "fa-solid fa-circle-check text-purple" : "fa-regular fa-circle"}></i>
+                </div>
+              </div>
             </div>
 
-            {/* Prompt before selection */}
-            {!selectedMethod && finalTotal > 0 && (
-              <div className="method-select-prompt">
-                <i className="fa-solid fa-hand-pointer text-warning"></i>
-                <span>
-                  Pilih salah satu metode di atas (<strong>QRIS</strong>, <strong>E-Wallet</strong>, atau <strong>Bank</strong>) untuk memunculkan kode QRIS & detail pembayaran.
-                </span>
-              </div>
-            )}
             {finalTotal === 0 && (
               <div className="method-free-banner">
                 <i className="fa-solid fa-crown text-warning"></i>
@@ -770,238 +757,228 @@ _(Silakan klik link foto di atas untuk langsung membuka gambar bukti transfer sa
               </div>
             )}
 
-            {/* Display QRIS and payment details once selected */}
-            {selectedMethod && (
-              <div className="qris-payment-container">
-                <div className="qris-image-wrapper">
-                  <div className="qris-badge-top">
-                    <i className="fa-solid fa-bolt text-warning"></i> SCAN QRIS UNTUK BAYAR
+            {/* Detail & Panduan Metode Terpilih */}
+            {finalTotal > 0 && selectedMethod === 'qris' && (
+              <div className="checkout-method-detail-panel qris-panel">
+                <div className="panel-header-row">
+                  <div className="panel-icon-brand"><QrisLogo /></div>
+                  <div className="panel-title-text">
+                    <strong>QRIS Payment Gateway Otomatis</strong>
+                    <small>Dapat di-scan dengan semua aplikasi Mobile Banking & E-Wallet</small>
                   </div>
-                  <img src="/Qris.png" alt="QRIS ChaizStore" className="qris-display-img" />
-                  <span className="qris-footer-text">NMID: ID1020038472910 &bull; CHAIZSTORE</span>
                 </div>
-
-                <button
-                  type="button"
-                  className="btn-download-qris"
-                  onClick={handleDownloadQris}
-                  title="Download Foto QRIS"
-                >
-                  <i className="fa-solid fa-cloud-arrow-down"></i>
-                  <span>Download QRIS</span>
-                </button>
-
-                <div className="method-info-box">
-                  {selectedMethod === 'qris' && (
-                    <>
-                      <div className="payment-guide-badge">
-                        <i className="fa-solid fa-circle-check"></i> {PAYMENT_INFO.qris.badge}
-                      </div>
-                      <p style={{ fontSize: '0.82rem', color: '#cbd5e1', marginTop: 6, lineHeight: 1.5 }}>
-                        {PAYMENT_INFO.qris.desc}
-                      </p>
-                    </>
-                  )}
-
-                  {selectedMethod === 'ewallet' && (
-                    <>
-                      <div className="payment-guide-badge">
-                        <i className="fa-solid fa-mobile-screen-button"></i> {PAYMENT_INFO.ewallet.badge}
-                      </div>
-                      <div className="rekening-list">
-                        <div className="rekening-item">
-                          <div>
-                            <div className="rekening-name">
-                              {PAYMENT_INFO.ewallet.account.label} ({PAYMENT_INFO.ewallet.account.owner})
-                            </div>
-                            <div className="rekening-num">{PAYMENT_INFO.ewallet.account.number}</div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-copy-rek"
-                            onClick={() => handleCopyRekening(PAYMENT_INFO.ewallet.account.number, 'E-Wallet')}
-                          >
-                            <i className="fa-regular fa-copy"></i> Salin
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {selectedMethod === 'bank' && (
-                    <>
-                      <div className="payment-guide-badge">
-                        <i className="fa-solid fa-building-columns"></i> {PAYMENT_INFO.bank.badge}
-                      </div>
-                      <div className="rekening-list">
-                        <div className="rekening-item">
-                          <div>
-                            <div className="rekening-name">
-                              {PAYMENT_INFO.bank.account.label} ({PAYMENT_INFO.bank.account.owner})
-                            </div>
-                            <div className="rekening-num">{PAYMENT_INFO.bank.account.number}</div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-copy-rek"
-                            onClick={() => handleCopyRekening(PAYMENT_INFO.bank.account.number, 'Bank Muamalat')}
-                          >
-                            <i className="fa-regular fa-copy"></i> Salin
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                <div className="panel-features-list">
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-shield-check text-emerald"></i>
+                    <span>Nominal tagihan <strong>{formatRupiah(finalTotal)}</strong> otomatis terkunci dan terverifikasi instan.</span>
+                  </div>
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-bolt text-warning"></i>
+                    <span>Pesanan otomatis diproses kilat dan langsung masuk antrean prioritas sistem admin.</span>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* 4. Upload Bukti Pembayaran */}
-          <div className="checkout-section">
-            <h4 className="checkout-section-title">
-              <i className="fa-solid fa-file-invoice text-success"></i> Upload Bukti Pembayaran
-            </h4>
-            <p className="checkout-section-desc">
-              Setelah melakukan pembayaran, upload bukti transfer / tangkapan layar (screenshot):
-            </p>
-
-            <div
-              className="upload-dropzone"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden"
-                onChange={handleProofChange}
-              />
-
-              {!uploadedProof ? (
-                <div className="dropzone-content">
-                  <div className="dropzone-icon">
-                    <i className="fa-solid fa-cloud-arrow-up"></i>
-                  </div>
-                  <strong>Klik untuk Upload Bukti Pembayaran</strong>
-                  <span>Pilih foto screenshot transfer (JPG, PNG, JPEG, WEBP)</span>
-                </div>
-              ) : (
-                <div className="upload-preview-wrapper">
-                  <div className="preview-img-container">
-                    <img src={uploadedProof.dataUrl} alt="Bukti Transfer" />
-                  </div>
-                  <div className="preview-meta">
-                    <div className="preview-status">
-                      <i className="fa-solid fa-circle-check"></i> Bukti Transfer Terpasang
-                    </div>
-                    <span className="preview-filename">{uploadedProof.name}</span>
-                    <span className="preview-filesize">{uploadedProof.size}</span>
-                    <button
-                      type="button"
-                      className="btn-remove-proof"
-                      onClick={handleRemoveProof}
-                    >
-                      <i className="fa-solid fa-trash-can"></i> Hapus / Ganti Foto
-                    </button>
+            {finalTotal > 0 && selectedMethod === 'gopay' && (
+              <div className="checkout-method-detail-panel gopay-panel">
+                <div className="panel-header-row">
+                  <div className="panel-icon-brand"><GopayLogo /></div>
+                  <div className="panel-title-text">
+                    <strong>GoPay Instant Gateway & Saldo GoPay</strong>
+                    <small>Bayar instan via Aplikasi GoPay di HP atau scan QR GoPay</small>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {!uploadedProof && finalTotal > 0 && (
-              <div className="proof-warning-notice">
-                <i className="fa-solid fa-lock"></i>
-                <span>
-                  Tombol order akan otomatis muncul setelah Anda mengupload foto bukti transfer di atas.
-                </span>
+                <div className="panel-account-strip">
+                  <div className="strip-left">
+                    <span className="strip-label">Nomor Akun GoPay ChaizStore:</span>
+                    <strong className="strip-number">0818-0973-0331</strong>
+                    <span className="strip-owner">a.n Haris / ChaizStore</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-strip-copy"
+                    onClick={() => handleCopyRekening('081809730331', 'Nomor GoPay')}
+                  >
+                    <i className="fa-regular fa-copy"></i> Salin Nomor
+                  </button>
+                </div>
+                <div className="panel-features-list">
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-mobile-screen-button text-cyan"></i>
+                    <span>Tersedia tombol <strong>Buka Aplikasi GoPay</strong> di halaman pembayaran untuk bayar langsung di HP.</span>
+                  </div>
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-bolt text-warning"></i>
+                    <span>Verifikasi instan otomatis dan aman terhubung langsung ke sistem.</span>
+                  </div>
+                </div>
               </div>
             )}
 
-            {finalTotal === 0 && (
-              <div className="proof-free-notice">
-                <i className="fa-solid fa-crown text-warning"></i>
-                <span>
-                  <strong>Voucher Full Gratis Aktif (Tagihan Rp 0)!</strong> Anda tidak perlu transfer atau upload bukti transfer. Silakan langsung klik tombol klaim order di bawah.
-                </span>
+            {finalTotal > 0 && selectedMethod === 'ewallet' && (
+              <div className="checkout-method-detail-panel ewallet-panel">
+                <div className="panel-header-row">
+                  <div className="panel-icon-circle text-cyan"><i className="fa-solid fa-wallet"></i></div>
+                  <div className="panel-title-text">
+                    <strong>Transfer Manual E-Wallet (DANA / OVO / ShopeePay)</strong>
+                    <small>Kirim saldo ke nomor E-Wallet resmi ChaizStore di bawah ini</small>
+                  </div>
+                </div>
+                <div className="panel-account-strip">
+                  <div className="strip-left">
+                    <span className="strip-label">Nomor E-Wallet (DANA / OVO / ShopeePay):</span>
+                    <strong className="strip-number">0818-0973-0331</strong>
+                    <span className="strip-owner">a.n Haris / ChaizStore</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-strip-copy"
+                    onClick={() => handleCopyRekening('081809730331', 'Nomor E-Wallet')}
+                  >
+                    <i className="fa-regular fa-copy"></i> Salin Nomor
+                  </button>
+                </div>
+                <div className="panel-features-list">
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-circle-check text-emerald"></i>
+                    <span>Transfer sesuai total tagihan <strong>{formatRupiah(finalTotal)}</strong> ke nomor di atas.</span>
+                  </div>
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-bolt text-warning"></i>
+                    <span>Setelah transfer, klik tombol <strong>Kirim Pesanan</strong> di bawah. Admin langsung memproses pesanan Anda kilat 1-5 menit.</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {finalTotal > 0 && selectedMethod === 'bank' && (
+              <div className="checkout-method-detail-panel bank-panel">
+                <div className="panel-header-row">
+                  <div className="panel-icon-circle text-purple"><i className="fa-solid fa-building-columns"></i></div>
+                  <div className="panel-title-text">
+                    <strong>Transfer Bank Muamalat</strong>
+                    <small>Transfer via m-Banking, ATM, atau Bank Syariah manapun</small>
+                  </div>
+                </div>
+                <div className="panel-account-strip">
+                  <div className="strip-left">
+                    <span className="strip-label">Rekening Bank Muamalat:</span>
+                    <strong className="strip-number">1410043224</strong>
+                    <span className="strip-owner">a.n ChaizStore / Haris</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-strip-copy"
+                    onClick={() => handleCopyRekening('1410043224', 'Rekening Bank Muamalat')}
+                  >
+                    <i className="fa-regular fa-copy"></i> Salin Rekening
+                  </button>
+                </div>
+                <div className="panel-features-list">
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-circle-check text-emerald"></i>
+                    <span>Transfer sesuai total tagihan <strong>{formatRupiah(finalTotal)}</strong> ke rekening di atas.</span>
+                  </div>
+                  <div className="panel-feat-item">
+                    <i className="fa-solid fa-bolt text-warning"></i>
+                    <span>Setelah transfer, klik tombol <strong>Kirim Pesanan</strong> di bawah. Admin langsung memproses pesanan Anda kilat 1-5 menit.</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
           {/* 5. Submit Order Button */}
-          {(uploadedProof || finalTotal === 0) && (
-            <div className="checkout-order-actions">
-              {!buyerWa.trim() && (
-                <div
+          <div className="checkout-order-actions">
+            {!buyerWa.trim() && (
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '10px',
+                  padding: '9px 13px',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  color: '#fca5a5',
+                  fontSize: '0.8rem'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-circle-exclamation text-danger" style={{ fontSize: '1rem' }}></i>
+                  <span>
+                    <strong>Perhatian:</strong> Jangan lupa isi nomor telepon kamu di formulir atas sebelum mengirim pesanan!
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('checkoutBuyerWa');
+                    el?.focus();
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    borderRadius: '10px',
-                    padding: '9px 13px',
-                    marginBottom: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    color: '#fca5a5',
-                    fontSize: '0.8rem'
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.5)',
+                    color: '#fecaca',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className="fa-solid fa-circle-exclamation text-danger" style={{ fontSize: '1rem' }}></i>
-                    <span>
-                      <strong>Perhatian:</strong> Jangan lupa isi nomor telepon kamu di formulir atas sebelum mengirim pesanan!
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('checkoutBuyerWa');
-                      el?.focus();
-                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }}
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.2)',
-                      border: '1px solid rgba(239, 68, 68, 0.5)',
-                      color: '#fecaca',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    Isi Nomor
-                  </button>
-                </div>
+                  Isi Nomor
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              className={`btn btn-submit-order ${
+                finalTotal === 0
+                  ? 'btn-order-free'
+                  : selectedMethod === 'gopay'
+                  ? 'btn-gopay-order'
+                  : selectedMethod === 'qris'
+                  ? 'btn-qris-order'
+                  : 'btn-manual-order'
+              }`}
+              disabled={isSubmitting}
+              onClick={handleSubmitOrder}
+            >
+              {isSubmitting ? (
+                <>
+                  <i className="fa-solid fa-spinner fa-spin"></i>{' '}
+                  <span>Memproses Pesanan...</span>
+                </>
+              ) : finalTotal === 0 ? (
+                <>
+                  <i className="fa-solid fa-gift"></i>{' '}
+                  <span>Klaim Pesanan Gratis</span>{' '}
+                  <i className="fa-solid fa-arrow-right"></i>
+                </>
+              ) : selectedMethod === 'gopay' ? (
+                <>
+                  <i className="fa-solid fa-bolt"></i>{' '}
+                  <span>Bayar via GoPay Instant ({formatRupiah(finalTotal)})</span> <i className="fa-solid fa-arrow-right"></i>
+                </>
+              ) : selectedMethod === 'qris' ? (
+                <>
+                  <i className="fa-solid fa-qrcode"></i>{' '}
+                  <span>Lanjut ke Pembayaran QRIS ({formatRupiah(finalTotal)})</span> <i className="fa-solid fa-arrow-right"></i>
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-paper-plane"></i>{' '}
+                  <span>Kirim Pesanan ({formatRupiah(finalTotal)})</span> <i className="fa-solid fa-arrow-right"></i>
+                </>
               )}
-              <button
-                type="button"
-                className={`btn btn-submit-order ${finalTotal === 0 ? 'btn-order-free' : ''}`}
-                disabled={isSubmitting}
-                onClick={handleSubmitOrder}
-              >
-                {isSubmitting ? (
-                  <>
-                    <i className="fa-solid fa-spinner fa-spin"></i>{' '}
-                    <span>Mengirim Pesanan ke Admin...</span>
-                  </>
-                ) : finalTotal === 0 ? (
-                  <>
-                    <i className="fa-solid fa-gift"></i>{' '}
-                    <span>Klaim Pesanan Gratis</span>{' '}
-                    <i className="fa-solid fa-arrow-right"></i>
-                  </>
-                ) : (
-                  <>
-                    <i className="fa-solid fa-paper-plane"></i>{' '}
-                    <span>Kirim Pesanan</span> <i className="fa-solid fa-arrow-right"></i>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+            </button>
+          </div>
 
           <p className="order-guarantee-text">
             <i className="fa-solid fa-shield-check text-success"></i> Transaksi Anda 100% aman & bergaransi penuh. Akun dikirim kilat 1-5 menit.

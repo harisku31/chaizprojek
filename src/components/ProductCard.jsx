@@ -15,90 +15,41 @@ export default function ProductCard({
   let priceHtml = null;
   if (isUnreleased) {
     priceHtml = (
-      <span className="current-price" style={{ color: '#f59e0b', fontSize: '0.95rem', fontWeight: 700 }}>
-        <i className="fa-solid fa-lock"></i> Segel Belum Dirilis
+      <span className="current-price text-amber" style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+        <i className="fa-solid fa-lock"></i> Segel Belum Rilis
       </span>
     );
   } else if (isOutOfStock) {
     priceHtml = (
-      <span className="current-price" style={{ color: 'var(--accent-rose)' }}>
-        Stok Kosong
+      <span className="current-price text-danger" style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+        Habis Terjual
       </span>
     );
   } else if (product.priceNote) {
     priceHtml = (
-      <span className="current-price" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8', lineHeight: 1.2, display: 'inline-block' }}>
+      <span className="current-price itemku-curr-price">
         {product.priceNote}
       </span>
     );
   } else {
     priceHtml = (
-      <>
-        {product.oldPrice && <span className="old-price">{formatRupiah(product.oldPrice)}</span>}
-        <span className="current-price">{formatRupiah(product.currentPrice)}</span>
-      </>
-    );
-  }
-
-  const priceLabel = isUnreleased
-    ? 'Status Produk'
-    : isOutOfStock
-    ? 'Status'
-    : product.priceNote
-    ? 'Harga'
-    : hasMultiplePrices
-    ? 'Mulai dari'
-    : 'Harga';
-
-  const priceUnit =
-    isUnreleased || isOutOfStock
-      ? ''
-      : product.priceNote
-      ? ''
-      : product.durations.length === 1
-      ? `/ ${product.durations[0].name}`
-      : '/ durasi';
-
-  // Desain Indikator Sisa Stok (Sesuai Gaya Marketing E-Commerce - Tanpa Bar Garis)
-  let stockIndicator = null;
-  if (isUnreleased) {
-    stockIndicator = (
-      <div className="card-stock-marketing stock-status-sealed">
-        <div className="stock-mkt-left">
-          <i className="fa-solid fa-shield-halved text-warning"></i>
-          <span className="stock-mkt-label">Status Stok:</span>
-        </div>
-        <span className="stock-mkt-badge badge-sealed">
-          Segel Resmi
-        </span>
-      </div>
-    );
-  } else if (isOutOfStock) {
-    stockIndicator = (
-      <div className="card-stock-marketing stock-status-empty">
-        <div className="stock-mkt-left">
-          <i className="fa-solid fa-circle-xmark text-danger"></i>
-          <span className="stock-mkt-label">Sisa Stok:</span>
-        </div>
-        <span className="stock-mkt-badge badge-empty">
-          Habis Terjual
-        </span>
-      </div>
-    );
-  } else {
-    const isUrgent = product.stock <= 5;
-    stockIndicator = (
-      <div className={`card-stock-marketing ${isUrgent ? 'stock-status-urgent' : 'stock-status-available'}`}>
-        <div className="stock-mkt-left">
-          <i className={`fa-solid ${isUrgent ? 'fa-fire-flame-curved text-amber' : 'fa-bolt-lightning text-emerald'}`}></i>
-          <span className="stock-mkt-label">Sisa Stok:</span>
-        </div>
-        <span className={`stock-mkt-badge ${isUrgent ? 'badge-urgent' : 'badge-available'}`}>
-          <strong>{product.stock}</strong> {product.isSteamSpecial ? 'Key Ready' : 'Akun'}
+      <div className="itemku-price-stack">
+        {product.oldPrice && (
+          <span className="itemku-old-price">
+            {formatRupiah(product.oldPrice)}
+          </span>
+        )}
+        <span className="itemku-curr-price">
+          {formatRupiah(product.currentPrice)}
         </span>
       </div>
     );
   }
+
+  const discountPercent =
+    product.oldPrice && product.currentPrice
+      ? Math.round(((product.oldPrice - product.currentPrice) / product.oldPrice) * 100)
+      : null;
 
   const handleCardClick = () => {
     if (isUnreleased) {
@@ -114,115 +65,132 @@ export default function ProductCard({
   return (
     <div
       id={`product-card-${product.id}`}
-      className={`product-card ${product.image ? 'has-banner' : ''} ${isUnreleased ? 'card-unreleased' : ''} ${
+      className={`product-card itemku-product-card ${isUnreleased ? 'card-unreleased' : ''} ${
         isHighlighted ? 'highlight-pulse' : ''
       }`}
       onClick={handleCardClick}
-      style={{ position: 'relative' }}
     >
       {/* Search Pointer Pin if highlighted */}
       {isHighlighted && (
         <div className="search-pointer-pin">
-          <i className="fa-solid fa-hand-point-down"></i> <span>Ini produk yang Anda cari!</span>
+          <i className="fa-solid fa-hand-point-down"></i> <span>Produk yang Anda cari</span>
         </div>
       )}
 
-      <div className="card-top-bar">
-        <div className="card-top-left">
-          {!product.image && (
-            <div
-              className="product-icon-wrap"
-              style={{
-                color: product.iconColor,
-                background: isUnreleased ? 'rgba(245, 158, 11, 0.1)' : undefined
-              }}
-            >
-              <i className={product.icon}></i>
-            </div>
+      {/* Top Media / Thumbnail Ala Itemku */}
+      <div className="itemku-card-thumb-wrap">
+        {product.image ? (
+          <img
+            src={`/${product.image}`}
+            alt={product.name}
+            className="itemku-card-thumb-img"
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className="itemku-card-thumb-fallback"
+            style={{ color: product.iconColor || '#0066FF' }}
+          >
+            <i className={product.icon || 'fa-solid fa-box'}></i>
+          </div>
+        )}
+
+        {/* Badges on Thumbnail */}
+        <div className="itemku-card-top-badges">
+          <span className="itemku-badge-instant">
+            <i className="fa-solid fa-bolt"></i> Instan
+          </span>
+          {discountPercent && (
+            <span className="itemku-badge-discount">
+              -{discountPercent}%
+            </span>
           )}
         </div>
-        <span className={`badge-status ${product.badgeClass}`}>{product.badge}</span>
+
+        {/* Category Pill */}
+        <span className="itemku-badge-category">
+          {(product.category || 'PRODUK').toUpperCase()}
+        </span>
       </div>
 
-      {product.image ? (
-        <div className="product-banner-wrap">
-          <img src={`/${product.image}`} alt={product.name} className="product-banner-img" loading="lazy" />
-          <div className="product-banner-overlay">
-            <span className="product-category-pill">{product.category.toUpperCase()}</span>
-            <h3 className="product-banner-title">{product.name}</h3>
+      {/* Body Info */}
+      <div className="itemku-card-body">
+        {/* Title */}
+        <h3 className="itemku-card-title" title={product.name}>
+          {product.name}
+        </h3>
+
+        {/* Store & Rating */}
+        <div className="itemku-card-seller">
+          <div className="seller-name-row">
+            <span className="seller-name">ChaizStore Official</span>
+            <i className="fa-solid fa-circle-check text-blue" title="Verified Store"></i>
+          </div>
+          <div className="seller-rating-row">
+            <span className="rating-star"><i className="fa-solid fa-star text-warning"></i> 4.9</span>
+            <span className="bullet-dot">•</span>
+            <span className="sold-count">1.2rb+ Terjual</span>
           </div>
         </div>
-      ) : (
-        <div className="product-info">
-          {isUnreleased && (
-            <div className="product-seal-tag">
-              <i className="fa-solid fa-shield-halved"></i> TANDA SEGEL RESMI
-            </div>
+
+        {/* Stock status tag */}
+        <div className="itemku-card-stock">
+          {isUnreleased ? (
+            <span className="stock-tag tag-sealed">
+              <i className="fa-solid fa-shield-halved"></i> Segel Resmi
+            </span>
+          ) : isOutOfStock ? (
+            <span className="stock-tag tag-empty">
+              <i className="fa-solid fa-circle-xmark"></i> Stok Habis
+            </span>
+          ) : (
+            <span className="stock-tag tag-ready">
+              <i className="fa-solid fa-bolt-lightning text-success"></i> Sisa {product.stock} {product.isSteamSpecial ? 'Key' : 'Akun'}
+            </span>
           )}
-          <span className="product-category">{product.category}</span>
-          <h3 className="product-title">{product.name}</h3>
         </div>
-      )}
 
-      {/* Indikator Sisa Stok (Desain Baru Di Atas Harga) */}
-      {stockIndicator}
+        {/* Price & Action */}
+        <div className="itemku-card-footer">
+          <div className="itemku-card-price-area">
+            <span className="price-label-sub">
+              {hasMultiplePrices ? 'Mulai dari' : 'Harga'}
+            </span>
+            {priceHtml}
+          </div>
 
-      <div className="product-price-box">
-        <div>
-          <span className="price-label">{priceLabel}</span>
-          <div>{priceHtml}</div>
+          <div className="itemku-card-btn-area" onClick={(e) => e.stopPropagation()}>
+            {isUnreleased ? (
+              <button
+                type="button"
+                className="btn-itemku-sealed"
+                onClick={() => onShowToast('Grok AI belum dirilis resmi!', 'fa-lock')}
+              >
+                <i className="fa-solid fa-lock"></i>
+              </button>
+            ) : product.isSteamSpecial ? (
+              <button
+                type="button"
+                className="btn-itemku-buy"
+                onClick={handleCardClick}
+                title="Buka Menu Steam"
+              >
+                <i className="fa-brands fa-steam"></i>
+                <span>Buka</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-itemku-buy"
+                onClick={() => onOpenModal(product)}
+                title="Beli Sekarang"
+              >
+                <i className="fa-solid fa-cart-shopping"></i>
+                <span>{isOutOfStock ? 'Detail' : 'Beli'}</span>
+              </button>
+            )}
+          </div>
         </div>
-        <span className="price-unit">{priceUnit}</span>
-      </div>
-
-      <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-        {isUnreleased ? (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sealed"
-            style={{
-              width: '100%',
-              background: 'rgba(245, 158, 11, 0.15)',
-              border: '1px solid rgba(245, 158, 11, 0.45)',
-              color: '#fbbf24',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-            onClick={() => onShowToast('Grok AI masih dalam status segel dan belum dirilis resmi!', 'fa-lock')}
-          >
-            <i className="fa-solid fa-lock"></i> Segel: Belum Dirilis
-          </button>
-        ) : product.isSteamSpecial ? (
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{
-              width: '100%',
-              justifyContent: 'center',
-              background: 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)',
-              borderColor: '#38bdf8',
-              gap: '8px'
-            }}
-            onClick={handleCardClick}
-          >
-            <i className="fa-brands fa-steam"></i>
-            <span>Buka Menu Steam</span>
-            <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '4px' }}></i>
-          </button>
-        ) : (
-          <>
-            <button className="btn btn-primary" onClick={() => onOpenModal(product)}>
-              <i className="fa-solid fa-bag-shopping"></i> {isOutOfStock ? 'Stok Kosong' : 'Beli'}
-            </button>
-            <button
-              className="btn-add-cart"
-              onClick={() => onOpenModal(product)}
-              title="Beli / Masukkan Keranjang"
-            >
-              <i className="fa-solid fa-cart-plus"></i>
-            </button>
-          </>
-        )}
       </div>
     </div>
   );

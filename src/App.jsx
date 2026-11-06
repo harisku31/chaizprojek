@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import AnnouncementBar from './components/AnnouncementBar';
+import IntroSplashScreen from './components/IntroSplashScreen';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
+import ItemkuCategoryGrid from './components/ItemkuCategoryGrid';
+import FlashDeals from './components/FlashDeals';
 import ProductCatalog from './components/ProductCatalog';
+import MobileBottomNav from './components/MobileBottomNav';
 import HowToOrder from './components/HowToOrder';
 import Testimonials from './components/Testimonials';
 import FAQ from './components/FAQ';
@@ -15,9 +19,14 @@ import TopUpPage from './components/TopUpPage';
 import SteamPage from './components/SteamPage';
 import RobloxPage from './components/RobloxPage';
 import TransactionsPage from './components/TransactionsPage';
+import TestimonialsPage from './components/TestimonialsPage';
+import UserProfilePage from './components/UserProfilePage';
 import CheckoutModal from './components/CheckoutModal';
+import QrisPaymentPage from './components/QrisPaymentPage';
 import CartDrawer from './components/CartDrawer';
 import LoginGateModal from './components/LoginGateModal';
+import InstallAppModal from './components/InstallAppModal';
+import InstallAppBanner from './components/InstallAppBanner';
 import CsChatWidget from './components/CsChatWidget';
 import ToastContainer from './components/ToastContainer';
 import BannedNoticeModal from './components/BannedNoticeModal';
@@ -35,7 +44,9 @@ import {
   isUserBanned,
   getUserActiveNotice,
   respondToUserNotice,
-  listenToUserNotice
+  listenToUserNotice,
+  getRegisteredUsers,
+  saveRegisteredUsers
 } from './utils/userTracker';
 
 import {
@@ -54,6 +65,7 @@ import {
 import { listenToFirebase } from './utils/firebase';
 import { syncUserToSql } from './utils/sqlApi';
 import { subscribeUserSocket } from './utils/socketClient';
+import { formatRupiah } from './utils/format';
 import {
   playUserSuccessSound,
   playUserRejectSound,
@@ -97,6 +109,28 @@ export default function App() {
   // Toasts
   const [toasts, setToasts] = useState([]);
 
+  // Theme Mode: 'light' | 'dark'
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chaiz_theme');
+      return saved === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('chaiz_theme', theme);
+    } catch {}
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   // Active Order Notification Modal state (Kiriman Sukses / Ditolak dari Admin)
   const [activeOrderAlert, setActiveOrderAlert] = useState(null);
   const [autoOpenTrxId, setAutoOpenTrxId] = useState(null);
@@ -107,23 +141,38 @@ export default function App() {
   const [currentCategory, setCurrentCategory] = useState('all');
   const [highlightedProductId, setHighlightedProductId] = useState(null);
 
-  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'roblox' (Menu Robux) | 'transaksi'
+  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'roblox' (Menu Robux) | 'transaksi' | 'testimoni' | 'profile' | 'pembayaran'
   const [activeTab, setActiveTab] = useState(() => {
+    if (window.location.hash.startsWith('#pembayaran')) return 'pembayaran';
     if (window.location.hash === '#steam') return 'steam';
     if (window.location.hash === '#roblox') return 'roblox';
     if (window.location.hash === '#topup') return 'topup';
+    if (window.location.hash === '#transaksi') return 'transaksi';
+    if (window.location.hash === '#testimoni') return 'testimoni';
+    if (window.location.hash === '#profile') return 'profile';
     return 'store';
   });
+
+  // Intro Splash Screen State (Dinonaktifkan agar toko langsung terbuka instan seperti itemku.com)
+  const [showIntro, setShowIntro] = useState(false);
 
   // Listen to hash change (back/forward button, links)
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#steam') {
+      if (window.location.hash.startsWith('#pembayaran')) {
+        setActiveTab('pembayaran');
+      } else if (window.location.hash === '#steam') {
         setActiveTab('steam');
       } else if (window.location.hash === '#roblox') {
         setActiveTab('roblox');
       } else if (window.location.hash === '#topup') {
         setActiveTab('topup');
+      } else if (window.location.hash === '#transaksi') {
+        setActiveTab('transaksi');
+      } else if (window.location.hash === '#testimoni') {
+        setActiveTab('testimoni');
+      } else if (window.location.hash === '#profile') {
+        setActiveTab('profile');
       } else {
         setActiveTab('store');
       }
@@ -132,9 +181,18 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const handleSwitchTab = (tab) => {
+  const handleSwitchTab = (tab, extraParams = null) => {
     setActiveTab(tab);
-    if (tab === 'steam') {
+    if (tab === 'pembayaran') {
+      const hashStr = extraParams ? `pembayaran?${extraParams}` : 'pembayaran';
+      if (!window.location.hash.startsWith('#pembayaran')) {
+        window.location.hash = hashStr;
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_PAYMENT', 'Membuka Halaman Pembayaran Gateway');
+      }
+    } else if (tab === 'steam') {
       if (window.location.hash !== '#steam') {
         window.location.hash = 'steam';
       }
@@ -159,9 +217,36 @@ export default function App() {
         recordUserActivity(authUser, 'VIEW_TOPUP', 'Membuka menu Top Up Akun & Games');
       }
     } else if (tab === 'transaksi') {
+      if (window.location.hash !== '#transaksi') {
+        window.location.hash = 'transaksi';
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (tab === 'testimoni') {
+      if (window.location.hash !== '#testimoni') {
+        window.location.hash = 'testimoni';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_TESTIMONIALS', 'Membuka Halaman Testimoni & Kritik');
+      }
+    } else if (tab === 'profile') {
+      if (window.location.hash !== '#profile') {
+        window.location.hash = 'profile';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_PROFILE', 'Membuka Halaman Profil Pengguna');
+      }
     } else {
-      if (window.location.hash === '#topup' || window.location.hash === '#steam' || window.location.hash === '#roblox') {
+      if (
+        window.location.hash.startsWith('#pembayaran') ||
+        window.location.hash === '#topup' ||
+        window.location.hash === '#steam' ||
+        window.location.hash === '#roblox' ||
+        window.location.hash === '#profile' ||
+        window.location.hash === '#testimoni' ||
+        window.location.hash === '#transaksi'
+      ) {
         history.pushState('', document.title, window.location.pathname + window.location.search);
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -176,6 +261,7 @@ export default function App() {
   const [isBannedModalOpen, setIsBannedModalOpen] = useState(false);
   const [activeUserNotice, setActiveUserNotice] = useState(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
@@ -587,6 +673,24 @@ export default function App() {
         bc = new BroadcastChannel('chaiz_admin_sync');
         bc.onmessage = (ev) => {
           const type = ev.data?.type;
+          if (type === 'DEPOSIT_APPROVED') {
+            const myEmail = (authUser?.email || '').toLowerCase().trim();
+            const myId = authUser?.id || '';
+            const depEmail = (ev.data?.userEmail || '').toLowerCase().trim();
+            const depId = ev.data?.userId || '';
+            if ((myEmail && depEmail && myEmail === depEmail) || (myId && depId && myId === depId)) {
+              setAuthUser((prev) => {
+                if (!prev) return null;
+                const clean = { ...prev, chaizMoney: ev.data.newBalance };
+                try {
+                  localStorage.setItem('chaiz_auth_user', JSON.stringify(clean));
+                } catch (e) {}
+                return clean;
+              });
+              playUserSuccessSound();
+              showToast(`🎉 Deposit ChaizMoney sebesar ${formatRupiah(ev.data.creditedAmount)} berhasil disetujui Admin! Saldo sudah masuk.`, 'fa-wallet text-success');
+            }
+          }
           const updated = ev.data?.data?.updatedTrx || ev.data?.updatedTrx;
           if (updated && (type === 'TRANSACTION_FULFILLED' || type === 'TRANSACTION_REJECTED')) {
             handleOrderStatusChange(updated, 'broadcast_channel');
@@ -741,6 +845,44 @@ export default function App() {
       console.error(e);
     }
     showToast('Anda telah keluar dari akun.', 'fa-right-from-bracket');
+  };
+
+  // Update profile user (username, whatsapp/phone, avatar picture, chaizMoney)
+  const handleUpdateUser = (updatedFields) => {
+    setAuthUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updatedFields };
+      try {
+        localStorage.setItem('chaiz_auth_user', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save updated auth user:', e);
+      }
+
+      // Sync to registered users list in localStorage
+      try {
+        const users = getRegisteredUsers();
+        const myKey = updated.id || getUserKey(updated);
+        const myEmail = (updated.email || '').toLowerCase().trim();
+        const idx = users.findIndex(
+          (u) =>
+            (myKey && (u.id === myKey || u.userId === myKey)) ||
+            (myEmail && u.email && u.email.toLowerCase().trim() === myEmail)
+        );
+        if (idx !== -1) {
+          users[idx] = { ...users[idx], ...updatedFields };
+          saveRegisteredUsers(users);
+        }
+      } catch (e) {
+        console.error('Failed to sync updated user to directory:', e);
+      }
+
+      // Sync to SQL & Firebase in background
+      try {
+        syncUserToSql(updated).catch(() => {});
+      } catch (e) {}
+
+      return updated;
+    });
   };
 
   // Cart persistence
@@ -927,14 +1069,57 @@ export default function App() {
     }
   };
 
+  const [activePaymentOrder, setActivePaymentOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chaiz_active_payment');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const saveActivePaymentOrder = (order) => {
+    setActivePaymentOrder(order);
+    try {
+      if (order) {
+        localStorage.setItem('chaiz_active_payment', JSON.stringify(order));
+      } else {
+        localStorage.removeItem('chaiz_active_payment');
+      }
+    } catch {}
+  };
+
+  const handleProceedToPayment = (orderData) => {
+    saveActivePaymentOrder(orderData);
+    setCheckoutData({ isOpen: false, source: 'single', items: [], initialVoucher: null });
+    const methodParam = orderData.subMethod || (orderData.paymentMethod && orderData.paymentMethod.toLowerCase().includes('gopay') ? 'gopay' : 'qris');
+    const query = `trx=${orderData.id}&total=${orderData.amount || orderData.total}&method=${methodParam}`;
+    handleSwitchTab('pembayaran', query);
+  };
+
   return (
     <>
-      <AnnouncementBar />
+      {showIntro && (
+        <IntroSplashScreen
+          onFinish={() => setShowIntro(false)}
+          minDurationMs={2000}
+        />
+      )}
+
+      <AnnouncementBar
+        onOpenInstall={() => setIsInstallModalOpen(true)}
+        onOpenTesti={() => handleSwitchTab('testimoni')}
+        onOpenFaq={() => {
+          const el = document.getElementById('faq');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
 
       <Navbar
         authUser={authUser}
         onLogout={handleLogout}
         onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenInstall={() => setIsInstallModalOpen(true)}
         cartCount={cartItems.length}
         onOpenCart={handleOpenCart}
         searchQuery={searchQuery}
@@ -945,10 +1130,31 @@ export default function App() {
         activeTab={activeTab}
         onSwitchTab={handleSwitchTab}
         isBanned={isCurrentBanned}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
+      {/* Notifikasi Banner Pasang/Download Aplikasi (Dapat dilewati 1 hari) */}
+      <InstallAppBanner onOpenInstall={() => setIsInstallModalOpen(true)} />
+
       <main>
-        {activeTab === 'steam' ? (
+        {activeTab === 'pembayaran' ? (
+          <QrisPaymentPage
+            order={activePaymentOrder}
+            authUser={authUser}
+            onCancel={() => {
+              saveActivePaymentOrder(null);
+              handleSwitchTab('store');
+              showToast('Pembayaran dibatalkan', 'fa-circle-xmark');
+            }}
+            onSuccess={(completedOrder) => {
+              saveActivePaymentOrder(null);
+              handleOrderSuccess('checkout');
+              handleSwitchTab('transaksi');
+            }}
+            onShowToast={showToast}
+          />
+        ) : activeTab === 'steam' ? (
           <SteamPage
             onBackToTopUp={() => handleSwitchTab('topup')}
             onBackToStore={() => handleSwitchTab('store')}
@@ -990,9 +1196,48 @@ export default function App() {
             autoOpenTrxId={autoOpenTrxId}
             onClearAutoOpenTrxId={() => setAutoOpenTrxId(null)}
           />
+        ) : activeTab === 'testimoni' ? (
+          <TestimonialsPage
+            onBackToStore={() => handleSwitchTab('store')}
+            onShowToast={showToast}
+            authUser={authUser}
+            onOpenLogin={() => setIsLoginOpen(true)}
+          />
+        ) : activeTab === 'profile' ? (
+          <UserProfilePage
+            authUser={authUser}
+            onUpdateUser={handleUpdateUser}
+            onBackToStore={() => handleSwitchTab('store')}
+            onGoToTransactions={() => handleSwitchTab('transaksi')}
+            onOpenLogin={() => setIsLoginOpen(true)}
+            onLogout={handleLogout}
+            onShowToast={showToast}
+          />
         ) : (
           <>
             <Hero onSwitchTab={handleSwitchTab} />
+
+            {/* Menu Kategori Ikon Populer Ala Itemku */}
+            <ItemkuCategoryGrid
+              onSelectCategory={(catId, query) => {
+                setCurrentCategory(catId);
+                if (query) {
+                  executeSearchAndPoint(query);
+                } else {
+                  const el = document.getElementById('katalog');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              onSwitchTab={handleSwitchTab}
+            />
+
+            {/* Promo Flash Deals Hari Ini Ala Itemku */}
+            <FlashDeals
+              products={products}
+              onOpenProductModal={(prod) => setModalProduct(prod)}
+              onSwitchTab={handleSwitchTab}
+              onShowToast={showToast}
+            />
 
             <ProductCatalog
               products={products}
@@ -1018,7 +1263,7 @@ export default function App() {
             />
 
             <HowToOrder />
-            <Testimonials />
+            <Testimonials onOpenAllReviews={() => handleSwitchTab('testimoni')} />
             <FAQ />
             <CtaBanner />
           </>
@@ -1027,6 +1272,8 @@ export default function App() {
 
       <Footer
         onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenInstall={() => setIsInstallModalOpen(true)}
+        onOpenTestimonials={() => handleSwitchTab('testimoni')}
         onShowToast={showToast}
       />
 
@@ -1048,6 +1295,7 @@ export default function App() {
         initialVoucher={checkoutData.initialVoucher}
         authUser={authUser}
         onClose={() => setCheckoutData({ isOpen: false, source: 'single', items: [], initialVoucher: null })}
+        onProceedToPayment={handleProceedToPayment}
         onOrderSuccess={handleOrderSuccess}
         onShowToast={showToast}
       />
@@ -1069,11 +1317,19 @@ export default function App() {
         onShowToast={showToast}
       />
 
+      {/* Pasang Aplikasi Modal (PWA & APK Android) */}
+      <InstallAppModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        onShowToast={showToast}
+      />
+
       {/* Menu Tombol Mengambang Setting di Atas CS: Cara Order, FAQ & Testimoni Pelanggan */}
       <QuickSettingMenu
         activeTab={activeTab}
         onSwitchTab={handleSwitchTab}
         onOpenTopUp={() => handleSwitchTab('topup')}
+        onOpenInstall={() => setIsInstallModalOpen(true)}
         authUser={authUser}
       />
 
@@ -1133,6 +1389,16 @@ export default function App() {
         isOpen={Boolean(activeUserNotice)}
         notice={activeUserNotice}
         onContinue={handleContinueNotice}
+      />
+
+      {/* Itemku Mobile Bottom Navigation Bar (Khusus Tampilan HP / Mobile) */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSwitchTab={handleSwitchTab}
+        cartCount={cartItems.length}
+        onOpenCart={handleOpenCart}
+        authUser={authUser}
+        onOpenLogin={() => setIsLoginOpen(true)}
       />
     </>
   );

@@ -3,6 +3,12 @@ import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/forma
 import { PAYMENT_INFO } from '../data/config';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { unlockAudio } from '../utils/audioNotification';
+import {
+  generateQrisDataUrl,
+  QRIS_GATEWAY_CLIENT_KEY,
+  MERCHANT_NMID,
+  verifyGatewayPayment
+} from '../utils/qrisGateway';
 
 export const STEAM_KEY_PACKAGES = [
   {
@@ -66,6 +72,9 @@ export default function SteamKeyModal({
   const [selectedMethod, setSelectedMethod] = useState('qris');
   const [uploadedProof, setUploadedProof] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dynamicQrisUrl, setDynamicQrisUrl] = useState(null);
+  const [isGeneratingQris, setIsGeneratingQris] = useState(false);
+  const [qrisTimerSeconds, setQrisTimerSeconds] = useState(900);
 
   const fileInputRef = useRef(null);
 
@@ -99,6 +108,42 @@ export default function SteamKeyModal({
 
   const totalPrice = currentKey.price * quantity;
 
+  // Generate Dynamic QRIS Otomatis Sesuai Total Tagihan
+  useEffect(() => {
+    let isCancelled = false;
+    if (isOpen && totalPrice > 0) {
+      setIsGeneratingQris(true);
+      generateQrisDataUrl({
+        amount: totalPrice,
+        orderId: `STM-${Date.now().toString().slice(-6)}`
+      })
+        .then((res) => {
+          if (!isCancelled) {
+            setDynamicQrisUrl(res.dataUrl);
+            setIsGeneratingQris(false);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) setIsGeneratingQris(false);
+        });
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, totalPrice]);
+
+  // Countdown timer 15 Menit
+  useEffect(() => {
+    if (!isOpen) {
+      setQrisTimerSeconds(900);
+      return;
+    }
+    const timer = setInterval(() => {
+      setQrisTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
   const handleCopyRekening = async (number, label) => {
     const success = await copyToClipboard(number);
     if (success) {
@@ -108,21 +153,14 @@ export default function SteamKeyModal({
 
   const handleDownloadQris = (e) => {
     e.preventDefault();
-    fetch('/Qris.png')
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'QRIS-ChaizStore.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        onShowToast?.('Foto QRIS sedang di-download...', 'fa-circle-check');
-      })
-      .catch(() => {
-        window.open('/Qris.png', '_blank');
-      });
+    const qrUrl = dynamicQrisUrl || '/Qris.png';
+    const a = document.createElement('a');
+    a.href = qrUrl;
+    a.download = `QRIS-ChaizStore-SteamKey.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    onShowToast?.(`Foto QRIS Dinamis (${formatRupiah(totalPrice)}) berhasil di-download!`, 'fa-circle-check text-success');
   };
 
   const handleProofChange = async (e) => {
@@ -207,40 +245,22 @@ export default function SteamKeyModal({
 
     setIsSubmitting(true);
 
-    const paymentName =
-      PAYMENT_INFO[selectedMethod]?.name ||
-      (selectedMethod === 'qris'
-        ? 'QRIS Instant'
-        : selectedMethod === 'ewallet'
-        ? 'E-Wallet (DANA/OVO/GoPay)'
-        : 'Transfer Bank Muamalat');
-
-    let orderMessage = `*ORDER STEAM KEY RESMI - CHAIZSTORE*\n\n`;
-    orderMessage += `🎮 *Paket Key:* ${currentKey.name}\n`;
-    orderMessage += `🔢 *Jumlah:* ${quantity} Key\n`;
-    orderMessage += `💵 *Harga Satuan:* ${formatRupiah(currentKey.price)}\n`;
-    orderMessage += `💰 *TOTAL BAYAR:* *${formatRupiah(totalPrice)}*\n\n`;
-
-    orderMessage += `👤 *Data Pengiriman:*\n`;
-    if (username) orderMessage += `• Username Steam / ID: ${username}\n`;
-    orderMessage += `• Nama: ${name}\n`;
-    orderMessage += `• Email/Gmail: ${email}\n`;
-    orderMessage += `• No. WhatsApp: ${wa}\n`;
-    orderMessage += `• Metode Bayar: ${paymentName}\n`;
-
-    if (uploadedProof?.uploadedUrl) {
-      orderMessage += `📸 *Bukti Bayar:* ${uploadedProof.uploadedUrl}\n`;
-    }
-
-    const proofImg = uploadedProof?.dataUrl || uploadedProof?.uploadedUrl || null;
-
-    // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
     try {
+      if (selectedMethod === 'qris') {
+        await verifyGatewayPayment({
+          orderId: `steam-${currentKey.id}`,
+          amount: totalPrice
+        });
+      }
+
       const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
       const finalUserId =
         authUser?.id ||
         getUserKey(authUser) ||
         (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
+
+      const isGateway = selectedMethod === 'qris';
+      const proofImg = isGateway ? 'GATEWAY_SUCCESS' : (uploadedProof?.dataUrl || uploadedProof?.uploadedUrl || null);
 
       createTransaction({
         productId: 'steam-' + currentKey.id,
@@ -256,10 +276,13 @@ export default function SteamKeyModal({
         customerName: name,
         customerEmail: finalEmail || email,
         customerPhone: wa,
-        paymentMethod: paymentName,
+        paymentMethod: isGateway ? 'QRIS Payment Gateway Otomatis' : (PAYMENT_INFO[selectedMethod]?.name || 'Transfer Bank'),
+        paymentStatus: isGateway ? 'Lunas' : 'Pending',
+        isGatewayPaid: isGateway,
+        gatewayKey: isGateway ? QRIS_GATEWAY_CLIENT_KEY : null,
         proofUrl: proofImg,
-        proofFileName: uploadedProof?.name || (proofImg ? 'Bukti_Steam_Key.png' : null),
-        proofSize: uploadedProof?.size || null,
+        proofFileName: isGateway ? 'Verifikasi_Otomatis_Gateway' : (uploadedProof?.name || (proofImg ? 'Bukti_Steam_Key.png' : null)),
+        proofSize: isGateway ? `Lunas (${QRIS_GATEWAY_CLIENT_KEY.slice(0, 10)}...)` : (uploadedProof?.size || null),
         warrantyPeriod: 'Garansi Resmi Valve 100% Valid'
       });
     } catch (err) {}
@@ -496,7 +519,7 @@ export default function SteamKeyModal({
                 className={`steam-pay-tab ${selectedMethod === 'qris' ? 'active' : ''}`}
                 onClick={() => setSelectedMethod('qris')}
               >
-                <i className="fa-solid fa-qrcode"></i> QRIS Instant
+                <i className="fa-solid fa-qrcode"></i> QRIS Gateway (Otomatis)
               </button>
               <button
                 type="button"
@@ -518,8 +541,39 @@ export default function SteamKeyModal({
             <div className="steam-payment-body">
               {selectedMethod === 'qris' && (
                 <div className="steam-qris-box">
+                  <div className="dynamic-qris-nominal-box" style={{ margin: '0 0 10px', padding: '10px 14px' }}>
+                    <div className="nominal-header">
+                      <div className="nominal-tag">
+                        <i className="fa-solid fa-bolt text-warning"></i>
+                        <span>DYNAMIC QRIS GATEWAY</span>
+                      </div>
+                      <div className="nominal-timer">
+                        <i className="fa-regular fa-clock"></i>
+                        <span>Sesi: {Math.floor(qrisTimerSeconds / 60)}:{('0' + (qrisTimerSeconds % 60)).slice(-2)}</span>
+                      </div>
+                    </div>
+                    <div className="nominal-amount-wrap" style={{ marginTop: '4px' }}>
+                      <span className="nominal-label-text">Total Tagihan Otomatis:</span>
+                      <strong className="nominal-val">{formatRupiah(totalPrice)}</strong>
+                    </div>
+                  </div>
+
                   <div className="qris-img-wrap">
-                    <img src="/Qris.png" alt="QRIS ChaizStore" className="qris-preview-img" />
+                    {isGeneratingQris ? (
+                      <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                        <i className="fa-solid fa-spinner fa-spin text-cyan" style={{ fontSize: '1.8rem', marginBottom: '8px' }}></i>
+                        <p style={{ margin: 0, fontSize: '0.8rem' }}>Membuat QRIS Dinamis {formatRupiah(totalPrice)}...</p>
+                      </div>
+                    ) : (
+                      <img
+                        src={dynamicQrisUrl || '/Qris.png'}
+                        alt={`QRIS ChaizStore Steam ${formatRupiah(totalPrice)}`}
+                        className="qris-preview-img"
+                      />
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'center', margin: '4px 0 10px', fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>
+                    <span>NMID: {MERCHANT_NMID} &bull; CHAIZSTORE &bull; {QRIS_GATEWAY_CLIENT_KEY.slice(0, 16)}...</span>
                   </div>
                   <div className="qris-actions">
                     <button
@@ -527,7 +581,7 @@ export default function SteamKeyModal({
                       className="btn btn-outline btn-sm"
                       onClick={handleDownloadQris}
                     >
-                      <i className="fa-solid fa-download"></i> Download QRIS
+                      <i className="fa-solid fa-download"></i> Download QRIS ({formatRupiah(totalPrice)})
                     </button>
                     <p className="qris-note">
                       Scan kode QRIS di atas menggunakan BCA, Mandiri, BRI, DANA, GoPay, OVO, ShopeePay, atau m-Banking Anda.
@@ -574,45 +628,25 @@ export default function SteamKeyModal({
                 </div>
               )}
 
-              {/* Upload Foto Bukti Transfer */}
+              {/* Informasi Garansi & Aktivasi */}
               <div className="steam-proof-upload">
-                <label className="proof-label">
-                  <i className="fa-solid fa-cloud-arrow-up"></i> Upload Bukti Transfer (Opsional / Disarankan):
-                </label>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/png, image/jpeg, image/webp"
-                  onChange={handleProofChange}
-                  style={{ display: 'none' }}
-                />
-
-                {!uploadedProof ? (
-                  <div
-                    className="proof-dropzone"
-                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                  >
-                    <i className="fa-solid fa-image"></i>
-                    <span>Klik untuk upload struk / bukti transfer</span>
-                    <small>Mendukung format JPG, PNG, atau WEBP</small>
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.06))',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  <i className="fa-solid fa-bolt text-warning" style={{ fontSize: '1.2rem' }}></i>
+                  <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                    <strong style={{ color: '#34d399', display: 'block' }}>Key 100% Original & Bergaransi Resmi</strong>
+                    Kode lisensi CD Key game Steam akan langsung dikirimkan ke Email & WhatsApp Anda setelah pembayaran.
                   </div>
-                ) : (
-                  <div className="proof-preview-card">
-                    <img src={uploadedProof.dataUrl} alt="Bukti Transfer" className="proof-thumb" />
-                    <div className="proof-info">
-                      <span className="proof-name">{uploadedProof.name}</span>
-                      <span className="proof-size">{uploadedProof.size}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="proof-remove-btn"
-                      onClick={handleRemoveProof}
-                      title="Hapus Bukti"
-                    >
-                      <i className="fa-solid fa-trash-can"></i>
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -624,7 +658,8 @@ export default function SteamKeyModal({
               className="btn btn-primary btn-block btn-lg btn-steam-submit"
               disabled={isSubmitting}
             >
-              <i className="fa-solid fa-paper-plane"></i> Kirim Pesanan Steam Key ke Admin
+              <i className={selectedMethod === 'qris' ? 'fa-solid fa-bolt' : 'fa-solid fa-paper-plane'}></i>{' '}
+              {selectedMethod === 'qris' ? `Bayar Sekarang via QRIS Gateway (${formatRupiah(totalPrice)})` : 'Kirim Pesanan Steam Key ke Admin'}
             </button>
             <button
               type="button"

@@ -51,6 +51,14 @@ import {
   syncTransactionsFromCloud,
   listenToAllTransactions
 } from '../utils/transactions';
+import {
+  getDeposits,
+  saveDeposits,
+  approveDeposit,
+  rejectDeposit,
+  syncDepositsFromCloud,
+  listenToDeposits
+} from '../utils/deposits';
 import { compressImageFile } from '../utils/format';
 import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled, unlockAudio, isAudioContextUnlocked } from '../utils/audioNotification';
 import { subscribeAdminSocket, isSocketConnected } from '../utils/socketClient';
@@ -282,6 +290,17 @@ export default function AdminApp() {
   const [isFulfilling, setIsFulfilling] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
 
+  // Deposito ChaizMoney State (Menu 5)
+  const [depositsList, setDepositsList] = useState(() => getDeposits());
+  const [depositFilter, setDepositFilter] = useState('all'); // 'all' | 'pending' | 'approved' | 'rejected'
+  const [depositSearch, setDepositSearch] = useState('');
+  const [selectedDepositForCredit, setSelectedDepositForCredit] = useState(null);
+  const [creditNominalInput, setCreditNominalInput] = useState('');
+  const [selectedDepositProof, setSelectedDepositProof] = useState(null);
+  const [selectedDepositForReject, setSelectedDepositForReject] = useState(null);
+  const [depositRejectReason, setDepositRejectReason] = useState('Bukti pembayaran tidak valid / dana belum masuk ke mutasi');
+  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
+
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userFilter, setUserFilter] = useState('all'); // 'all' | 'online' | 'offline' | 'logged_in' | 'logged_out' | 'banned' | 'visits'
@@ -419,6 +438,8 @@ export default function AdminApp() {
         setPermanentVisits(getPermanentVisits());
       } else if (e.key === 'chaiz_admin_activity_logs') {
         setActivityLogs(getActivityLogs());
+      } else if (e.key === 'chaiz_admin_deposits') {
+        setDepositsList(getDeposits());
       }
     };
 
@@ -885,6 +906,141 @@ export default function AdminApp() {
       );
     });
   }, [ordersList, orderFilter, orderSearch]);
+
+  // Deposito (Menu 5) Stats Summary & Filtered List
+  const pendingDepositsCount = useMemo(() => {
+    const safeDeps = Array.isArray(depositsList) ? depositsList.filter(Boolean) : [];
+    return safeDeps.filter((d) => d && d.status === 'pending').length;
+  }, [depositsList]);
+
+  const depositsStats = useMemo(() => {
+    let totalApprovedAmount = 0;
+    let pendingCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
+
+    const safeDeps = Array.isArray(depositsList) ? depositsList.filter(Boolean) : [];
+    safeDeps.forEach((d) => {
+      if (!d) return;
+      if (d.status === 'approved') {
+        approvedCount++;
+        totalApprovedAmount += Number(d.creditedAmount || d.amount) || 0;
+      } else if (d.status === 'pending') {
+        pendingCount++;
+      } else if (d.status === 'rejected') {
+        rejectedCount++;
+      }
+    });
+
+    return {
+      total: safeDeps.length,
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      totalApprovedAmount
+    };
+  }, [depositsList]);
+
+  const filteredDepositsList = useMemo(() => {
+    const safeDeps = Array.isArray(depositsList) ? depositsList.filter(Boolean) : [];
+    return safeDeps.filter((dep) => {
+      if (!dep) return false;
+      if (depositFilter === 'pending' && dep.status !== 'pending') return false;
+      if (depositFilter === 'approved' && dep.status !== 'approved') return false;
+      if (depositFilter === 'rejected' && dep.status !== 'rejected') return false;
+
+      const q = (depositSearch || '').trim().toLowerCase();
+      if (!q) return true;
+
+      const dId = String(dep.id || '').toLowerCase();
+      const uName = String(dep.userName || '').toLowerCase();
+      const uMail = String(dep.userEmail || '').toLowerCase();
+      const uPhone = String(dep.userPhone || '').toLowerCase();
+
+      return (
+        dId.includes(q) ||
+        uName.includes(q) ||
+        uMail.includes(q) ||
+        uPhone.includes(q)
+      );
+    });
+  }, [depositsList, depositFilter, depositSearch]);
+
+  const handleOpenCreditModal = (deposit) => {
+    if (!deposit) return;
+    setSelectedDepositForCredit(deposit);
+    setCreditNominalInput(String(deposit.amount || ''));
+  };
+
+  const handleExecuteApproveDeposit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!selectedDepositForCredit) return;
+
+    const nominal = parseInt(creditNominalInput, 10);
+    if (isNaN(nominal) || nominal < 1) {
+      showToast('Masukkan jumlah nominal ChaizMoney yang valid!', 'fa-triangle-exclamation', 'warning');
+      return;
+    }
+
+    setIsProcessingDeposit(true);
+    try {
+      const res = await approveDeposit(
+        selectedDepositForCredit.id,
+        nominal,
+        credentials?.adminName || 'Admin ChaizStore'
+      );
+
+      if (res.success) {
+        setDepositsList(getDeposits());
+        setRegisteredUsers(getRegisteredUsers());
+        playAdminOrderSound();
+        showToast(
+          `🎉 Berhasil! Saldo ChaizMoney Rp ${nominal.toLocaleString('id-ID')} telah dikirim ke ${selectedDepositForCredit.userName}!`,
+          'fa-circle-check text-success',
+          'success'
+        );
+        setSelectedDepositForCredit(null);
+      } else {
+        showToast(res.message || 'Gagal memproses deposit', 'fa-circle-xmark', 'error');
+      }
+    } catch (err) {
+      showToast(err.message || 'Terjadi kesalahan saat memproses deposit', 'fa-circle-xmark', 'error');
+    } finally {
+      setIsProcessingDeposit(false);
+    }
+  };
+
+  const handleOpenRejectDepositModal = (deposit) => {
+    if (!deposit) return;
+    setSelectedDepositForReject(deposit);
+    setDepositRejectReason('Bukti pembayaran tidak valid / dana belum masuk ke mutasi');
+  };
+
+  const handleExecuteRejectDeposit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!selectedDepositForReject) return;
+
+    setIsProcessingDeposit(true);
+    try {
+      const res = await rejectDeposit(
+        selectedDepositForReject.id,
+        depositRejectReason,
+        credentials?.adminName || 'Admin ChaizStore'
+      );
+
+      if (res.success) {
+        setDepositsList(getDeposits());
+        showToast(`Pengajuan deposit #${selectedDepositForReject.id.slice(-8)} berhasil ditolak.`, 'fa-circle-xmark', 'warning');
+        setSelectedDepositForReject(null);
+      } else {
+        showToast(res.message || 'Gagal menolak deposit', 'fa-circle-xmark', 'error');
+      }
+    } catch (err) {
+      showToast(err.message || 'Terjadi kesalahan saat menolak deposit', 'fa-circle-xmark', 'error');
+    } finally {
+      setIsProcessingDeposit(false);
+    }
+  };
 
   const handleOpenFulfillModal = (order) => {
     if (!order) return;
@@ -2114,6 +2270,25 @@ export default function AdminApp() {
               </div>
               <span className={`nav-tab-counter ${pendingOrdersCount > 0 ? 'badge-alert-pulse' : ''}`}>
                 {ordersList.length}
+              </span>
+            </button>
+
+            {/* Menu 5: PESANAN DEPOSIT (CHAIZMONEY) */}
+            <button
+              type="button"
+              className={`admin-nav-tab ${activeAdminTab === 'deposits' ? 'active' : ''}`}
+              onClick={() => setActiveAdminTab('deposits')}
+              style={activeAdminTab === 'deposits' ? { borderColor: '#06b6d4', boxShadow: '0 0 15px rgba(6, 182, 212, 0.3)' } : {}}
+            >
+              <div className="nav-tab-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>
+                <i className="fa-solid fa-money-bill-transfer"></i>
+              </div>
+              <div className="nav-tab-text">
+                <strong>5. Pesanan Deposit</strong>
+                <span>Deposit ChaizMoney Pelanggan & Verifikasi QRIS</span>
+              </div>
+              <span className={`nav-tab-counter ${pendingDepositsCount > 0 ? 'badge-alert-pulse' : ''}`} style={pendingDepositsCount > 0 ? { background: '#06b6d4', color: '#fff' } : {}}>
+                {pendingDepositsCount > 0 ? `${pendingDepositsCount} Baru` : depositsList.length}
               </span>
             </button>
           </div>
@@ -3752,9 +3927,27 @@ export default function AdminApp() {
                               )}
                             </td>
 
-                            {/* Bukti Kiriman (Foto Upload Pembeli) */}
+                            {/* Bukti Kiriman (Foto Upload Pembeli / Gateway Lunas) */}
                             <td className="cell-proof">
-                              {order.proofUrl ? (
+                              {order.isGatewayPaid || order.proofUrl === 'GATEWAY_SUCCESS' || order.proofUrl === 'JANSPAYMENT_SETTLED' || order.paymentStatus === 'Lunas' || (order.paymentMethod && order.paymentMethod.includes('Gateway')) ? (
+                                <div className="proof-action-cell">
+                                  <button
+                                    type="button"
+                                    className="btn-admin-view-proof btn-admin-gateway-verified"
+                                    onClick={() => {
+                                      setProofImgError(false);
+                                      setSelectedOrderProof(order);
+                                    }}
+                                    title="Pembayaran Terverifikasi LUNAS Otomatis oleh QRIS Payment Gateway"
+                                  >
+                                    <i className="fa-solid fa-circle-check text-emerald"></i>
+                                    <span>Sukses Pembayaran</span>
+                                  </button>
+                                  <span className="proof-timer-badge gateway-badge" title="Status Pembayaran LUNAS Otomatis oleh Payment Gateway">
+                                    <i className="fa-solid fa-bolt text-warning"></i> QRIS Gateway Lunas
+                                  </span>
+                                </div>
+                              ) : order.proofUrl ? (
                                 <div className="proof-action-cell">
                                   <button
                                     type="button"
@@ -3897,7 +4090,586 @@ export default function AdminApp() {
             </section>
           </div>
         )}
+
+        {/* ===================================================================
+            MENU 5: PESANAN DEPOSIT CHAIZMONEY (VERIFIKASI QRIS & TOP UP INSTAN)
+            =================================================================== */}
+        {activeAdminTab === 'deposits' && (
+          <div className="tab-pane-content">
+            {/* Header & Description */}
+            <section className="admin-welcome-bar">
+              <div className="welcome-text">
+                <h2>Pesanan Deposit Saldo ChaizMoney</h2>
+                <p>
+                  Daftar seluruh pesanan pengisian saldo <strong>ChaizMoney</strong> dari pengguna toko. Cek foto bukti transfer QRIS dan mutasi Anda.
+                  Cukup <strong>sekali klik & ketik nominal</strong> untuk mengirimkan saldo ChaizMoney ke dompet pengguna secara realtime!
+                </p>
+              </div>
+
+              <div className="admin-quick-actions orders-quick-actions-bar">
+                <button
+                  type="button"
+                  className="admin-action-btn action-refresh-orders"
+                  onClick={() => {
+                    syncDepositsFromCloud().then((fresh) => {
+                      if (fresh) setDepositsList(fresh);
+                    });
+                    setDepositsList(getDeposits());
+                    showToast('Data pesanan deposit dimuat ulang!', 'fa-arrows-rotate', 'info');
+                  }}
+                  title="Muat ulang data pengajuan deposit"
+                >
+                  <i className="fa-solid fa-arrows-rotate"></i>
+                  <span>Refresh Deposit</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Stat Cards Pesanan Deposit */}
+            <section className="admin-stats-grid orders-stats-grid">
+              <div
+                className={`admin-stat-card ${depositFilter === 'all' ? 'active-filter' : ''}`}
+                onClick={() => setDepositFilter('all')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>
+                  <i className="fa-solid fa-money-bill-transfer"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Total Pesanan Deposit</span>
+                  <strong className="stat-value">{depositsStats.total}</strong>
+                </div>
+              </div>
+
+              <div
+                className={`admin-stat-card ${depositFilter === 'pending' ? 'active-filter' : ''}`}
+                onClick={() => setDepositFilter('pending')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#facc15' }}>
+                  <i className="fa-solid fa-clock"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Menunggu Verifikasi</span>
+                  <strong className="stat-value text-warning">{depositsStats.pendingCount}</strong>
+                </div>
+              </div>
+
+              <div
+                className={`admin-stat-card ${depositFilter === 'approved' ? 'active-filter' : ''}`}
+                onClick={() => setDepositFilter('approved')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
+                  <i className="fa-solid fa-circle-check"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Disetujui / Terkirim</span>
+                  <strong className="stat-value text-success">{depositsStats.approvedCount}</strong>
+                </div>
+              </div>
+
+              <div
+                className={`admin-stat-card ${depositFilter === 'rejected' ? 'active-filter' : ''}`}
+                onClick={() => setDepositFilter('rejected')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
+                  <i className="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Ditolak</span>
+                  <strong className="stat-value text-danger">{depositsStats.rejectedCount}</strong>
+                </div>
+              </div>
+
+              <div className="admin-stat-card">
+                <div className="stat-icon-wrap" style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#c084fc' }}>
+                  <i className="fa-solid fa-rupiah-sign"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Total ChaizMoney Terkirim</span>
+                  <strong className="stat-value text-cyan" style={{ fontSize: '1.15rem' }}>
+                    Rp {depositsStats.totalApprovedAmount.toLocaleString('id-ID')}
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            {/* Filter & Search Bar */}
+            <section className="admin-filter-bar">
+              <div className="filter-pill-group">
+                <button
+                  type="button"
+                  className={`filter-pill ${depositFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setDepositFilter('all')}
+                >
+                  Semua ({depositsStats.total})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${depositFilter === 'pending' ? 'active' : ''}`}
+                  onClick={() => setDepositFilter('pending')}
+                >
+                  <span className="pill-dot warning"></span>
+                  Menunggu ({depositsStats.pendingCount})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${depositFilter === 'approved' ? 'active' : ''}`}
+                  onClick={() => setDepositFilter('approved')}
+                >
+                  <span className="pill-dot success"></span>
+                  Disetujui ({depositsStats.approvedCount})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${depositFilter === 'rejected' ? 'active' : ''}`}
+                  onClick={() => setDepositFilter('rejected')}
+                >
+                  <span className="pill-dot danger"></span>
+                  Ditolak ({depositsStats.rejectedCount})
+                </button>
+              </div>
+
+              <div className="search-input-wrap">
+                <i className="fa-solid fa-magnifying-glass search-icon"></i>
+                <input
+                  type="text"
+                  placeholder="Cari ID pesanan deposit, nama, email, whatsapp..."
+                  value={depositSearch}
+                  onChange={(e) => setDepositSearch(e.target.value)}
+                  className="admin-search-input"
+                />
+                {depositSearch && (
+                  <button
+                    type="button"
+                    className="clear-search-btn"
+                    onClick={() => setDepositSearch('')}
+                  >
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                )}
+              </div>
+            </section>
+
+            {/* Deposits Orders Table */}
+            <section className="admin-orders-list-section">
+              {filteredDepositsList.length === 0 ? (
+                <div className="admin-empty-state">
+                  <i className="fa-solid fa-money-bill-transfer"></i>
+                  <h3>Belum Ada Pesanan Deposit</h3>
+                  <p>Tidak ada data pesanan deposit ChaizMoney pada filter ini.</p>
+                </div>
+              ) : (
+                <div className="admin-orders-table-wrapper">
+                  <table className="admin-orders-table">
+                    <thead>
+                      <tr>
+                        <th>ID & Waktu Deposit</th>
+                        <th>Pengguna / Akun</th>
+                        <th>Nominal Pengajuan</th>
+                        <th>Bukti Transfer</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'center' }}>Aksi Kirim Saldo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDepositsList.map((dep) => {
+                        const isPending = dep.status === 'pending';
+                        const isApproved = dep.status === 'approved';
+                        const isRejected = dep.status === 'rejected';
+
+                        return (
+                          <tr key={dep.id} className={isPending ? 'order-row-urgent' : ''}>
+                            {/* ID & Date */}
+                            <td>
+                              <div className="order-id-cell">
+                                <span className="order-id-badge" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee' }}>
+                                  #{String(dep.id || '').slice(-8)}
+                                </span>
+                                <span className="order-time-text">
+                                  {dep.createdAt ? new Date(dep.createdAt).toLocaleString('id-ID', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  }) : '-'}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* User details */}
+                            <td>
+                              <div className="order-customer-cell">
+                                <strong className="customer-name">{dep.userName || 'Pengguna'}</strong>
+                                <span className="customer-email">{dep.userEmail || '-'}</span>
+                                {dep.userPhone && (
+                                  <a
+                                    href={`https://wa.me/${String(dep.userPhone).replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="customer-phone"
+                                    style={{ color: '#25d366', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    <i className="fa-brands fa-whatsapp"></i> {dep.userPhone}
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Nominal */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <strong style={{ fontSize: '1.05rem', color: '#22d3ee', fontWeight: 800 }}>
+                                  Rp {Number(dep.amount || 0).toLocaleString('id-ID')}
+                                </strong>
+                                {isApproved && dep.creditedAmount && dep.creditedAmount !== dep.amount && (
+                                  <span style={{ fontSize: '0.74rem', color: '#34d399' }}>
+                                    Terkirim: Rp {Number(dep.creditedAmount).toLocaleString('id-ID')}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Bukti Foto */}
+                            <td>
+                              {dep.proofUrl ? (
+                                <button
+                                  type="button"
+                                  className="proof-thumb-btn"
+                                  onClick={() => setSelectedDepositProof(dep)}
+                                  title="Klik untuk memperbesar bukti pembayaran"
+                                >
+                                  <img
+                                    src={dep.proofUrl}
+                                    alt="Bukti Transfer"
+                                    className="deposit-proof-thumb"
+                                  />
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Tidak ada foto</span>
+                              )}
+                            </td>
+
+                            {/* Status */}
+                            <td>
+                              <span className={`deposit-badge ${dep.status}`}>
+                                {isPending && <i className="fa-solid fa-clock"></i>}
+                                {isApproved && <i className="fa-solid fa-circle-check"></i>}
+                                {isRejected && <i className="fa-solid fa-circle-xmark"></i>}
+                                {isPending ? 'Menunggu' : isApproved ? 'Berhasil' : 'Ditolak'}
+                              </span>
+                              {isApproved && dep.approvedBy && (
+                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                                  oleh: {dep.approvedBy}
+                                </div>
+                              )}
+                              {isRejected && dep.rejectReason && (
+                                <div style={{ fontSize: '0.7rem', color: '#f87171', marginTop: '2px' }}>
+                                  Alasan: {dep.rejectReason}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td style={{ textAlign: 'center' }}>
+                              {isPending ? (
+                                <div className="deposit-action-btns" style={{ justifyContent: 'center' }}>
+                                  <button
+                                    type="button"
+                                    className="btn-action-credit"
+                                    onClick={() => handleOpenCreditModal(dep)}
+                                    title="Kirim saldo ChaizMoney ke dompet pengguna"
+                                  >
+                                    <i className="fa-solid fa-paper-plane"></i>
+                                    <span>Kirim ChaizMoney</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-action-reject"
+                                    onClick={() => handleOpenRejectDepositModal(dep)}
+                                    title="Tolak pesanan deposit ini"
+                                  >
+                                    <i className="fa-solid fa-xmark"></i>
+                                    <span>Tolak</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Selesai Diproses</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
       </main>
+
+      {/* ===================================================================
+          MODAL: KIRIM CHAIZMONEY KE PENGGUNA (SEKALI KETIK RP)
+          =================================================================== */}
+      {selectedDepositForCredit && (
+        <div className="admin-modal-backdrop" onClick={() => !isProcessingDeposit && setSelectedDepositForCredit(null)}>
+          <div className="modal-box-credit-deposit" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header" style={{ borderBottomColor: 'rgba(6, 182, 212, 0.3)', paddingBottom: '12px' }}>
+              <div className="modal-title-wrap">
+                <i className="fa-solid fa-money-bill-transfer" style={{ color: '#06b6d4', fontSize: '1.3rem' }}></i>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Kirim Saldo ChaizMoney</h3>
+                  <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Sekali konfirmasi nominal, saldo langsung masuk dompet pengguna</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setSelectedDepositForCredit(null)}
+                disabled={isProcessingDeposit}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteApproveDeposit}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Target User Info */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.9)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginBottom: '4px' }}>Tujuan Penerima:</div>
+                  <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block' }}>{selectedDepositForCredit.userName}</strong>
+                  <span style={{ fontSize: '0.8rem', color: '#22d3ee' }}>{selectedDepositForCredit.userEmail}</span>
+                  {selectedDepositForCredit.userPhone && (
+                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+                      WA: {selectedDepositForCredit.userPhone}
+                    </span>
+                  )}
+                </div>
+
+                {/* Proof preview snippet */}
+                {selectedDepositForCredit.proofUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '10px' }}>
+                    <img
+                      src={selectedDepositForCredit.proofUrl}
+                      alt="Bukti Transfer"
+                      style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }}
+                      onClick={() => setSelectedDepositProof(selectedDepositForCredit)}
+                    />
+                    <div style={{ flex: 1, fontSize: '0.78rem', color: '#cbd5e1' }}>
+                      <span>Bukti transfer terlampir.</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDepositProof(selectedDepositForCredit)}
+                        style={{ display: 'block', background: 'none', border: 'none', color: '#22d3ee', padding: 0, cursor: 'pointer', fontSize: '0.76rem', marginTop: '2px' }}
+                      >
+                        Klik untuk perbesar foto ↗
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nominal Input (Sekali ketik Rp Chaizmoney) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>
+                    Nominal ChaizMoney yang Dikirim (Rp):
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: '#22d3ee' }}>
+                      Rp
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={creditNominalInput}
+                      onChange={(e) => setCreditNominalInput(e.target.value)}
+                      placeholder="Contoh: 50000"
+                      required
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px 12px 42px',
+                        fontSize: '1.2rem',
+                        fontWeight: 800,
+                        color: '#22d3ee',
+                        background: '#090d16',
+                        border: '1.5px solid rgba(6, 182, 212, 0.5)',
+                        borderRadius: '12px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    Nominal pengajuan pelanggan: <strong>Rp {Number(selectedDepositForCredit.amount || 0).toLocaleString('id-ID')}</strong>
+                  </span>
+                </div>
+
+                {/* Modal Actions */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    className="admin-modal-btn btn-cancel"
+                    onClick={() => setSelectedDepositForCredit(null)}
+                    disabled={isProcessingDeposit}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="admin-modal-btn btn-confirm-ban"
+                    style={{ background: 'linear-gradient(135deg, #06b6d4, #10b981)', border: 'none', color: '#fff' }}
+                    disabled={isProcessingDeposit}
+                  >
+                    {isProcessingDeposit ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                        <span>Mengirim Saldo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-paper-plane"></i>
+                        <span>Kirim ChaizMoney Sekarang</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: PREVIEW BUKTI TRANSFER PEMBAYARAN QRIS
+          =================================================================== */}
+      {selectedDepositProof && (
+        <div className="admin-modal-backdrop" onClick={() => setSelectedDepositProof(null)}>
+          <div className="modal-box-proof-view" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '10px' }}>
+              <div className="modal-title-wrap">
+                <i className="fa-solid fa-receipt text-cyan"></i>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Bukti Pembayaran Pesanan Deposit</h3>
+                  <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                    Pengirim: {selectedDepositProof.userName} ({selectedDepositProof.userEmail})
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setSelectedDepositProof(null)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '100%', maxHeight: '60vh', overflow: 'auto', background: '#000', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px' }}>
+                <img
+                  src={selectedDepositProof.proofUrl}
+                  alt="Bukti Transfer"
+                  style={{ maxWidth: '100%', maxHeight: '55vh', objectFit: 'contain', borderRadius: '8px' }}
+                />
+              </div>
+
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                <span>Nominal: <strong style={{ color: '#22d3ee' }}>Rp {Number(selectedDepositProof.amount || 0).toLocaleString('id-ID')}</strong></span>
+                <a
+                  href={selectedDepositProof.proofUrl}
+                  download={`bukti-deposit-${selectedDepositProof.id}.jpg`}
+                  className="btn-download-qris-inline"
+                  style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+                >
+                  <i className="fa-solid fa-download"></i> Unduh Foto
+                </a>
+              </div>
+
+              {selectedDepositProof.status === 'pending' && (
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <button
+                    type="button"
+                    className="btn-action-credit"
+                    onClick={() => {
+                      const dep = selectedDepositProof;
+                      setSelectedDepositProof(null);
+                      handleOpenCreditModal(dep);
+                    }}
+                    style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                  >
+                    <i className="fa-solid fa-paper-plane"></i> Lanjut Kirim ChaizMoney
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: TOLAK PESANAN DEPOSIT
+          =================================================================== */}
+      {selectedDepositForReject && (
+        <div className="admin-modal-backdrop" onClick={() => !isProcessingDeposit && setSelectedDepositForReject(null)}>
+          <div className="admin-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="admin-modal-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.3)' }}>
+              <div className="modal-title-wrap">
+                <i className="fa-solid fa-circle-xmark text-danger"></i>
+                <h3>Tolak Pesanan Deposit</h3>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setSelectedDepositForReject(null)}
+                disabled={isProcessingDeposit}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteRejectDeposit}>
+              <div className="admin-modal-body">
+                <p style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '12px' }}>
+                  Apakah Anda yakin ingin menolak pesanan deposit dari <strong>{selectedDepositForReject.userName}</strong> senilai <strong>Rp {Number(selectedDepositForReject.amount || 0).toLocaleString('id-ID')}</strong>?
+                </p>
+
+                <div className="admin-input-group">
+                  <label className="admin-input-label">Alasan Penolakan:</label>
+                  <textarea
+                    rows="3"
+                    value={depositRejectReason}
+                    onChange={(e) => setDepositRejectReason(e.target.value)}
+                    className="admin-textarea"
+                    placeholder="Tulis alasan penolakan..."
+                    required
+                  ></textarea>
+                </div>
+              </div>
+
+              <div className="admin-modal-footer">
+                <button
+                  type="button"
+                  className="admin-modal-btn btn-cancel"
+                  onClick={() => setSelectedDepositForReject(null)}
+                  disabled={isProcessingDeposit}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="admin-modal-btn btn-confirm-ban"
+                  disabled={isProcessingDeposit}
+                >
+                  {isProcessingDeposit ? 'Memproses...' : 'Tolak Pesanan Deposit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================
           MODAL: BANNED PENGGUNA (SEMENTARA / PERMANEN)
@@ -6284,8 +7056,65 @@ export default function AdminApp() {
                 </div>
               </div>
 
-              {/* Photo Display Container */}
-              {selectedOrderProof.proofUrl && !proofImgError ? (
+              {/* Bukti QRIS Gateway Otomatis / Foto Display Container */}
+              {selectedOrderProof.isGatewayPaid || selectedOrderProof.proofUrl === 'GATEWAY_SUCCESS' || selectedOrderProof.proofUrl === 'JANSPAYMENT_SETTLED' || selectedOrderProof.paymentStatus === 'Lunas' || (selectedOrderProof.paymentMethod && selectedOrderProof.paymentMethod.includes('Gateway')) ? (
+                <div className="gateway-proof-card">
+                  <div className="gateway-proof-badge-header">
+                    <div className="gateway-shield-icon">
+                      <i className="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                      <h4 className="gateway-proof-title">PEMBAYARAN SUKSES & TERVERIFIKASI OTOMATIS</h4>
+                      <p className="gateway-proof-subtitle">QRIS Real Payment Gateway &bull; Sistem Deteksi Realtime</p>
+                    </div>
+                  </div>
+
+                  <div className="gateway-receipt-grid">
+                    <div className="receipt-col">
+                      <span className="receipt-label">Status Pembayaran:</span>
+                      <strong className="receipt-val text-emerald">
+                        <i className="fa-solid fa-check-double"></i> LUNAS (Verified by Gateway)
+                      </strong>
+                    </div>
+                    <div className="receipt-col">
+                      <span className="receipt-label">Total Dana Diterima:</span>
+                      <strong className="receipt-val text-yellow" style={{ fontSize: '1.15rem' }}>
+                        {formatRupiah(selectedOrderProof.total)}
+                      </strong>
+                    </div>
+                    <div className="receipt-col">
+                      <span className="receipt-label">Gateway Client Key:</span>
+                      <span className="receipt-val receipt-code">
+                        {selectedOrderProof.gatewayKey || 'js_c2ae56533ce1a2da9470e1e5916bd8cc67c732718d7b9c43'}
+                      </span>
+                    </div>
+                    <div className="receipt-col">
+                      <span className="receipt-label">Metode Pembayaran:</span>
+                      <span className="receipt-val">
+                        <i className="fa-solid fa-qrcode text-emerald"></i> {selectedOrderProof.paymentMethod || 'QRIS Payment Gateway Otomatis'}
+                      </span>
+                    </div>
+                    <div className="receipt-col">
+                      <span className="receipt-label">Merchant NMID:</span>
+                      <span className="receipt-val">ID1026479345864 &bull; CHAIZSTORE</span>
+                    </div>
+                    <div className="receipt-col">
+                      <span className="receipt-label">ID Pesanan:</span>
+                      <span className="receipt-val">{selectedOrderProof.id}</span>
+                    </div>
+                  </div>
+
+                  <div className="gateway-admin-note-box">
+                    <i className="fa-solid fa-circle-info text-cyan"></i>
+                    <div>
+                      <strong>Instruksi Admin (Bebas Periksa Bukti Fisik):</strong>
+                      <p>
+                        Pembayaran pesanan ini telah otomatis lunas dan terverifikasi masuk ke sistem gateway tanpa perlu bukti foto screenshot. Admin tinggal klik tombol <strong>"Lanjut Proses & Kirim Akun"</strong> di bawah untuk langsung mengirimkan pesanan ke pelanggan!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : selectedOrderProof.proofUrl && !proofImgError ? (
                 <div className="proof-photo-wrapper">
                   <div className="proof-photo-meta-bar">
                     <span className="proof-filename">

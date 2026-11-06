@@ -534,6 +534,9 @@ export function createTransaction({
   customerEmail = '-',
   customerPhone = '-',
   paymentMethod = 'QRIS Instant',
+  paymentStatus = 'Pending',
+  isGatewayPaid = false,
+  gatewayKey = null,
   proofUrl = null,
   proofFileName = null,
   proofSize = null,
@@ -571,6 +574,9 @@ export function createTransaction({
     qty,
     total: total || price * qty,
     paymentMethod,
+    paymentStatus: paymentStatus || (proofUrl === 'GATEWAY_SUCCESS' ? 'Lunas' : 'Pending'),
+    isGatewayPaid: isGatewayPaid || proofUrl === 'GATEWAY_SUCCESS' || paymentMethod.includes('Gateway'),
+    gatewayKey: gatewayKey || (proofUrl === 'GATEWAY_SUCCESS' ? 'js_c2ae56533ce1a2da9470e1e5916bd8cc67c732718d7b9c43' : null),
     proofUrl: proofUrl || null,
     proofFileName: proofFileName || (hasProof ? 'Bukti_Pembayaran.png' : null),
     proofSize: proofSize || null,
@@ -1147,16 +1153,76 @@ export function getCustomerReviews() {
       return INITIAL_REVIEWS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_REVIEWS;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_REVIEWS;
   } catch (e) {
     return INITIAL_REVIEWS;
   }
 }
 
+/**
+ * Format tanggal dan jam bahasa Indonesia realtime (contoh: 30 Okt 2026, 21:15 WIB)
+ */
+export function formatIndonesianDateTime(dateInput = new Date()) {
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) return 'Baru saja';
+
+  const bulanIndo = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const tgl = d.getDate();
+  const bln = bulanIndo[d.getMonth()];
+  const thn = d.getFullYear();
+  const jam = String(d.getHours()).padStart(2, '0');
+  const mnt = String(d.getMinutes()).padStart(2, '0');
+  return `${tgl} ${bln} ${thn}, ${jam}:${mnt} WIB`;
+}
+
+/**
+ * Tambah ulasan / kritik baru dari pembeli (Realtime Cloud + Local + Broadcast)
+ */
+export function createNewCustomerReview({
+  user,
+  stars = 5,
+  text,
+  category = 'Akun Premium'
+}) {
+  const now = new Date();
+  const formattedDateTime = formatIndonesianDateTime(now);
+  const newId = `REV-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+
+  const newReview = {
+    id: newId,
+    userId: user?.id || user?.userId || null,
+    name: user?.name || user?.displayName || 'Pengguna Terverifikasi',
+    email: user?.email || '-',
+    picture: user?.picture || user?.photoURL || null,
+    avatarLetter: (user?.name || 'U').charAt(0).toUpperCase(),
+    isGoogle: !!(user?.isGoogle || (user?.email && user?.email.includes('@'))),
+    stars: Math.max(1, Math.min(5, parseInt(stars, 10) || 5)),
+    text: String(text || '').trim(),
+    role: category || 'Pelanggan Setia',
+    category: category || 'Akun Premium',
+    date: formattedDateTime,
+    dateTime: formattedDateTime,
+    createdAt: now.toISOString(),
+    timestamp: now.getTime()
+  };
+
+  const current = getCustomerReviews();
+  const updated = [newReview, ...current.filter((r) => r.id !== newId)];
+  localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(updated));
+
+  // Sync atomic ke Cloud Firebase RTDB
+  writeToFirebase(`${FIREBASE_PATH_REVIEWS}/${newId}`, newReview).catch(() => {});
+
+  // Broadcast ke tab browser lain
+  broadcastSync('NEW_CUSTOMER_REVIEW', newReview);
+
+  return newReview;
+}
+
 export function addCustomerReview(review) {
   try {
     const reviews = getCustomerReviews();
-    const updated = [review, ...reviews];
+    const updated = [review, ...reviews.filter((r) => r.id !== review.id)];
     localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(updated));
     broadcastSync('NEW_CUSTOMER_REVIEW', review);
     writeToFirebase(`${FIREBASE_PATH_REVIEWS}/${review.id}`, review);
@@ -1164,6 +1230,55 @@ export function addCustomerReview(review) {
   } catch (e) {
     return [];
   }
+}
+
+/**
+ * Sinkronkan ulasan pelanggan dari Firebase Cloud
+ */
+export async function syncCustomerReviewsFromCloud() {
+  try {
+    const cloudReviews = await readFromFirebase(FIREBASE_PATH_REVIEWS);
+    if (cloudReviews) {
+      const revList = Array.isArray(cloudReviews)
+        ? cloudReviews.filter(Boolean)
+        : Object.values(cloudReviews).filter(Boolean);
+
+      revList.sort((a, b) => new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime());
+      localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(revList));
+      return revList;
+    }
+  } catch (e) {}
+  return getCustomerReviews();
+}
+
+/**
+ * Streaming Realtime Ulasan Pelanggan dari Cloud Firebase
+ */
+export function listenToCustomerReviews(callback) {
+  if (typeof window === 'undefined' || typeof callback !== 'function') return () => {};
+
+  return listenToFirebase(FIREBASE_PATH_REVIEWS, (cloudReviews) => {
+    if (cloudReviews === undefined) {
+      callback(getCustomerReviews());
+      return;
+    }
+    if (cloudReviews === null) {
+      callback(INITIAL_REVIEWS);
+      return;
+    }
+
+    try {
+      const revList = Array.isArray(cloudReviews)
+        ? cloudReviews.filter(Boolean)
+        : Object.values(cloudReviews).filter(Boolean);
+
+      revList.sort((a, b) => new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime());
+      localStorage.setItem(STORAGE_KEY_REVIEWS, JSON.stringify(revList));
+      callback(revList);
+    } catch (e) {
+      callback(getCustomerReviews());
+    }
+  });
 }
 
 // ===================================================================

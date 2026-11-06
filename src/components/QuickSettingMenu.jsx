@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 import { getActiveNotificationCount } from '../utils/transactions';
 
-export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab = 'store', authUser = null }) {
+export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, onOpenInstall, activeTab = 'store', authUser = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLanggananOpen, setIsLanggananOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -119,6 +119,15 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
       desc: 'Penjelasan garansi, aturan sharing & klaim',
       icon: 'fa-solid fa-shield-halved',
       theme: 'menu-theme-purple',
+      isLink: false
+    },
+    {
+      id: 'install-app',
+      title: 'Pasang Aplikasi di HP',
+      badge: 'PWA / APK',
+      desc: 'Install langsung ke layar HP tanpa Play Store',
+      icon: 'fa-solid fa-mobile-screen',
+      theme: 'menu-theme-cyan',
       isLink: false
     },
     {
@@ -318,7 +327,17 @@ export default function QuickSettingMenu({ onOpenTopUp, onSwitchTab, activeTab =
                   key={item.id}
                   type="button"
                   className={`quick-menu-scroll-row ${item.theme}`}
-                  onClick={() => scrollToSection(item.id)}
+                  onClick={() => {
+                    if (item.id === 'install-app') {
+                      setIsOpen(false);
+                      if (typeof onOpenInstall === 'function') onOpenInstall();
+                    } else if (item.id === 'testimoni') {
+                      setIsOpen(false);
+                      if (typeof onSwitchTab === 'function') onSwitchTab('testimoni');
+                    } else {
+                      scrollToSection(item.id);
+                    }
+                  }}
                 >
                   <div className="quick-menu-row-left">
                     <div className="quick-menu-icon">

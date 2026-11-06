@@ -4,6 +4,12 @@ import { PAYMENT_INFO } from '../data/config';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { fetchRobloxProfile } from '../utils/roblox';
 import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
+import {
+  generateQrisDataUrl,
+  QRIS_GATEWAY_CLIENT_KEY,
+  MERCHANT_NMID,
+  verifyGatewayPayment
+} from '../utils/qrisGateway';
 
 export const ROBUX_PACKAGES = [
   {
@@ -96,6 +102,9 @@ export default function RobloxBuyModal({
   const [selectedMethod, setSelectedMethod] = useState('qris');
   const [uploadedProof, setUploadedProof] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dynamicQrisUrl, setDynamicQrisUrl] = useState(null);
+  const [isGeneratingQris, setIsGeneratingQris] = useState(false);
+  const [qrisTimerSeconds, setQrisTimerSeconds] = useState(900);
 
   const fileInputRef = useRef(null);
 
@@ -166,6 +175,42 @@ export default function RobloxBuyModal({
 
   const totalPrice = currentPkg.price;
 
+  // Generate Dynamic QRIS Otomatis Sesuai Paket Robux
+  useEffect(() => {
+    let isCancelled = false;
+    if (isOpen && totalPrice > 0) {
+      setIsGeneratingQris(true);
+      generateQrisDataUrl({
+        amount: totalPrice,
+        orderId: `RBX-${Date.now().toString().slice(-6)}`
+      })
+        .then((res) => {
+          if (!isCancelled) {
+            setDynamicQrisUrl(res.dataUrl);
+            setIsGeneratingQris(false);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) setIsGeneratingQris(false);
+        });
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, totalPrice]);
+
+  // Countdown timer 15 Menit
+  useEffect(() => {
+    if (!isOpen) {
+      setQrisTimerSeconds(900);
+      return;
+    }
+    const timer = setInterval(() => {
+      setQrisTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
   const handleCopyRekening = async (number, label) => {
     const success = await copyToClipboard(number);
     if (success) {
@@ -175,21 +220,14 @@ export default function RobloxBuyModal({
 
   const handleDownloadQris = (e) => {
     e.preventDefault();
-    fetch('/Qris.png')
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'QRIS-ChaizStore.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        onShowToast?.('Foto QRIS sedang di-download...', 'fa-circle-check');
-      })
-      .catch(() => {
-        window.open('/Qris.png', '_blank');
-      });
+    const qrUrl = dynamicQrisUrl || '/Qris.png';
+    const a = document.createElement('a');
+    a.href = qrUrl;
+    a.download = `QRIS-ChaizStore-Robux-${currentPkg.symbol}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    onShowToast?.(`Foto QRIS Dinamis Robux (${formatRupiah(totalPrice)}) berhasil di-download!`, 'fa-circle-check text-success');
   };
 
   const handleProofChange = async (e) => {
@@ -274,22 +312,22 @@ export default function RobloxBuyModal({
 
     setIsSubmitting(true);
 
-    const paymentName =
-      PAYMENT_INFO[selectedMethod]?.name ||
-      (selectedMethod === 'qris'
-        ? 'QRIS Instant'
-        : selectedMethod === 'ewallet'
-        ? 'E-Wallet (DANA/OVO/GoPay)'
-        : 'Transfer Bank Muamalat');
-
     try {
+      if (selectedMethod === 'qris') {
+        await verifyGatewayPayment({
+          orderId: `roblox-${currentPkg.id}`,
+          amount: totalPrice
+        });
+      }
+
       const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
       const finalUserId =
         authUser?.id ||
         getUserKey(authUser) ||
         (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
 
-      const proofImg = uploadedProof?.dataUrl || uploadedProof?.uploadedUrl || null;
+      const isGateway = selectedMethod === 'qris';
+      const proofImg = isGateway ? 'GATEWAY_SUCCESS' : (uploadedProof?.dataUrl || uploadedProof?.uploadedUrl || null);
 
       const newTrx = createTransaction({
         productId: 'roblox-' + currentPkg.id,
@@ -311,10 +349,13 @@ export default function RobloxBuyModal({
         customerName: name,
         customerEmail: finalEmail,
         customerPhone: wa,
-        paymentMethod: paymentName,
+        paymentMethod: isGateway ? 'QRIS Payment Gateway Otomatis' : (PAYMENT_INFO[selectedMethod]?.name || 'Transfer'),
+        paymentStatus: isGateway ? 'Lunas' : 'Pending',
+        isGatewayPaid: isGateway,
+        gatewayKey: isGateway ? QRIS_GATEWAY_CLIENT_KEY : null,
         proofUrl: proofImg,
-        proofFileName: uploadedProof?.name || (proofImg ? 'Bukti_Transfer_Robux.png' : null),
-        proofSize: uploadedProof?.size || null,
+        proofFileName: isGateway ? 'Verifikasi_Otomatis_Gateway' : (uploadedProof?.name || (proofImg ? 'Bukti_Transfer_Robux.png' : null)),
+        proofSize: isGateway ? `Lunas (${QRIS_GATEWAY_CLIENT_KEY.slice(0, 10)}...)` : (uploadedProof?.size || null),
         warrantyPeriod: 'Garansi Robux Masuk 100%'
       });
 
@@ -347,76 +388,58 @@ export default function RobloxBuyModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-box modal-box-redesign steam-buy-modal-box" style={{ maxWidth: '640px' }}>
-        <button className="modal-close-btn" onClick={onClose} aria-label="Tutup">
+      <div className="modal-box modal-box-redesign roblox-buy-modal-box">
+        <button className="modal-close-btn roblox-modal-close" onClick={onClose} aria-label="Tutup">
           <i className="fa-solid fa-xmark"></i>
         </button>
 
         {/* Modal Header */}
-        <div className="modal-header-centered" style={{ borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '18px' }}>
-          <div
-            className="trx-header-icon-wrap"
-            style={{
-              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.3) 0%, rgba(56, 189, 248, 0.3) 100%)',
-              borderColor: 'rgba(56, 189, 248, 0.55)',
-              color: '#38bdf8',
-              boxShadow: '0 0 20px rgba(56, 189, 248, 0.25)'
-            }}
-          >
+        <div className="modal-header-centered roblox-modal-header">
+          <div className="trx-header-icon-wrap roblox-header-icon">
             <i className="fa-solid fa-cube"></i>
           </div>
-          <span className="modal-tag" style={{ color: '#38bdf8' }}>
+          <span className="modal-tag roblox-modal-tag">
             TOP UP ROBUX VIA USERNAME RESMI
           </span>
-          <h3 className="modal-title-centered" style={{ color: '#ffffff' }}>
+          <h3 className="modal-title-centered roblox-modal-title">
             Checkout Saldo Robux Roblox
           </h3>
-          <p className="modal-desc" style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
+          <p className="modal-desc roblox-modal-desc">
             Isi saldo Robux legal dan bergaransi 100%. Cukup masukkan username akun Roblox kamu tanpa butuh password!
           </p>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmitOrder} className="steam-modal-body" style={{ padding: '20px 24px', maxHeight: '72vh', overflowY: 'auto' }}>
+        <form onSubmit={handleSubmitOrder} className="steam-modal-body roblox-modal-body">
           {/* 1. Pilih Denominasi Robux */}
-          <div className="steam-selector-section" style={{ marginBottom: '22px' }}>
-            <label className="steam-field-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="roblox-section-group">
+            <label className="roblox-form-label-header">
               <span>
                 <i className="fa-solid fa-cube text-cyan"></i> <strong>Pilih Jumlah Robux:</strong>
               </span>
-              <span style={{ fontSize: '12px', color: '#38bdf8', fontFamily: 'monospace' }}>
+              <span className="roblox-current-deco-symbol">
                 {currentPkg.decoSymbol}
               </span>
             </label>
 
-            <div className="steam-packages-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '8px' }}>
+            <div className="roblox-packages-grid">
               {ROBUX_PACKAGES.map((pkg) => {
                 const isSelected = selectedPkgId === pkg.id;
                 return (
                   <button
                     key={pkg.id}
                     type="button"
-                    className={`steam-pkg-card ${isSelected ? 'active' : ''}`}
+                    className={`roblox-pkg-card ${isSelected ? 'active' : ''}`}
                     onClick={() => setSelectedPkgId(pkg.id)}
-                    style={{
-                      padding: '12px 10px',
-                      borderRadius: '10px',
-                      background: isSelected ? 'rgba(56, 189, 248, 0.16)' : 'rgba(255, 255, 255, 0.04)',
-                      border: `1.5px solid ${isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}`,
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
                   >
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: isSelected ? '#ffffff' : 'rgba(255,255,255,0.9)' }}>
+                    <div className="roblox-pkg-name">
                       {pkg.name}
                     </div>
-                    <div style={{ fontSize: '12px', color: isSelected ? '#fbbf24' : '#38bdf8', fontWeight: 700, marginTop: '2px' }}>
+                    <div className="roblox-pkg-price">
                       {formatRupiah(pkg.price)}
                     </div>
                     {isSelected && (
-                      <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', color: '#38bdf8' }}>
+                      <span className="roblox-pkg-check">
                         <i className="fa-solid fa-circle-check"></i>
                       </span>
                     )}
@@ -427,76 +450,35 @@ export default function RobloxBuyModal({
           </div>
 
           {/* 2. INPUT UTAMA: USERNAME ROBLOX KAMU */}
-          <div
-            className="roblox-username-card"
-            style={{
-              padding: '16px 18px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(56, 189, 248, 0.08) 100%)',
-              border: '1.5px solid rgba(56, 189, 248, 0.45)',
-              marginBottom: '22px'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label className="steam-field-label" style={{ display: 'block', margin: 0, color: '#ffffff' }}>
-                <i className="fa-solid fa-user-ninja text-cyan" style={{ marginRight: '6px' }}></i>
+          <div className="roblox-username-card">
+            <div className="roblox-username-header">
+              <label className="roblox-form-label" htmlFor="robloxInputUsername">
+                <i className="fa-solid fa-user-ninja text-cyan"></i>
                 <strong>Username Roblox Kamu (Wajib):</strong>
               </label>
               {robloxProfile && (
-                <span style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>
-                  <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i> Terverifikasi
+                <span className="roblox-verified-badge">
+                  <i className="fa-solid fa-circle-check"></i> Terverifikasi
                 </span>
               )}
             </div>
 
-            <div style={{ position: 'relative' }}>
+            <div className="roblox-input-wrap">
+              <span className="roblox-input-icon-left">
+                <i className="fa-solid fa-at"></i>
+              </span>
+
               <input
+                id="robloxInputUsername"
                 type="text"
-                className="form-control"
+                className={`form-control roblox-username-input ${robloxProfile ? 'is-valid' : searchError ? 'is-invalid' : ''}`}
                 placeholder="Ketik username Roblox kamu (cth: player123)"
                 value={robloxUsername}
                 onChange={(e) => setRobloxUsername(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '12px 42px 12px 42px',
-                  borderRadius: '10px',
-                  background: 'rgba(0, 0, 0, 0.65)',
-                  border: robloxProfile
-                    ? '1.5px solid #10b981'
-                    : searchError
-                    ? '1.5px solid #ef4444'
-                    : '1.5px solid rgba(56, 189, 248, 0.4)',
-                  color: '#ffffff',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  letterSpacing: '0.5px'
-                }}
               />
-              {/* Icon kiri: @ */}
-              <span
-                style={{
-                  position: 'absolute',
-                  left: '14px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#38bdf8',
-                  fontSize: '16px'
-                }}
-              >
-                <i className="fa-solid fa-at"></i>
-              </span>
 
-              {/* Status icon kanan */}
-              <span
-                style={{
-                  position: 'absolute',
-                  right: '14px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontSize: '16px'
-                }}
-              >
+              <span className="roblox-input-icon-right">
                 {isSearchingProfile ? (
                   <i className="fa-solid fa-spinner fa-spin text-cyan"></i>
                 ) : robloxProfile ? (
@@ -509,20 +491,7 @@ export default function RobloxBuyModal({
 
             {/* Status Searching */}
             {isSearchingProfile && (
-              <div
-                style={{
-                  marginTop: '10px',
-                  padding: '9px 13px',
-                  borderRadius: '10px',
-                  background: 'rgba(2, 132, 199, 0.18)',
-                  border: '1px dashed rgba(56, 189, 248, 0.55)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  color: '#38bdf8',
-                  fontSize: '12.5px'
-                }}
-              >
+              <div className="roblox-status-box searching">
                 <i className="fa-solid fa-spinner fa-spin"></i>
                 <span>Sedang mencari profil avatar Roblox <strong>@{robloxUsername}</strong>...</span>
               </div>
@@ -530,30 +499,13 @@ export default function RobloxBuyModal({
 
             {/* Profile Avatar Card Ketika Ditemukan */}
             {robloxProfile && !isSearchingProfile && (
-              <div
-                style={{
-                  marginTop: '12px',
-                  padding: '13px 15px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(2, 132, 199, 0.2) 100%)',
-                  border: '1.5px solid rgba(16, 185, 129, 0.6)',
-                  boxShadow: '0 8px 24px -6px rgba(16, 185, 129, 0.25)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div className="roblox-profile-found-card">
+                <div className="roblox-profile-inner">
+                  <div className="roblox-avatar-wrap">
                     <img
                       src={robloxProfile.avatarUrl || robloxProfile.avatarFullUrl || '/roblox.png'}
                       alt={robloxProfile.name}
-                      style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        border: '2.5px solid #10b981',
-                        background: '#0b1329',
-                        objectFit: 'cover',
-                        boxShadow: '0 0 16px rgba(16, 185, 129, 0.5)'
-                      }}
+                      className="roblox-avatar-img"
                       onError={(e) => {
                         if (robloxProfile.avatarFullUrl && e.target.src !== robloxProfile.avatarFullUrl) {
                           e.target.src = robloxProfile.avatarFullUrl;
@@ -562,56 +514,29 @@ export default function RobloxBuyModal({
                         }
                       }}
                     />
-                    <span
-                      style={{
-                        position: 'absolute',
-                        bottom: '-2px',
-                        right: '-2px',
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '50%',
-                        background: '#10b981',
-                        color: '#ffffff',
-                        fontSize: '11px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid #0f172a'
-                      }}
-                    >
+                    <span className="roblox-avatar-check">
                       <i className="fa-solid fa-check"></i>
                     </span>
                   </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '15px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.3px' }}>
+                  <div className="roblox-profile-info">
+                    <div className="roblox-profile-name-row">
+                      <span className="roblox-profile-display-name">
                         {robloxProfile.displayName || robloxProfile.name}
                       </span>
                       {robloxProfile.hasVerifiedBadge && (
-                        <i className="fa-solid fa-certificate text-cyan" title="Roblox Verified" style={{ fontSize: '13px' }}></i>
+                        <i className="fa-solid fa-certificate text-cyan" title="Roblox Verified"></i>
                       )}
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          padding: '2px 7px',
-                          borderRadius: '6px',
-                          background: 'rgba(16, 185, 129, 0.25)',
-                          color: '#34d399',
-                          border: '1px solid rgba(16, 185, 129, 0.4)'
-                        }}
-                      >
+                      <span className="roblox-tag-verified">
                         Akun Ditemukan
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '12px', color: '#93c5fd', marginTop: '2px', fontWeight: 600 }}>
-                      @{robloxProfile.name} • <span style={{ color: 'rgba(255,255,255,0.65)' }}>ID: {robloxProfile.id}</span>
+                    <div className="roblox-profile-id-row">
+                      @{robloxProfile.name} • <span>ID: {robloxProfile.id}</span>
                     </div>
 
-                    <div style={{ fontSize: '11.5px', color: '#a7f3d0', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div className="roblox-profile-notice">
                       <i className="fa-solid fa-circle-check"></i>
                       <span>Pastikan foto avatar ini beneran akun Roblox kamu ya!</span>
                     </div>
@@ -622,24 +547,11 @@ export default function RobloxBuyModal({
 
             {/* Error Not Found */}
             {searchError && !isSearchingProfile && robloxUsername.trim().length >= 3 && (
-              <div
-                style={{
-                  marginTop: '10px',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1.5px solid rgba(239, 68, 68, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  color: '#fca5a5',
-                  fontSize: '12.5px'
-                }}
-              >
-                <i className="fa-solid fa-triangle-exclamation text-danger" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+              <div className="roblox-status-box error">
+                <i className="fa-solid fa-triangle-exclamation text-danger"></i>
                 <div>
                   <strong>{searchError}</strong>
-                  <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.75)', marginTop: '2px' }}>
+                  <div className="roblox-error-sub">
                     Gunakan <strong>Username asli</strong> akun Roblox kamu (bukan Display Name) tanpa tanda spasi.
                   </div>
                 </div>
@@ -647,179 +559,173 @@ export default function RobloxBuyModal({
             )}
 
             {/* Catatan Bantuan */}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+            <div className="roblox-field-helper">
               <i className="fa-solid fa-shield-halved text-emerald"></i>
               <span>Cukup masukkan username akun Roblox kamu tanpa tanda @ dan <strong>tanpa password</strong>.</span>
             </div>
           </div>
 
           {/* 3. Kontak Pelanggan */}
-          <div className="steam-buyer-details" style={{ marginBottom: '22px' }}>
-            <label className="steam-field-label" style={{ marginBottom: '8px', display: 'block' }}>
+          <div className="roblox-section-group roblox-buyer-details">
+            <label className="roblox-form-label-header">
               <i className="fa-solid fa-address-card text-cyan"></i> <strong>Data Pemesan:</strong>
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div className="roblox-form-grid-2">
               <div>
-                <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '4px' }}>Nama Lengkap:</label>
+                <label className="roblox-input-label" htmlFor="robloxBuyerName">Nama Lengkap:</label>
                 <input
+                  id="robloxBuyerName"
                   type="text"
-                  className="form-control"
+                  className="form-control roblox-input"
                   placeholder="Nama Lengkap"
                   value={buyerName}
                   onChange={(e) => setBuyerName(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
                 />
               </div>
 
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label htmlFor="robloxBuyerWa" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', display: 'block', margin: 0 }}>
+                <div className="roblox-input-label-row">
+                  <label className="roblox-input-label" htmlFor="robloxBuyerWa">
                     No. WhatsApp / HP:
                   </label>
                   {!buyerWa.trim() && (
-                    <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>*Jangan lupa isi</span>
+                    <span className="roblox-required-hint">*Jangan lupa isi</span>
                   )}
                 </div>
                 <input
                   id="robloxBuyerWa"
                   type="tel"
-                  className="form-control"
+                  className={`form-control roblox-input ${!buyerWa.trim() ? 'border-warning' : ''}`}
                   placeholder="Contoh: 08123456789"
                   value={buyerWa}
                   onChange={(e) => setBuyerWa(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: !buyerWa.trim() ? '1px solid rgba(245, 158, 11, 0.55)' : '1px solid rgba(255,255,255,0.15)',
-                    color: '#fff'
-                  }}
                 />
               </div>
 
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '4px' }}>Email / Gmail:</label>
+              <div className="roblox-full-col">
+                <label className="roblox-input-label" htmlFor="robloxBuyerEmail">Email / Gmail:</label>
                 <input
+                  id="robloxBuyerEmail"
                   type="email"
-                  className="form-control"
+                  className="form-control roblox-input"
                   placeholder="alamat.email@gmail.com"
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
                 />
               </div>
             </div>
           </div>
 
           {/* 4. Pilihan Metode Pembayaran */}
-          <div className="steam-payment-methods" style={{ marginBottom: '22px' }}>
-            <label className="steam-field-label" style={{ marginBottom: '10px', display: 'block' }}>
+          <div className="roblox-section-group roblox-payment-section">
+            <label className="roblox-form-label-header">
               <i className="fa-solid fa-wallet text-warning"></i> <strong>Pilih Metode Pembayaran:</strong>
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+            <div className="roblox-method-grid">
               <button
                 type="button"
-                className={`steam-method-card ${selectedMethod === 'qris' ? 'active' : ''}`}
+                className={`roblox-method-card qris ${selectedMethod === 'qris' ? 'active' : ''}`}
                 onClick={() => setSelectedMethod('qris')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: selectedMethod === 'qris' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                  border: `1.5px solid ${selectedMethod === 'qris' ? '#10b981' : 'rgba(255, 255, 255, 0.08)'}`,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  color: '#fff'
-                }}
               >
-                <i className="fa-solid fa-qrcode" style={{ fontSize: '20px', color: '#10b981', display: 'block', marginBottom: '6px' }}></i>
-                <strong style={{ fontSize: '13px', display: 'block' }}>QRIS Instant</strong>
-                <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Semua E-Wallet/Bank</small>
+                <i className="fa-solid fa-qrcode method-icon text-emerald"></i>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+                  <strong className="method-title">QRIS Gateway</strong>
+                </div>
+                <small className="method-sub">Dinamis &bull; Lunas Otomatis</small>
               </button>
 
               <button
                 type="button"
-                className={`steam-method-card ${selectedMethod === 'ewallet' ? 'active' : ''}`}
+                className={`roblox-method-card ewallet ${selectedMethod === 'ewallet' ? 'active' : ''}`}
                 onClick={() => setSelectedMethod('ewallet')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: selectedMethod === 'ewallet' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                  border: `1.5px solid ${selectedMethod === 'ewallet' ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}`,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  color: '#fff'
-                }}
               >
-                <i className="fa-solid fa-wallet" style={{ fontSize: '20px', color: '#38bdf8', display: 'block', marginBottom: '6px' }}></i>
-                <strong style={{ fontSize: '13px', display: 'block' }}>DANA / E-Wallet</strong>
-                <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>0818-0973-0331</small>
+                <i className="fa-solid fa-wallet method-icon text-cyan"></i>
+                <strong className="method-title">DANA / E-Wallet</strong>
+                <small className="method-sub">0818-0973-0331</small>
               </button>
 
               <button
                 type="button"
-                className={`steam-method-card ${selectedMethod === 'bank' ? 'active' : ''}`}
+                className={`roblox-method-card bank ${selectedMethod === 'bank' ? 'active' : ''}`}
                 onClick={() => setSelectedMethod('bank')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: selectedMethod === 'bank' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                  border: `1.5px solid ${selectedMethod === 'bank' ? '#a855f7' : 'rgba(255, 255, 255, 0.08)'}`,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  color: '#fff'
-                }}
               >
-                <i className="fa-solid fa-building-columns" style={{ fontSize: '20px', color: '#a855f7', display: 'block', marginBottom: '6px' }}></i>
-                <strong style={{ fontSize: '13px', display: 'block' }}>Bank Muamalat</strong>
-                <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>1080010996</small>
+                <i className="fa-solid fa-building-columns method-icon text-purple"></i>
+                <strong className="method-title">Bank Muamalat</strong>
+                <small className="method-sub">1080010996</small>
               </button>
             </div>
 
             {/* Detail Box Metode Pembayaran */}
-            <div style={{ marginTop: '14px', padding: '14px 16px', borderRadius: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="roblox-method-detail-box">
               {selectedMethod === 'qris' && (
-                <div style={{ textAlign: 'center' }}>
-                  <img
-                    src="/Qris.png"
-                    alt="QRIS ChaizStore"
-                    style={{ width: '160px', height: '160px', borderRadius: '10px', margin: '0 auto 10px', display: 'block', background: '#fff', padding: '6px' }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <div className="roblox-qris-wrap">
+                  <div className="dynamic-qris-nominal-box" style={{ margin: '0 0 12px', padding: '10px 14px' }}>
+                    <div className="nominal-header">
+                      <div className="nominal-tag">
+                        <i className="fa-solid fa-bolt text-warning"></i>
+                        <span>DYNAMIC QRIS GATEWAY</span>
+                      </div>
+                      <div className="nominal-timer">
+                        <i className="fa-regular fa-clock"></i>
+                        <span>Sesi: {Math.floor(qrisTimerSeconds / 60)}:{('0' + (qrisTimerSeconds % 60)).slice(-2)}</span>
+                      </div>
+                    </div>
+                    <div className="nominal-amount-wrap" style={{ marginTop: '4px' }}>
+                      <span className="nominal-label-text">Total Nominal Terkunci:</span>
+                      <strong className="nominal-val">{formatRupiah(totalPrice)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="roblox-qris-img-container">
+                    {isGeneratingQris ? (
+                      <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                        <i className="fa-solid fa-spinner fa-spin text-cyan" style={{ fontSize: '1.8rem', marginBottom: '8px' }}></i>
+                        <p style={{ margin: 0, fontSize: '0.8rem' }}>Membuat QRIS Dinamis {formatRupiah(totalPrice)}...</p>
+                      </div>
+                    ) : (
+                      <img
+                        src={dynamicQrisUrl || '/Qris.png'}
+                        alt={`QRIS ChaizStore Robux ${formatRupiah(totalPrice)}`}
+                        className="roblox-qris-img"
+                      />
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'center', margin: '4px 0 10px', fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>
+                    <span>NMID: {MERCHANT_NMID} &bull; CHAIZSTORE &bull; {QRIS_GATEWAY_CLIENT_KEY.slice(0, 16)}...</span>
+                  </div>
+                  <div className="roblox-qris-btns">
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className="btn btn-outline btn-sm roblox-btn-copy"
                       onClick={handleDownloadQris}
-                      style={{ fontSize: '12px', padding: '6px 14px' }}
                     >
-                      <i className="fa-solid fa-download"></i> Download QRIS
+                      <i className="fa-solid fa-download"></i> Download QRIS ({formatRupiah(totalPrice)})
                     </button>
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className="btn btn-outline btn-sm roblox-btn-copy"
                       onClick={() => handleCopyRekening(formatRupiah(totalPrice), 'Total Pembayaran')}
-                      style={{ fontSize: '12px', padding: '6px 14px' }}
                     >
-                      <i className="fa-solid fa-copy"></i> Salin Nominal ({formatRupiah(totalPrice)})
+                      <i className="fa-solid fa-copy"></i> Salin Nominal
                     </button>
                   </div>
                 </div>
               )}
 
               {selectedMethod === 'ewallet' && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="roblox-rekening-row">
                   <div>
-                    <strong style={{ display: 'block', color: '#fff', fontSize: '14px' }}>DANA / GoPay / OVO</strong>
-                    <span style={{ fontSize: '13px', color: '#38bdf8' }}>0818-0973-0331 (a.n Haris)</span>
+                    <strong className="roblox-rek-title">DANA / GoPay / OVO</strong>
+                    <span className="roblox-rek-sub text-cyan">0818-0973-0331 (a.n Haris)</span>
                   </div>
                   <button
                     type="button"
-                    className="btn btn-outline btn-sm"
+                    className="btn btn-outline btn-sm roblox-btn-copy"
                     onClick={() => handleCopyRekening('081809730331', 'Nomor E-Wallet')}
                   >
                     <i className="fa-solid fa-copy"></i> Salin Nomor
@@ -828,14 +734,14 @@ export default function RobloxBuyModal({
               )}
 
               {selectedMethod === 'bank' && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="roblox-rekening-row">
                   <div>
-                    <strong style={{ display: 'block', color: '#fff', fontSize: '14px' }}>Bank Muamalat</strong>
-                    <span style={{ fontSize: '13px', color: '#a855f7' }}>1080010996 (a.n Haris)</span>
+                    <strong className="roblox-rek-title">Bank Muamalat</strong>
+                    <span className="roblox-rek-sub text-purple">1080010996 (a.n Haris)</span>
                   </div>
                   <button
                     type="button"
-                    className="btn btn-outline btn-sm"
+                    className="btn btn-outline btn-sm roblox-btn-copy"
                     onClick={() => handleCopyRekening('1080010996', 'Nomor Rekening')}
                   >
                     <i className="fa-solid fa-copy"></i> Salin Rekening
@@ -845,122 +751,52 @@ export default function RobloxBuyModal({
             </div>
           </div>
 
-          {/* 5. Upload Bukti Transfer */}
-          <div className="steam-proof-upload" style={{ marginBottom: '22px' }}>
-            <label className="steam-field-label" style={{ marginBottom: '8px', display: 'block' }}>
-              <i className="fa-solid fa-receipt text-cyan"></i> <strong>Upload Bukti Transfer:</strong>
-            </label>
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleProofChange}
-              accept="image/*"
-              style={{ display: 'none' }}
-              id="robloxProofInput"
-            />
-
-            {!uploadedProof ? (
-              <div
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                style={{
-                  border: '2px dashed rgba(255, 255, 255, 0.2)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '28px', color: '#f87171', marginBottom: '8px', display: 'block' }}></i>
-                <strong style={{ display: 'block', color: '#fff', fontSize: '14px' }}>Klik untuk Upload Foto Bukti Pembayaran</strong>
-                <small style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>Mendukung format JPG, PNG, WEBP (Otomatis Dicompress)</small>
+          {/* 5. Informasi Garansi & Proses */}
+          <div className="roblox-section-group roblox-proof-section">
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.06))',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              <i className="fa-solid fa-bolt text-warning" style={{ fontSize: '1.2rem' }}></i>
+              <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                <strong style={{ color: '#34d399', display: 'block' }}>Proses Otomatis & Garansi Robux 100%</strong>
+                Pesanan Robux Anda akan langsung diproses ke akun Roblox tujuan setelah konfirmasi pembayaran.
               </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)'
-                }}
-              >
-                <img
-                  src={uploadedProof.dataUrl}
-                  alt="Bukti Transfer"
-                  style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '8px' }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ display: 'block', color: '#fff', fontSize: '13px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                    {uploadedProof.name}
-                  </strong>
-                  <small style={{ color: '#10b981', fontSize: '11px' }}>
-                    <i className="fa-solid fa-circle-check"></i> Siap dikirim ({uploadedProof.size})
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={handleRemoveProof}
-                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                >
-                  <i className="fa-solid fa-trash"></i>
-                </button>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Ringkasan & Total Tagihan */}
-          <div
-            style={{
-              padding: '16px',
-              borderRadius: '12px',
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              marginBottom: '20px'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
-              <span>Item Pesanan:</span>
-              <strong style={{ color: '#fff' }}>Robux Roblox ({currentPkg.name})</strong>
+          <div className="roblox-order-summary-box">
+            <div className="summary-row">
+              <span className="summary-label">Item Pesanan:</span>
+              <strong className="summary-val">Robux Roblox ({currentPkg.name})</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
-              <span>Tujuan Username:</span>
-              <strong style={{ color: '#38bdf8' }}>{robloxUsername || '(Belum diisi)'}</strong>
+            <div className="summary-row">
+              <span className="summary-label">Tujuan Username:</span>
+              <strong className="summary-val text-cyan">{robloxUsername || '(Belum diisi)'}</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
-              <span>Metode Pembayaran:</span>
-              <span style={{ color: '#38bdf8' }}>{selectedMethod.toUpperCase()}</span>
+            <div className="summary-row">
+              <span className="summary-label">Metode Pembayaran:</span>
+              <span className="summary-val text-cyan">{selectedMethod.toUpperCase()}</span>
             </div>
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>Total Tagihan:</span>
-              <strong style={{ fontSize: '20px', color: '#fbbf24', fontWeight: 800 }}>{formatRupiah(totalPrice)}</strong>
+            <div className="summary-total-row">
+              <span className="total-label">Total Tagihan:</span>
+              <strong className="total-val">{formatRupiah(totalPrice)}</strong>
             </div>
           </div>
 
           {/* Tombol Submit Pesanan */}
           <button
             type="submit"
-            className="btn btn-primary"
+            className="btn btn-primary roblox-modal-submit-btn"
             disabled={isSubmitting}
-            style={{
-              width: '100%',
-              padding: '14px',
-              fontSize: '15px',
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
-              borderColor: '#38bdf8',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: '0 8px 24px rgba(14, 165, 233, 0.35)'
-            }}
           >
             {isSubmitting ? (
               <>
@@ -969,9 +805,9 @@ export default function RobloxBuyModal({
               </>
             ) : (
               <>
-                <i className="fa-solid fa-cube"></i>
-                <span>Konfirmasi & Beli Sekarang ({formatRupiah(totalPrice)})</span>
-                <i className="fa-solid fa-arrow-right" style={{ fontSize: '12px' }}></i>
+                <i className={selectedMethod === 'qris' ? 'fa-solid fa-bolt' : 'fa-solid fa-cube'}></i>
+                <span>{selectedMethod === 'qris' ? `Bayar Sekarang via QRIS Gateway (${formatRupiah(totalPrice)})` : `Konfirmasi & Beli Sekarang (${formatRupiah(totalPrice)})`}</span>
+                <i className="fa-solid fa-arrow-right"></i>
               </>
             )}
           </button>

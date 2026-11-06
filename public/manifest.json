@@ -1,0 +1,27 @@
+{
+  "name": "ChaizStore - Jual Beli Akun Premium",
+  "short_name": "ChaizStore",
+  "description": "Platform jual beli akun premium legal, murah, dan bergaransi penuh.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#060814",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/chaizz.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/chaizz.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "productivity", "entertainment"]
+}
