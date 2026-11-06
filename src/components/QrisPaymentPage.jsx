@@ -55,7 +55,8 @@ export default function QrisPaymentPage({
   const [jansData, setJansData] = useState(null);
   const [dynamicQrisUrl, setDynamicQrisUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(true);
-  const [timerSeconds, setTimerSeconds] = useState(900); // 15 Menit
+  const [timerSeconds, setTimerSeconds] = useState(360); // 6 Menit (Wajib Hangus saat habis)
+  const [isExpired, setIsExpired] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(4);
@@ -91,13 +92,22 @@ export default function QrisPaymentPage({
     };
   }, [baseAmount, activeOrder.id]);
 
-  // 2. Countdown Timer 15 Menit
+  // 2. Countdown Timer 6 Menit (Hangus saat habis)
   useEffect(() => {
+    if (isPaid || isExpired) return;
     const timer = setInterval(() => {
-      setTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimerSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsExpired(true);
+          onShowToast?.('⚠️ Waktu pembayaran 6 menit telah habis. Sesi QRIS hangus.', 'fa-triangle-exclamation text-warning');
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isPaid, isExpired]);
 
   // Format Timer mm:ss
   const formatTimer = (seconds) => {
@@ -155,10 +165,10 @@ export default function QrisPaymentPage({
 
   // 4. Polling Real-Time ke Server JansPayment Setiap 2.5 Detik (100% Otomatis Mendeteksi Saat Scan)
   useEffect(() => {
-    if (!jansData?.paymentId || isPaid) return;
+    if (!jansData?.paymentId || isPaid || isExpired) return;
 
     const pollInterval = setInterval(async () => {
-      if (isPaidRef.current) {
+      if (isPaidRef.current || isExpired) {
         clearInterval(pollInterval);
         return;
       }
@@ -170,6 +180,7 @@ export default function QrisPaymentPage({
           handlePaymentSuccess(check);
         } else if (check.cancelled || check.expired) {
           clearInterval(pollInterval);
+          setIsExpired(true);
           onShowToast?.('Sesi QRIS telah kadaluarsa atau dibatalkan oleh gateway', 'fa-triangle-exclamation');
         }
       } catch (err) {
@@ -178,7 +189,7 @@ export default function QrisPaymentPage({
     }, 2500);
 
     return () => clearInterval(pollInterval);
-  }, [jansData?.paymentId, isPaid]);
+  }, [jansData?.paymentId, isPaid, isExpired]);
 
   // 5. Cek saat user kembali ke tab browser (HANYA CEK STATUS ASLI JANSPAYMENT)
   useEffect(() => {
@@ -206,6 +217,10 @@ export default function QrisPaymentPage({
 
   // 6. Tombol Manual: Saya Sudah Bayar (100% Cek Real ke Server JansPayment, ANTI-TIPU)
   const handleCheckPayment = async () => {
+    if (isExpired) {
+      onShowToast?.('⚠️ Sesi QRIS sudah hangus karena melebihi batas waktu 6 menit.', 'fa-triangle-exclamation text-danger');
+      return;
+    }
     if (isVerifying || isPaid) return;
     if (!jansData?.paymentId) {
       onShowToast?.('Sesi QRIS sedang dimuat, mohon tunggu sebentar...', 'fa-clock');
@@ -411,9 +426,9 @@ export default function QrisPaymentPage({
                   <span className="qris-header-badge-tag">Semua Bank & E-Wallet</span>
                 </div>
               )}
-              <div className="qris-timer-pill">
-                <i className="fa-regular fa-clock"></i>
-                <span>Sisa Waktu: <strong>{formatTimer(timerSeconds)}</strong></span>
+              <div className="qris-timer-pill" style={isExpired ? { background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', borderColor: '#ef4444' } : {}}>
+                <i className={`fa-solid ${isExpired ? 'fa-hourglass-end' : 'fa-clock'}`}></i>
+                <span>{isExpired ? 'Sesi Hangus (0:00)' : <>Sisa Waktu: <strong>{formatTimer(timerSeconds)}</strong></>}</span>
               </div>
             </div>
 
@@ -484,6 +499,14 @@ export default function QrisPaymentPage({
                   <div className="qris-qr-loading">
                     <i className="fa-solid fa-spinner fa-spin text-cyan"></i>
                     <span>Menghubungi JansPayment Gateway...</span>
+                  </div>
+                ) : isExpired ? (
+                  <div className="qris-qr-expired" style={{ padding: '36px 16px', textAlign: 'center', color: '#f87171' }}>
+                    <i className="fa-solid fa-triangle-exclamation fa-3x" style={{ marginBottom: '12px', display: 'block', margin: '0 auto 12px' }}></i>
+                    <strong style={{ fontSize: '1.05rem', display: 'block', color: '#f87171' }}>QRIS HANGUS (6 MENIT HABIS)</strong>
+                    <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '6px', maxWidth: '280px', margin: '6px auto 0' }}>
+                      Batas waktu transaksi 6 menit telah berakhir. Barcode dinonaktifkan demi keamanan. Silakan buat pesanan baru.
+                    </p>
                   </div>
                 ) : (
                   <img

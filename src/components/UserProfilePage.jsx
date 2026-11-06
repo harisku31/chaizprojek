@@ -59,10 +59,12 @@ export default function UserProfilePage({
   const proofFileInputRef = useRef(null);
 
   // JansPayment Realtime Gateway State
+  const TOP_UP_TIMEOUT_SECONDS = 360; // 6 Menit (Wajib Hangus jika habis)
   const [topUpJansData, setTopUpJansData] = useState(null);
   const [isGeneratingTopUpQris, setIsGeneratingTopUpQris] = useState(false);
-  const [topUpTimerSeconds, setTopUpTimerSeconds] = useState(900); // 15 menit
+  const [topUpTimerSeconds, setTopUpTimerSeconds] = useState(TOP_UP_TIMEOUT_SECONDS);
   const [isTopUpPaid, setIsTopUpPaid] = useState(false);
+  const [isTopUpExpired, setIsTopUpExpired] = useState(false);
   const [isCheckingStatusManually, setIsCheckingStatusManually] = useState(false);
   const [newCalculatedBalance, setNewCalculatedBalance] = useState(null);
   const isTopUpPaidRef = useRef(false);
@@ -278,7 +280,9 @@ export default function UserProfilePage({
     setTopUpStep(1);
     setDepositPhone(authUser?.whatsapp || authUser?.phone || '');
     setIsTopUpPaid(false);
+    setIsTopUpExpired(false);
     isTopUpPaidRef.current = false;
+    setTopUpTimerSeconds(TOP_UP_TIMEOUT_SECONDS);
     setTopUpJansData(null);
     setNewCalculatedBalance(null);
     setIsTopUpMoneyModalOpen(true);
@@ -293,8 +297,9 @@ export default function UserProfilePage({
     setTopUpStep(2);
     setIsGeneratingTopUpQris(true);
     setIsTopUpPaid(false);
+    setIsTopUpExpired(false);
     isTopUpPaidRef.current = false;
-    setTopUpTimerSeconds(900);
+    setTopUpTimerSeconds(TOP_UP_TIMEOUT_SECONDS);
     setTopUpJansData(null);
 
     const refId = `TOPUP-${Date.now().toString().slice(-6)}`;
@@ -394,6 +399,10 @@ export default function UserProfilePage({
 
   // Cek Status Manual ke JansPayment (HANYA lolos jika check.paid === true, ANTI-TIPU)
   const handleManualCheckStatus = async () => {
+    if (isTopUpExpired) {
+      onShowToast?.('⚠️ Sesi QRIS sudah hangus karena melebihi batas waktu 6 menit. Silakan buat QRIS baru.', 'fa-triangle-exclamation text-danger');
+      return;
+    }
     if (!topUpJansData?.paymentId || isTopUpPaidRef.current || isCheckingStatusManually) return;
     setIsCheckingStatusManually(true);
     try {
@@ -416,11 +425,11 @@ export default function UserProfilePage({
 
   // 1. Polling Real-Time ke Server JansPayment Setiap 2 Detik (Otomatis Deteksi Saat Scan)
   useEffect(() => {
-    if (topUpStep !== 2 || !topUpJansData?.paymentId || isTopUpPaid) return;
+    if (topUpStep !== 2 || !topUpJansData?.paymentId || isTopUpPaid || isTopUpExpired) return;
 
     let isPolling = false;
     const pollInterval = setInterval(async () => {
-      if (isTopUpPaidRef.current || isPolling) return;
+      if (isTopUpPaidRef.current || isPolling || isTopUpExpired) return;
       isPolling = true;
 
       try {
@@ -430,6 +439,7 @@ export default function UserProfilePage({
           handlePaymentSuccess(check);
         } else if (check.cancelled || check.expired) {
           clearInterval(pollInterval);
+          setIsTopUpExpired(true);
           onShowToast?.('Sesi QRIS telah kadaluarsa atau dibatalkan oleh gateway', 'fa-triangle-exclamation text-warning');
         }
       } catch (err) {
@@ -440,14 +450,14 @@ export default function UserProfilePage({
     }, 2000);
 
     return () => clearInterval(pollInterval);
-  }, [topUpStep, topUpJansData?.paymentId, isTopUpPaid]);
+  }, [topUpStep, topUpJansData?.paymentId, isTopUpPaid, isTopUpExpired]);
 
   // 2. Cek saat user kembali ke tab browser (HANYA lolos jika check.paid === true)
   useEffect(() => {
-    if (topUpStep !== 2 || isTopUpPaid || !topUpJansData?.paymentId) return;
+    if (topUpStep !== 2 || isTopUpPaid || isTopUpExpired || !topUpJansData?.paymentId) return;
 
     const handleFocusCheck = async () => {
-      if (document.visibilityState === 'visible' && !isTopUpPaidRef.current && topUpJansData?.paymentId) {
+      if (document.visibilityState === 'visible' && !isTopUpPaidRef.current && !isTopUpExpired && topUpJansData?.paymentId) {
         try {
           const check = await checkJansPaymentStatus({ paymentId: topUpJansData.paymentId });
           if (check.paid) {
@@ -464,16 +474,24 @@ export default function UserProfilePage({
       document.removeEventListener('visibilitychange', handleFocusCheck);
       window.removeEventListener('focus', handleFocusCheck);
     };
-  }, [topUpStep, isTopUpPaid, topUpJansData?.paymentId]);
+  }, [topUpStep, isTopUpPaid, isTopUpExpired, topUpJansData?.paymentId]);
 
-  // 3. Countdown Timer 15 Menit
+  // 3. Countdown Timer 6 Menit (Wajib Hangus saat waktu habis)
   useEffect(() => {
-    if (topUpStep !== 2 || isTopUpPaid) return;
+    if (topUpStep !== 2 || isTopUpPaid || isTopUpExpired) return;
     const timer = setInterval(() => {
-      setTopUpTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+      setTopUpTimerSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsTopUpExpired(true);
+          onShowToast?.('⚠️ Waktu pembayaran 6 menit telah habis. Sesi QRIS hangus demi keamanan.', 'fa-triangle-exclamation text-warning');
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [topUpStep, isTopUpPaid]);
+  }, [topUpStep, isTopUpPaid, isTopUpExpired]);
 
   // Cek apakah ada deposit yang sedang pending
   const pendingDeposit = userDepositsList.find((d) => d && d.status === 'pending');
@@ -1476,6 +1494,61 @@ export default function UserProfilePage({
                           <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Menghubungkan ke Server JansPayment...</strong>
                           <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>Membuat barcode QRIS resmi realtime dengan deteksi otomatis</span>
                         </div>
+                      ) : isTopUpExpired ? (
+                        <div className="qris-expired-box" style={{
+                          padding: '32px 20px',
+                          textAlign: 'center',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          borderRadius: '16px',
+                          border: '2px dashed rgba(239, 68, 68, 0.45)',
+                          margin: '0 auto',
+                          width: '100%',
+                          maxWidth: '320px'
+                        }}>
+                          <div style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            background: 'rgba(239, 68, 68, 0.18)',
+                            color: '#f87171',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.9rem',
+                            margin: '0 auto 12px',
+                            boxShadow: '0 0 20px rgba(239, 68, 68, 0.3)'
+                          }}>
+                            <i className="fa-solid fa-hourglass-end"></i>
+                          </div>
+                          <h4 style={{ color: '#f87171', fontWeight: 800, fontSize: '1.15rem', marginBottom: '6px' }}>
+                            QRIS HANGUS (6 MENIT HABIS)
+                          </h4>
+                          <p style={{ color: '#cbd5e1', fontSize: '0.82rem', lineHeight: 1.5, marginBottom: '16px' }}>
+                            Batas waktu pembayaran <strong>6 menit</strong> telah habis. Barcode QRIS ini dinonaktifkan demi keamanan. Silakan buat sesi QRIS baru.
+                          </p>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleProceedToQrisStep}
+                            style={{
+                              background: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
+                              color: '#fff',
+                              fontWeight: 700,
+                              border: 'none',
+                              padding: '10px 18px',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              fontSize: '0.86rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+                            }}
+                          >
+                            <i className="fa-solid fa-rotate-right"></i>
+                            <span>Buat Barcode QRIS Baru</span>
+                          </button>
+                        </div>
                       ) : (
                         <>
                           <img
@@ -1485,35 +1558,57 @@ export default function UserProfilePage({
                             style={{ maxWidth: '280px', width: '100%', height: 'auto', margin: '0 auto', display: 'block', borderRadius: '12px' }}
                           />
                           <div className="qris-canvas-footer" style={{ marginTop: '8px' }}>
-                            <span>SCAN MENGGUNAKAN APLIKASI PEMBAYARAN APAPUN</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-qrcode text-emerald-400"></i>
+                              SCAN DENGAN APLIKASI PEMBAYARAN APA SAJA
+                            </span>
                           </div>
                         </>
                       )}
                     </div>
 
                     {/* Realtime Live Pulse Indicator */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      background: 'rgba(56, 189, 248, 0.12)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      color: '#38bdf8',
-                      padding: '9px 14px',
-                      borderRadius: '8px',
-                      fontSize: '0.82rem',
-                      fontWeight: 600
-                    }}>
-                      <i className="fa-solid fa-spinner fa-spin"></i>
-                      <span>Menunggu Pembayaran Real-Time (Otomatis)...</span>
-                    </div>
+                    {isTopUpExpired ? (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        color: '#f87171',
+                        padding: '9px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.82rem',
+                        fontWeight: 700
+                      }}>
+                        <i className="fa-solid fa-triangle-exclamation"></i>
+                        <span>Sesi QRIS Hangus (Waktu 6 Menit Telah Habis)</span>
+                      </div>
+                    ) : (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        background: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        color: '#38bdf8',
+                        padding: '9px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.82rem',
+                        fontWeight: 600
+                      }}>
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                        <span>Menunggu Pembayaran Real-Time (Otomatis)...</span>
+                      </div>
+                    )}
 
                     {/* Total Tagihan Transfer dengan Tombol Salin */}
                     <div className="qris-amount-card">
                       <div className="qris-amount-info">
                         <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Total Nominal Scan QRIS (Persis):</span>
-                        <strong style={{ fontSize: '1.25rem', color: '#34d399' }}>
+                        <strong style={{ fontSize: '1.25rem', color: isTopUpExpired ? '#94a3b8' : '#34d399' }}>
                           Rp {Number(topUpJansData?.amount || activeNominal).toLocaleString('id-ID')}
                         </strong>
                         <div style={{ fontSize: '0.74rem', color: '#38bdf8', marginTop: '3px', fontWeight: 600 }}>
@@ -1525,6 +1620,8 @@ export default function UserProfilePage({
                         className={`btn-copy-nominal ${copiedNominal ? 'copied' : ''}`}
                         onClick={handleCopyNominal}
                         title="Salin nominal agar pas saat transfer"
+                        disabled={isTopUpExpired}
+                        style={isTopUpExpired ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         <i className={`fa-solid ${copiedNominal ? 'fa-check' : 'fa-copy'}`}></i>
                         <span>{copiedNominal ? 'Tersalin!' : 'Salin Nominal'}</span>
@@ -1537,26 +1634,29 @@ export default function UserProfilePage({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        color: '#f87171',
+                        background: isTopUpExpired ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.15)',
+                        border: isTopUpExpired ? '1px solid #ef4444' : '1px solid rgba(239, 68, 68, 0.35)',
+                        color: isTopUpExpired ? '#ef4444' : '#f87171',
                         padding: '4px 10px',
                         borderRadius: '20px',
                         fontSize: '0.78rem',
                         fontWeight: 700
                       }}>
-                        <i className="fa-regular fa-clock"></i> Berlaku: {formatTimer(topUpTimerSeconds)}
+                        <i className={`fa-solid ${isTopUpExpired ? 'fa-triangle-exclamation' : 'fa-clock'}`}></i>
+                        <span>{isTopUpExpired ? 'HANGUS (0:00)' : `Batas Waktu: ${formatTimer(topUpTimerSeconds)}`}</span>
                       </span>
 
-                      <button
-                        type="button"
-                        className="btn-download-qris-pro"
-                        onClick={handleDownloadQris}
-                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                      >
-                        <i className="fa-solid fa-download"></i>
-                        <span>Unduh Gambar QRIS</span>
-                      </button>
+                      {!isTopUpExpired && (
+                        <button
+                          type="button"
+                          className="btn-download-qris-pro"
+                          onClick={handleDownloadQris}
+                          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                        >
+                          <i className="fa-solid fa-download"></i>
+                          <span>Unduh Gambar QRIS</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Supported Providers Strip */}
@@ -1583,6 +1683,7 @@ export default function UserProfilePage({
                       <ol>
                         <li>Buka aplikasi m-Banking atau E-Wallet di HP Anda (BCA, Mandiri, GoPay, Dana, OVO, ShopeePay, dll).</li>
                         <li>Pilih menu <strong>Scan QRIS</strong> dan arahkan kamera ke barcode di atas.</li>
+                        <li>Batas waktu pembayaran adalah <strong>6 menit</strong>. Jika lewat 6 menit tanpa pembayaran, QRIS otomatis <strong>hangus</strong> demi keamanan.</li>
                         <li>Pastikan nominal transfer tepat <strong>Rp {Number(topUpJansData?.amount || activeNominal).toLocaleString('id-ID')}</strong>.</li>
                         <li>Setelah Anda bayar di HP, gateway JansPayment akan <strong>mendeteksi otomatis</strong> dalam 1-2 detik dan saldo ChaizMoney Rp {Number(topUpJansData?.creditAmount || activeNominal).toLocaleString('id-ID')} langsung masuk tanpa perlu tombol manual!</li>
                       </ol>
@@ -1599,31 +1700,58 @@ export default function UserProfilePage({
                     >
                       <i className="fa-solid fa-arrow-left"></i> Batal / Ganti
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={isCheckingStatusManually}
-                      onClick={handleManualCheckStatus}
-                      style={{
-                        flex: 1.6,
-                        minWidth: '200px',
-                        background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
-                        color: '#fff',
-                        fontWeight: 700,
-                        border: 'none',
-                        padding: '11px 16px',
-                        borderRadius: '10px',
-                        cursor: isCheckingStatusManually ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
-                      }}
-                    >
-                      <i className={`fa-solid ${isCheckingStatusManually ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
-                      <span>{isCheckingStatusManually ? 'Memeriksa ke Gateway...' : 'Periksa Status Pembayaran'}</span>
-                    </button>
+                    {isTopUpExpired ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleProceedToQrisStep}
+                        style={{
+                          flex: 1.6,
+                          minWidth: '200px',
+                          background: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
+                          color: '#fff',
+                          fontWeight: 700,
+                          border: 'none',
+                          padding: '11px 16px',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+                        }}
+                      >
+                        <i className="fa-solid fa-rotate-right"></i>
+                        <span>Buat QRIS Baru (6 Menit)</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={isCheckingStatusManually}
+                        onClick={handleManualCheckStatus}
+                        style={{
+                          flex: 1.6,
+                          minWidth: '200px',
+                          background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+                          color: '#fff',
+                          fontWeight: 700,
+                          border: 'none',
+                          padding: '11px 16px',
+                          borderRadius: '10px',
+                          cursor: isCheckingStatusManually ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
+                        }}
+                      >
+                        <i className={`fa-solid ${isCheckingStatusManually ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
+                        <span>{isCheckingStatusManually ? 'Memeriksa ke Gateway...' : 'Periksa Status Pembayaran'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
