@@ -63,6 +63,7 @@ export default function UserProfilePage({
   const [isGeneratingTopUpQris, setIsGeneratingTopUpQris] = useState(false);
   const [topUpTimerSeconds, setTopUpTimerSeconds] = useState(900); // 15 menit
   const [isTopUpPaid, setIsTopUpPaid] = useState(false);
+  const [isCheckingStatusManually, setIsCheckingStatusManually] = useState(false);
   const [newCalculatedBalance, setNewCalculatedBalance] = useState(null);
   const isTopUpPaidRef = useRef(false);
 
@@ -298,36 +299,34 @@ export default function UserProfilePage({
 
     const refId = `TOPUP-${Date.now().toString().slice(-6)}`;
     try {
-      // 1. Generate QRIS Dinamis Resmi Toko ChaizStore (NMID: ID1026479345864)
-      // Nominal terkunci persis: activeNominal (misal Rp 2.000) + PAJAK_TOPUP (Rp 100) = Rp 2.100 PAS!
-      const officialQris = await generateChaizDynamicQris(totalPayableWithTax);
+      // Buat tagihan QRIS resmi langsung di gateway JansPayment (https://janspayment.com)
+      const jansRes = await createJansPaymentQris({
+        amount: activeNominal,
+        orderId: refId,
+        note: `Top Up ChaizMoney Rp ${activeNominal.toLocaleString('id-ID')} (${authUser?.name || 'User'})`
+      });
 
-      // 2. Hubungi gateway di background jika tersedia
-      let jansRes = null;
-      try {
-        jansRes = await createJansPaymentQris({
-          amount: totalPayableWithTax,
-          orderId: refId,
-          note: `Top Up ChaizMoney Rp ${activeNominal.toLocaleString('id-ID')} (+Pajak 100)`
-        });
-      } catch (e) {}
+      if (!jansRes.success || !jansRes.paymentId || jansRes.paymentId.startsWith('fallback_')) {
+        throw new Error(jansRes.error || 'Gagal membuat QRIS di gateway JansPayment');
+      }
 
       setTopUpJansData({
-        paymentId: jansRes?.paymentId || `jans_${refId}`,
-        amount: totalPayableWithTax,
-        qrImageUrl: officialQris.qrImageUrl,
-        qrString: officialQris.qrString
+        paymentId: jansRes.paymentId,
+        amount: jansRes.amount, // Total tagihan persis dari gateway (termasuk kode unik)
+        requestedAmount: jansRes.requestedAmount || activeNominal,
+        creditAmount: jansRes.creditAmount || activeNominal, // Saldo ChaizMoney yang masuk: Rp 2.000 PAS
+        uniqueCode: jansRes.uniqueCode,
+        feeAmount: jansRes.feeAmount,
+        qrImageUrl: jansRes.qrImageUrl, // Barcode QRIS resmi dari JansPayment
+        qrString: jansRes.qrString
       });
     } catch (err) {
-      console.error('Failed to create Dynamic QRIS for top up:', err);
-      // Fallback
-      const officialQris = await generateChaizDynamicQris(totalPayableWithTax);
-      setTopUpJansData({
-        paymentId: `jans_${refId}`,
-        amount: totalPayableWithTax,
-        qrImageUrl: officialQris.qrImageUrl,
-        qrString: officialQris.qrString
-      });
+      console.error('Failed to create Dynamic QRIS from JansPayment:', err);
+      onShowToast?.(
+        err.message || 'Gagal membuat QRIS JansPayment. Pastikan koneksi internet aktif.',
+        'fa-triangle-exclamation text-danger'
+      );
+      setTopUpStep(1);
     } finally {
       setIsGeneratingTopUpQris(false);
     }
@@ -335,13 +334,14 @@ export default function UserProfilePage({
 
   const handleDownloadQris = () => {
     const qrUrl = topUpJansData?.qrImageUrl || '/Qris.png';
+    const nominal = topUpJansData?.amount || activeNominal;
     const a = document.createElement('a');
     a.href = qrUrl;
-    a.download = `QRIS-ChaizMoney-${totalPayableWithTax}.png`;
+    a.download = `QRIS-ChaizMoney-${nominal}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    onShowToast?.(`Foto QRIS Dinamis (${formatRupiah(totalPayableWithTax)}) berhasil diunduh!`, 'fa-circle-check text-success');
+    onShowToast?.(`Foto QRIS (${formatRupiah(nominal)}) berhasil diunduh!`, 'fa-circle-check text-success');
   };
 
   const handlePaymentSuccess = async (checkData) => {
@@ -355,6 +355,9 @@ export default function UserProfilePage({
       const uName = authUser?.name || authUser?.username || 'Pengguna';
       const uPhone = depositPhone || authUser?.whatsapp || authUser?.phone || '';
 
+      const creditNominal = Number(checkData?.creditAmount) || Number(topUpJansData?.creditAmount) || activeNominal;
+      const totalPaidAmount = Number(topUpJansData?.amount) || totalPayableWithTax;
+
       const res = await createApprovedGatewayDeposit({
         userId: uId,
         userKey: authUser?.userKey,
@@ -362,8 +365,8 @@ export default function UserProfilePage({
         userEmail: uEmail,
         userPhone: uPhone,
         userPicture: authUser?.picture || null,
-        amount: activeNominal, // Saldo yang masuk: Rp 2.000 PAS (tidak boleh berkurang)
-        totalPaid: totalPayableWithTax, // Total yang ditransfer: Rp 2.100 (termasuk pajak 100)
+        amount: creditNominal, // Saldo ChaizMoney yang masuk: Rp 2.000 PAS (tidak boleh kurang)
+        totalPaid: totalPaidAmount,
         paymentId: topUpJansData?.paymentId || `jans_${Date.now()}`
       });
 
@@ -374,13 +377,14 @@ export default function UserProfilePage({
 
       playUserSuccessSound();
       onShowToast?.(
-        `🎉 Pembayaran QRIS Sukses Terverifikasi! Saldo ChaizMoney Rp ${activeNominal.toLocaleString('id-ID')} telah otomatis ditambahkan!`,
+        `🎉 Pembayaran QRIS Sukses Terverifikasi! Saldo ChaizMoney Rp ${creditNominal.toLocaleString('id-ID')} telah otomatis ditambahkan!`,
         'fa-circle-check text-success'
       );
       setTopUpStep(3);
     } catch (err) {
       console.error('Error crediting top up:', err);
-      const fallbackBal = (Number(authUser?.chaizMoney) || 0) + activeNominal;
+      const creditNominal = Number(topUpJansData?.creditAmount) || activeNominal;
+      const fallbackBal = (Number(authUser?.chaizMoney) || 0) + creditNominal;
       setNewCalculatedBalance(fallbackBal);
       onUpdateUser?.({ chaizMoney: fallbackBal });
       onShowToast?.('Pembayaran berhasil, memperbarui saldo...', 'fa-circle-check text-success');
@@ -388,15 +392,36 @@ export default function UserProfilePage({
     }
   };
 
-  // 1. Polling Real-Time ke Server JansPayment Setiap 2.5 Detik
+  // Cek Status Manual ke JansPayment (HANYA lolos jika check.paid === true, ANTI-TIPU)
+  const handleManualCheckStatus = async () => {
+    if (!topUpJansData?.paymentId || isTopUpPaidRef.current || isCheckingStatusManually) return;
+    setIsCheckingStatusManually(true);
+    try {
+      const check = await checkJansPaymentStatus({ paymentId: topUpJansData.paymentId });
+      if (check.paid) {
+        handlePaymentSuccess(check);
+      } else {
+        const requiredPay = Number(topUpJansData?.amount || activeNominal).toLocaleString('id-ID');
+        onShowToast?.(
+          `Pembayaran belum terdeteksi. Silakan transfer tepat Rp ${requiredPay} melalui scan QRIS di aplikasi Anda terlebih dahulu.`,
+          'fa-clock text-warning'
+        );
+      }
+    } catch (e) {
+      onShowToast?.('Gagal memeriksa status ke gateway, coba sesaat lagi.', 'fa-triangle-exclamation text-danger');
+    } finally {
+      setIsCheckingStatusManually(false);
+    }
+  };
+
+  // 1. Polling Real-Time ke Server JansPayment Setiap 2 Detik (Otomatis Deteksi Saat Scan)
   useEffect(() => {
     if (topUpStep !== 2 || !topUpJansData?.paymentId || isTopUpPaid) return;
 
+    let isPolling = false;
     const pollInterval = setInterval(async () => {
-      if (isTopUpPaidRef.current) {
-        clearInterval(pollInterval);
-        return;
-      }
+      if (isTopUpPaidRef.current || isPolling) return;
+      isPolling = true;
 
       try {
         const check = await checkJansPaymentStatus({ paymentId: topUpJansData.paymentId });
@@ -409,13 +434,15 @@ export default function UserProfilePage({
         }
       } catch (err) {
         // Silent poll error
+      } finally {
+        isPolling = false;
       }
-    }, 2500);
+    }, 2000);
 
     return () => clearInterval(pollInterval);
   }, [topUpStep, topUpJansData?.paymentId, isTopUpPaid]);
 
-  // 2. Cek saat user kembali ke tab browser
+  // 2. Cek saat user kembali ke tab browser (HANYA lolos jika check.paid === true)
   useEffect(() => {
     if (topUpStep !== 2 || isTopUpPaid || !topUpJansData?.paymentId) return;
 
@@ -1485,12 +1512,12 @@ export default function UserProfilePage({
                     {/* Total Tagihan Transfer dengan Tombol Salin */}
                     <div className="qris-amount-card">
                       <div className="qris-amount-info">
-                        <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Total Nominal Transfer Persis:</span>
+                        <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Total Nominal Scan QRIS (Persis):</span>
                         <strong style={{ fontSize: '1.25rem', color: '#34d399' }}>
-                          Rp {Number(topUpJansData?.amount || totalPayableWithTax).toLocaleString('id-ID')}
+                          Rp {Number(topUpJansData?.amount || activeNominal).toLocaleString('id-ID')}
                         </strong>
-                        <div style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: '2px' }}>
-                          Saldo Masuk: Rp {activeNominal.toLocaleString('id-ID')} • Pajak: Rp {PAJAK_TOPUP.toLocaleString('id-ID')}
+                        <div style={{ fontSize: '0.74rem', color: '#38bdf8', marginTop: '3px', fontWeight: 600 }}>
+                          <i className="fa-solid fa-coins"></i> Saldo ChaizMoney Masuk: Rp {Number(topUpJansData?.creditAmount || activeNominal).toLocaleString('id-ID')} PAS
                         </div>
                       </div>
                       <button
@@ -1550,19 +1577,19 @@ export default function UserProfilePage({
                     {/* Panduan Singkat */}
                     <div className="qris-instructions-box">
                       <h5>
-                        <i className="fa-solid fa-circle-info text-cyan"></i>
-                        <span>Petunjuk Top Up Otomatis:</span>
+                        <i className="fa-solid fa-bolt text-cyan"></i>
+                        <span>Verifikasi Otomatis Gateway JansPayment:</span>
                       </h5>
                       <ol>
-                        <li>Buka aplikasi m-Banking atau E-Wallet di HP Anda (BCA, Mandiri, GoPay, Dana, dll).</li>
+                        <li>Buka aplikasi m-Banking atau E-Wallet di HP Anda (BCA, Mandiri, GoPay, Dana, OVO, ShopeePay, dll).</li>
                         <li>Pilih menu <strong>Scan QRIS</strong> dan arahkan kamera ke barcode di atas.</li>
-                        <li>Pastikan nominal transfer tepat <strong>Rp {Number(topUpJansData?.amount || totalPayableWithTax).toLocaleString('id-ID')}</strong>.</li>
-                        <li>Begitu Anda menyelesaikan pembayaran di HP, tampilan ini akan <strong>otomatis berubah menjadi SUKSES</strong> dan saldo ChaizMoney langsung bertambah tanpa perlu upload bukti!</li>
+                        <li>Pastikan nominal transfer tepat <strong>Rp {Number(topUpJansData?.amount || activeNominal).toLocaleString('id-ID')}</strong>.</li>
+                        <li>Setelah Anda bayar di HP, gateway JansPayment akan <strong>mendeteksi otomatis</strong> dalam 1-2 detik dan saldo ChaizMoney Rp {Number(topUpJansData?.creditAmount || activeNominal).toLocaleString('id-ID')} langsung masuk tanpa perlu tombol manual!</li>
                       </ol>
                     </div>
                   </div>
 
-                  {/* Navigasi Step 2 */}
+                  {/* Navigasi Step 2 - HANYA BATAL DAN CEK REAL GATEWAY (ANTI-TIPU) */}
                   <div className="topup-actions-row" style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
@@ -1574,27 +1601,28 @@ export default function UserProfilePage({
                     </button>
                     <button
                       type="button"
-                      className="btn btn-primary btn-confirm-paid"
-                      onClick={() => handlePaymentSuccess()}
+                      className="btn btn-primary"
+                      disabled={isCheckingStatusManually}
+                      onClick={handleManualCheckStatus}
                       style={{
                         flex: 1.6,
                         minWidth: '200px',
-                        background: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
+                        background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
                         color: '#fff',
                         fontWeight: 700,
                         border: 'none',
                         padding: '11px 16px',
                         borderRadius: '10px',
-                        cursor: 'pointer',
+                        cursor: isCheckingStatusManually ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
-                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+                        boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
                       }}
                     >
-                      <i className="fa-solid fa-circle-check"></i>
-                      <span>Saya Sudah Transfer ({formatRupiah(totalPayableWithTax)})</span>
+                      <i className={`fa-solid ${isCheckingStatusManually ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
+                      <span>{isCheckingStatusManually ? 'Memeriksa ke Gateway...' : 'Periksa Status Pembayaran'}</span>
                     </button>
                   </div>
                 </div>

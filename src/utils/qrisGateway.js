@@ -95,6 +95,10 @@ export async function createJansPaymentQris({ amount, orderId, note }) {
   const ref = orderId || `CHZ-${Date.now().toString().slice(-6)}`;
   const orderNote = note || `Pesanan #${ref} ChaizStore`;
 
+  let data = null;
+  let fetchError = null;
+
+  // 1. Direct fetch ke server JansPayment
   try {
     const res = await fetch(`${JANSPAYMENT_BASE_URL}/gateaway/qris/create`, {
       method: 'POST',
@@ -109,60 +113,76 @@ export async function createJansPaymentQris({ amount, orderId, note }) {
       })
     });
 
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      console.warn('JansPayment create failed, fallback to local dynamic:', data);
-      throw new Error(data.message || 'Gagal membuat QRIS di JansPayment');
+    if (res.ok) {
+      data = await res.json();
+    } else {
+      const errTxt = await res.text();
+      try { data = JSON.parse(errTxt); } catch (_) {}
     }
-
-    const payload = data.data;
-    let qrDataUrl = payload.qr_image_url || payload.qr_url;
-
-    // Generate high-res base64 jika ada qr_string resmi
-    if (payload.qr_string) {
-      try {
-        qrDataUrl = await QRCode.toDataURL(payload.qr_string, {
-          errorCorrectionLevel: 'M',
-          margin: 2,
-          width: 400,
-          color: {
-            dark: '#000000',
-            light: '#ffffff'
-          }
-        });
-      } catch (err) {
-        console.warn('QRCode render error:', err);
-      }
-    }
-
-    return {
-      success: true,
-      provider: 'JansPayment',
-      paymentId: payload.payment_id,
-      amount: payload.amount, // Nominal persis dengan kode unik
-      requestedAmount: payload.requested_amount,
-      creditAmount: payload.credit_amount,
-      feeAmount: payload.fee_amount || 0,
-      uniqueCode: payload.unique_code || 0,
-      qrString: payload.qr_string,
-      qrImageUrl: qrDataUrl,
-      checkoutUrl: payload.checkout_url,
-      expiryTime: payload.expiry_time,
-      expiresAt: payload.payment?.expires_at
-    };
   } catch (err) {
-    console.error('Error createJansPaymentQris:', err);
-    // Fallback darurat jika gateway offline
-    return {
-      success: false,
-      error: err.message,
-      paymentId: `fallback_${Date.now()}`,
-      amount: cleanAmount,
-      requestedAmount: cleanAmount,
-      qrImageUrl: '/Qris.png'
-    };
+    fetchError = err;
+    console.warn('Direct JansPayment create failed, attempting proxy route:', err.message);
   }
+
+  // 2. Fallback via local backend proxy jika direct fetch gagal / CORS
+  if (!data?.success) {
+    try {
+      const proxyRes = await fetch('/api/gateway/create-qris', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: cleanAmount,
+          orderId: ref,
+          note: orderNote
+        })
+      });
+      if (proxyRes.ok) {
+        data = await proxyRes.json();
+      }
+    } catch (proxyErr) {
+      console.warn('Proxy JansPayment create failed:', proxyErr.message);
+    }
+  }
+
+  if (!data?.success || !data?.data) {
+    throw new Error(data?.message || fetchError?.message || 'Gagal membuat QRIS di JansPayment');
+  }
+
+  const payload = data.data;
+  let qrDataUrl = payload.qr_image_url || payload.qr_url;
+
+  // Generate crisp high-res base64 jika ada qr_string resmi
+  if (payload.qr_string) {
+    try {
+      qrDataUrl = await QRCode.toDataURL(payload.qr_string, {
+        errorCorrectionLevel: 'M',
+        margin: 2,
+        width: 440,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+    } catch (err) {
+      console.warn('QRCode render error:', err);
+    }
+  }
+
+  return {
+    success: true,
+    provider: 'JansPayment',
+    paymentId: payload.payment_id,
+    amount: payload.amount, // Total tagihan persis dengan kode unik
+    requestedAmount: payload.requested_amount || cleanAmount,
+    creditAmount: payload.credit_amount || cleanAmount, // Saldo ChaizMoney yang masuk
+    feeAmount: payload.fee_amount || 0,
+    uniqueCode: payload.unique_code || 0,
+    qrString: payload.qr_string,
+    qrImageUrl: qrDataUrl,
+    checkoutUrl: payload.checkout_url,
+    expiryTime: payload.expiry_time,
+    expiresAt: payload.payment?.expires_at
+  };
 }
 
 /**
@@ -175,6 +195,9 @@ export async function checkJansPaymentStatus({ paymentId }) {
     return { success: true, paid: false, message: 'Menunggu pembayaran' };
   }
 
+  let data = null;
+
+  // 1. Direct fetch ke JansPayment API
   try {
     const res = await fetch(`${JANSPAYMENT_BASE_URL}/gateaway/payment/check`, {
       method: 'POST',
@@ -187,26 +210,41 @@ export async function checkJansPaymentStatus({ paymentId }) {
       })
     });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return { success: false, paid: false, error: data?.message || 'Gagal mengecek status' };
+    if (res.ok) {
+      data = await res.json();
     }
-
-    const payload = data.data || {};
-    return {
-      success: true,
-      paid: Boolean(payload.paid),
-      expired: Boolean(payload.expired),
-      cancelled: Boolean(payload.cancelled),
-      creditAmount: payload.credit_amount,
-      payment: payload.payment,
-      message: data.message
-    };
   } catch (err) {
-    console.warn('Network error checking JansPayment status:', err);
-    return { success: false, paid: false, error: err.message };
+    // direct error
   }
+
+  // 2. Fallback via local backend proxy
+  if (!data?.success) {
+    try {
+      const proxyRes = await fetch('/api/gateway/check-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_id: paymentId })
+      });
+      if (proxyRes.ok) {
+        data = await proxyRes.json();
+      }
+    } catch (e) {}
+  }
+
+  if (!data || !data.success) {
+    return { success: false, paid: false, error: data?.message || 'Gagal mengecek status' };
+  }
+
+  const payload = data.data || {};
+  return {
+    success: true,
+    paid: Boolean(payload.paid),
+    expired: Boolean(payload.expired),
+    cancelled: Boolean(payload.cancelled),
+    creditAmount: payload.credit_amount,
+    payment: payload.payment,
+    message: data.message
+  };
 }
 
 /**
