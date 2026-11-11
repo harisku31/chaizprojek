@@ -1,9 +1,16 @@
 // Seed initial data to Firebase Realtime Database
 import { PRODUCTS } from '../src/data/products.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+let dbMethods = null;
+try {
+  dbMethods = require('../server/db.js');
+} catch (e) {
+  console.warn('SQLite db.js could not be loaded directly:', e.message);
+}
 
 const FIREBASE_DB_URL = 'https://chaizstore-default-rtdb.asia-southeast1.firebasedatabase.app';
-
-const INITIAL_TRANSACTIONS = {};
 
 const INITIAL_REVIEWS = {
   'REV-1': {
@@ -75,34 +82,97 @@ const initialProducts = PRODUCTS.map((p) => {
   };
 });
 
+async function uploadNode(path, data) {
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (res.ok) {
+      console.log(`✅ [${path}] Berhasil disinkronkan ke Firebase (${Array.isArray(data) ? data.length : Object.keys(data || {}).length} item)`);
+      return true;
+    } else {
+      console.error(`❌ [${path}] Gagal (${res.status}):`, result);
+      return false;
+    }
+  } catch (err) {
+    console.error(`❌ [${path}] Error:`, err.message);
+    return false;
+  }
+}
+
 async function seed() {
-  console.log('Seeding initial data to Firebase Realtime Database...');
+  console.log('====================================================');
+  console.log('🚀 SINKRONISASI DATA KE FIREBASE CLOUD (24 JAM NON-STOP)');
+  console.log('Target:', FIREBASE_DB_URL);
+  console.log('====================================================\n');
 
-  // 1. Transactions
-  const trxRes = await fetch(`${FIREBASE_DB_URL}/transactions.json`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(INITIAL_TRANSACTIONS)
-  });
-  console.log('Transactions seeded:', trxRes.status, await trxRes.json());
+  // 1. Gudang Produk & Restock Akun (15 Produk)
+  await uploadNode('products', initialProducts);
 
-  // 2. Reviews
-  const revRes = await fetch(`${FIREBASE_DB_URL}/customer_reviews.json`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(INITIAL_REVIEWS)
-  });
-  console.log('Reviews seeded:', revRes.status, await revRes.json());
+  // 2. Testimoni Pelanggan
+  await uploadNode('customer_reviews', INITIAL_REVIEWS);
 
-  // 3. Products
-  const prodRes = await fetch(`${FIREBASE_DB_URL}/products.json`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(initialProducts)
-  });
-  console.log('Products seeded:', prodRes.status);
+  // 3. Ambil data lokal dari SQLite jika ada
+  if (dbMethods) {
+    // 3A. Transaksi / Pesanan Masuk
+    const trxList = dbMethods.getAllTransactions ? dbMethods.getAllTransactions() : [];
+    if (trxList.length > 0) {
+      const trxObj = {};
+      trxList.forEach((t) => {
+        if (t && t.id) trxObj[t.id] = t;
+      });
+      await uploadNode('transactions', trxObj);
+    }
 
-  console.log('All initial data successfully seeded to Firebase!');
+    // 3B. Jumlah & Daftar Pengguna (11 Users)
+    const userList = dbMethods.getAllUsers ? dbMethods.getAllUsers() : [];
+    if (userList.length > 0) {
+      const userObj = {};
+      userList.forEach((u) => {
+        if (u && (u.id || u.userId)) userObj[u.id || u.userId] = u;
+      });
+      await uploadNode('registered_users', userObj);
+    }
+
+    // 3C. Kunjungan Permanen
+    const visitList = dbMethods.getAllVisits ? dbMethods.getAllVisits() : [];
+    if (visitList.length > 0) {
+      const visitObj = {};
+      visitList.forEach((v) => {
+        if (v && (v.id || v.userId)) visitObj[v.id || v.userId] = v;
+      });
+      await uploadNode('permanent_visits', visitObj);
+    }
+
+    // 3D. Aktivitas Kronologis Realtime (194 Aktivitas)
+    const actList = dbMethods.getAllActivities ? dbMethods.getAllActivities() : [];
+    if (actList.length > 0) {
+      const actObj = {};
+      actList.forEach((a) => {
+        if (a && a.id) actObj[a.id] = a;
+      });
+      await uploadNode('activity_logs', actObj);
+    }
+
+    // 3E. Deposit ChaizMoney
+    const depList = dbMethods.getAllDeposits ? dbMethods.getAllDeposits() : [];
+    if (depList.length > 0) {
+      const depObj = {};
+      depList.forEach((d) => {
+        if (d && d.id) depObj[d.id] = d;
+      });
+      await uploadNode('deposits', depObj);
+    }
+  }
+
+  console.log('\n====================================================');
+  console.log('Selesai! Jika muncul error "Permission denied", harap');
+  console.log('ubah Rules di Firebase Console menjadi:');
+  console.log('{\n  "rules": {\n    ".read": true,\n    ".write": true\n  }\n}');
+  console.log('====================================================');
 }
 
 seed().catch(console.error);

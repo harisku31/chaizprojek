@@ -43,6 +43,9 @@ db.exec(`
     qty INTEGER DEFAULT 1,
     total REAL DEFAULT 0,
     paymentMethod TEXT,
+    paymentStatus TEXT DEFAULT 'Pending',
+    isGatewayPaid INTEGER DEFAULT 0,
+    gatewayKey TEXT,
     proofUrl TEXT,
     proofFileName TEXT,
     proofSize TEXT,
@@ -54,6 +57,10 @@ db.exec(`
     status TEXT DEFAULT 'processing',
     credentials TEXT, -- JSON string: { account, password, username, pin, profile, code }
     adminNote TEXT,
+    rejectReason TEXT,
+    rejectedAt TEXT,
+    deliveryMethod TEXT DEFAULT 'web',
+    customerNote TEXT,
     processedAt TEXT,
     rating INTEGER,
     isRead INTEGER DEFAULT 0,
@@ -112,11 +119,62 @@ db.exec(`
     lastHeartbeat INTEGER
   );
 
+  CREATE TABLE IF NOT EXISTS deposits (
+    id TEXT PRIMARY KEY,
+    userId TEXT,
+    userKey TEXT,
+    userName TEXT,
+    userEmail TEXT,
+    userPhone TEXT,
+    userPicture TEXT,
+    amount REAL DEFAULT 0,
+    creditedAmount REAL DEFAULT 0,
+    totalPaid REAL DEFAULT 0,
+    taxAmount REAL DEFAULT 100,
+    paymentMethod TEXT,
+    isGatewayPaid INTEGER DEFAULT 0,
+    paymentId TEXT,
+    proofImage TEXT,
+    proofUrl TEXT,
+    customerNote TEXT,
+    status TEXT DEFAULT 'pending',
+    adminNote TEXT,
+    rejectionReason TEXT,
+    approvedAt TEXT,
+    approvedBy TEXT,
+    createdAt TEXT,
+    updatedAt TEXT
+  );
+
   CREATE INDEX IF NOT EXISTS idx_trx_userEmail ON transactions (userEmail);
   CREATE INDEX IF NOT EXISTS idx_trx_userId ON transactions (userId);
   CREATE INDEX IF NOT EXISTS idx_trx_status ON transactions (status);
   CREATE INDEX IF NOT EXISTS idx_users_email ON registered_users (email);
+  CREATE INDEX IF NOT EXISTS idx_dep_userEmail ON deposits (userEmail);
+  CREATE INDEX IF NOT EXISTS idx_dep_userId ON deposits (userId);
+  CREATE INDEX IF NOT EXISTS idx_dep_status ON deposits (status);
 `);
+
+// Auto Migration: Ensure columns exist in existing SQLite database
+try {
+  const existingTrxCols = db.prepare('PRAGMA table_info(transactions)').all().map((c) => c.name);
+  const ensureTrxCol = (col, typeDef) => {
+    if (!existingTrxCols.includes(col)) {
+      try {
+        db.exec(`ALTER TABLE transactions ADD COLUMN ${col} ${typeDef};`);
+      } catch (_) {}
+    }
+  };
+  ensureTrxCol('paymentStatus', "TEXT DEFAULT 'Pending'");
+  ensureTrxCol('isGatewayPaid', 'INTEGER DEFAULT 0');
+  ensureTrxCol('gatewayKey', 'TEXT');
+  ensureTrxCol('rejectReason', 'TEXT');
+  ensureTrxCol('rejectedAt', 'TEXT');
+  ensureTrxCol('deliveryMethod', "TEXT DEFAULT 'web'");
+  ensureTrxCol('customerNote', 'TEXT');
+} catch (migErr) {
+  console.warn('⚠️ [Migration Warning]:', migErr.message);
+}
 
 console.log('✅ [Database Engine]: SQLite Relational Database Connected at', dbPath);
 
@@ -135,10 +193,10 @@ export function getTransactionsByUser(userKeyOrEmail) {
   const clean = userKeyOrEmail.toLowerCase().trim();
   const stmt = db.prepare(`
     SELECT * FROM transactions 
-    WHERE userId = ? OR userKey = ? OR LOWER(TRIM(userEmail)) = ? OR LOWER(TRIM(customerEmail)) = ?
+    WHERE userId = ? OR userKey = ? OR LOWER(TRIM(COALESCE(userEmail, ''))) = ? OR LOWER(TRIM(COALESCE(customerEmail, ''))) = ? OR id = ?
     ORDER BY createdAt DESC
   `);
-  const rows = stmt.all(userKeyOrEmail, userKeyOrEmail, clean, clean);
+  const rows = stmt.all(userKeyOrEmail, userKeyOrEmail, clean, clean, userKeyOrEmail);
   return rows.map(formatTrxRow);
 }
 
@@ -149,40 +207,69 @@ export function getTransactionById(id) {
 }
 
 export function saveTransaction(trx) {
+  if (!trx) return null;
   const now = new Date().toISOString();
+  const id = trx.id || `TRX-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
   const credsStr = typeof trx.credentials === 'object' ? JSON.stringify(trx.credentials) : (trx.credentials || '{}');
 
   const stmt = db.prepare(`
     INSERT INTO transactions (
       id, productId, userId, userKey, userEmail, customerUsername, customerName,
       customerEmail, customerPhone, productName, productDuration, productCategory,
-      price, qty, total, paymentMethod, proofUrl, proofFileName, proofSize,
-      proofUploadedAt, proofExpiresAt, proofExpired, proofDeletedReason,
-      warrantyPeriod, status, credentials, adminNote, processedAt, rating, isRead,
+      price, qty, total, paymentMethod, paymentStatus, isGatewayPaid, gatewayKey,
+      proofUrl, proofFileName, proofSize, proofUploadedAt, proofExpiresAt, proofExpired, proofDeletedReason,
+      warrantyPeriod, status, credentials, adminNote, rejectReason, rejectedAt,
+      deliveryMethod, customerNote, processedAt, rating, isRead,
       createdAt, updatedAt
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
       ?, ?
     )
     ON CONFLICT(id) DO UPDATE SET
+      productId = COALESCE(excluded.productId, transactions.productId),
+      userId = COALESCE(excluded.userId, transactions.userId),
+      userKey = COALESCE(excluded.userKey, transactions.userKey),
+      userEmail = COALESCE(excluded.userEmail, transactions.userEmail),
+      customerUsername = COALESCE(excluded.customerUsername, transactions.customerUsername),
+      customerName = COALESCE(excluded.customerName, transactions.customerName),
+      customerEmail = COALESCE(excluded.customerEmail, transactions.customerEmail),
+      customerPhone = COALESCE(excluded.customerPhone, transactions.customerPhone),
+      productName = COALESCE(excluded.productName, transactions.productName),
+      productDuration = COALESCE(excluded.productDuration, transactions.productDuration),
+      productCategory = COALESCE(excluded.productCategory, transactions.productCategory),
+      price = COALESCE(excluded.price, transactions.price),
+      qty = COALESCE(excluded.qty, transactions.qty),
+      total = COALESCE(excluded.total, transactions.total),
+      paymentMethod = COALESCE(excluded.paymentMethod, transactions.paymentMethod),
+      paymentStatus = COALESCE(excluded.paymentStatus, transactions.paymentStatus),
+      isGatewayPaid = COALESCE(excluded.isGatewayPaid, transactions.isGatewayPaid),
+      gatewayKey = COALESCE(excluded.gatewayKey, transactions.gatewayKey),
+      proofUrl = excluded.proofUrl,
+      proofFileName = COALESCE(excluded.proofFileName, transactions.proofFileName),
+      proofSize = COALESCE(excluded.proofSize, transactions.proofSize),
+      proofExpired = COALESCE(excluded.proofExpired, transactions.proofExpired),
+      proofDeletedReason = COALESCE(excluded.proofDeletedReason, transactions.proofDeletedReason),
+      warrantyPeriod = COALESCE(excluded.warrantyPeriod, transactions.warrantyPeriod),
       status = excluded.status,
       credentials = excluded.credentials,
       adminNote = excluded.adminNote,
-      processedAt = excluded.processedAt,
-      rating = excluded.rating,
-      isRead = excluded.isRead,
-      proofUrl = excluded.proofUrl,
-      proofExpired = excluded.proofExpired,
-      proofDeletedReason = excluded.proofDeletedReason,
+      rejectReason = excluded.rejectReason,
+      rejectedAt = excluded.rejectedAt,
+      deliveryMethod = COALESCE(excluded.deliveryMethod, transactions.deliveryMethod),
+      customerNote = COALESCE(excluded.customerNote, transactions.customerNote),
+      processedAt = COALESCE(excluded.processedAt, transactions.processedAt),
+      rating = COALESCE(excluded.rating, transactions.rating),
+      isRead = COALESCE(excluded.isRead, transactions.isRead),
       updatedAt = excluded.updatedAt
   `);
 
   stmt.run(
-    trx.id,
+    id,
     trx.productId || null,
     trx.userId || trx.userKey || null,
     trx.userKey || trx.userId || null,
@@ -191,13 +278,16 @@ export function saveTransaction(trx) {
     trx.customerName || 'Pelanggan Chaiz',
     trx.customerEmail || '-',
     trx.customerPhone || '-',
-    trx.productName,
+    trx.productName || 'Produk Digital',
     trx.productDuration || 'Reguler',
     trx.productCategory || 'Akun Premium',
     trx.price || 0,
     trx.qty || 1,
     trx.total || (trx.price ? trx.price * (trx.qty || 1) : 0),
     trx.paymentMethod || 'QRIS Instant',
+    trx.paymentStatus || (trx.status === 'completed' ? 'Lunas' : 'Pending'),
+    trx.isGatewayPaid ? 1 : 0,
+    trx.gatewayKey || null,
     trx.proofUrl || null,
     trx.proofFileName || null,
     trx.proofSize || null,
@@ -209,6 +299,10 @@ export function saveTransaction(trx) {
     trx.status || 'processing',
     credsStr,
     trx.adminNote || '',
+    trx.rejectReason || null,
+    trx.rejectedAt || null,
+    trx.deliveryMethod || 'web',
+    trx.customerNote || '',
     trx.processedAt || null,
     trx.rating || null,
     trx.isRead ? 1 : 0,
@@ -216,7 +310,7 @@ export function saveTransaction(trx) {
     now
   );
 
-  return getTransactionById(trx.id);
+  return getTransactionById(id);
 }
 
 export function updateTransaction(id, patch) {
@@ -251,9 +345,15 @@ function formatTrxRow(row) {
     price: Number(row.price) || 0,
     qty: Number(row.qty) || 1,
     total: Number(row.total) || 0,
+    isGatewayPaid: Boolean(row.isGatewayPaid),
     proofExpired: Boolean(row.proofExpired),
     isRead: Boolean(row.isRead),
-    credentials
+    credentials,
+    paymentStatus: row.paymentStatus || (row.status === 'completed' ? 'Lunas' : 'Pending'),
+    rejectReason: row.rejectReason || null,
+    rejectedAt: row.rejectedAt || null,
+    deliveryMethod: row.deliveryMethod || 'web',
+    customerNote: row.customerNote || ''
   };
 }
 
@@ -274,8 +374,13 @@ export function getUserById(id) {
 }
 
 export function saveUser(u) {
+  if (!u || (!u.id && !u.userId)) return null;
+  const id = u.id || u.userId;
+  const existing = getUserById(id);
+  const merged = existing ? { ...existing, ...u } : u;
+
   const now = new Date().toISOString();
-  const banStr = typeof u.banStatus === 'object' ? JSON.stringify(u.banStatus) : (u.banStatus || null);
+  const banStr = typeof merged.banStatus === 'object' ? JSON.stringify(merged.banStatus) : (merged.banStatus || null);
 
   const stmt = db.prepare(`
     INSERT INTO registered_users (
@@ -290,45 +395,45 @@ export function saveUser(u) {
       ?, ?
     )
     ON CONFLICT(id) DO UPDATE SET
-      name = excluded.name,
-      email = excluded.email,
-      picture = excluded.picture,
-      sessionStatus = excluded.sessionStatus,
-      lastHeartbeat = excluded.lastHeartbeat,
-      lastActiveTime = excluded.lastActiveTime,
-      loginCount = excluded.loginCount,
-      activitiesCount = excluded.activitiesCount,
-      deviceType = excluded.deviceType,
-      os = excluded.os,
-      isMobile = excluded.isMobile,
-      browser = excluded.browser,
+      name = COALESCE(excluded.name, registered_users.name),
+      email = COALESCE(excluded.email, registered_users.email),
+      picture = COALESCE(excluded.picture, registered_users.picture),
+      sessionStatus = COALESCE(excluded.sessionStatus, registered_users.sessionStatus),
+      lastHeartbeat = COALESCE(excluded.lastHeartbeat, registered_users.lastHeartbeat),
+      lastActiveTime = COALESCE(excluded.lastActiveTime, registered_users.lastActiveTime),
+      loginCount = COALESCE(excluded.loginCount, registered_users.loginCount),
+      activitiesCount = COALESCE(excluded.activitiesCount, registered_users.activitiesCount),
+      deviceType = COALESCE(excluded.deviceType, registered_users.deviceType),
+      os = COALESCE(excluded.os, registered_users.os),
+      isMobile = COALESCE(excluded.isMobile, registered_users.isMobile),
+      browser = COALESCE(excluded.browser, registered_users.browser),
       banStatus = excluded.banStatus,
-      lastActivitySummary = excluded.lastActivitySummary,
+      lastActivitySummary = COALESCE(excluded.lastActivitySummary, registered_users.lastActivitySummary),
       updatedAt = excluded.updatedAt
   `);
 
   stmt.run(
-    u.id,
-    u.name || 'Pengguna Chaiz',
-    u.email || null,
-    u.picture || null,
-    u.sessionStatus || 'logged_in',
-    u.lastHeartbeat || Date.now(),
-    u.firstLoginTime || now,
-    u.lastActiveTime || now,
-    u.loginCount || 1,
-    u.activitiesCount || 0,
-    u.deviceType || 'Laptop / PC Desktop',
-    u.os || 'Windows',
-    u.isMobile ? 1 : 0,
-    u.browser || 'Google Chrome',
+    id,
+    merged.name || 'Pengguna Chaiz',
+    merged.email || null,
+    merged.picture || null,
+    merged.sessionStatus || 'logged_in',
+    merged.lastHeartbeat || Date.now(),
+    merged.firstLoginTime || now,
+    merged.lastActiveTime || now,
+    merged.loginCount || 1,
+    merged.activitiesCount || 0,
+    merged.deviceType || 'Laptop / PC Desktop',
+    merged.os || 'Windows',
+    merged.isMobile ? 1 : 0,
+    merged.browser || 'Google Chrome',
     banStr,
-    u.lastActivitySummary || 'Login ke toko',
-    u.createdAt || now,
+    merged.lastActivitySummary || 'Login ke toko',
+    merged.createdAt || now,
     now
   );
 
-  return getUserById(u.id);
+  return getUserById(id);
 }
 
 export function deleteUser(id) {
@@ -407,10 +512,10 @@ export function getAllVisits() {
 }
 
 export function saveVisit(v) {
-  const now = new Date().toISOString();
   const id = v.id || v.userId;
   if (!id) return null;
 
+  const now = new Date().toISOString();
   const banStr = typeof v.banStatus === 'object' ? JSON.stringify(v.banStatus) : (v.banStatus || null);
   const actHistStr = Array.isArray(v.activityHistory) ? JSON.stringify(v.activityHistory) : '[]';
 
@@ -423,17 +528,17 @@ export function saveVisit(v) {
       ?, ?, ?, ?, ?, ?, ?, ?
     )
     ON CONFLICT(id) DO UPDATE SET
-      name = excluded.name,
-      email = excluded.email,
+      name = COALESCE(excluded.name, permanent_visits.name),
+      email = COALESCE(excluded.email, permanent_visits.email),
       lastActiveAt = excluded.lastActiveAt,
       totalVisitsCount = excluded.totalVisitsCount,
-      device = excluded.device,
+      device = COALESCE(excluded.device, permanent_visits.device),
       isMobile = excluded.isMobile,
-      os = excluded.os,
-      browser = excluded.browser,
-      currentActivity = excluded.currentActivity,
-      banStatus = excluded.banStatus,
-      activityHistory = excluded.activityHistory,
+      os = COALESCE(excluded.os, permanent_visits.os),
+      browser = COALESCE(excluded.browser, permanent_visits.browser),
+      currentActivity = COALESCE(excluded.currentActivity, permanent_visits.currentActivity),
+      banStatus = COALESCE(excluded.banStatus, permanent_visits.banStatus),
+      activityHistory = COALESCE(excluded.activityHistory, permanent_visits.activityHistory),
       lastHeartbeat = excluded.lastHeartbeat
   `);
 
@@ -456,4 +561,137 @@ export function saveVisit(v) {
   );
 
   return v;
+}
+
+// ===================================================================
+// DEPOSIT REPOSITORY FUNCTIONS (CHAIZMONEY)
+// ===================================================================
+
+function formatDepositRow(r) {
+  if (!r) return null;
+  return {
+    ...r,
+    amount: Number(r.amount) || 0,
+    creditedAmount: Number(r.creditedAmount) || Number(r.amount) || 0,
+    totalPaid: Number(r.totalPaid) || Number(r.amount) || 0,
+    taxAmount: Number(r.taxAmount) || 100,
+    isGatewayPaid: Boolean(r.isGatewayPaid)
+  };
+}
+
+export function getAllDeposits() {
+  const stmt = db.prepare('SELECT * FROM deposits ORDER BY createdAt DESC');
+  const rows = stmt.all();
+  return rows.map(formatDepositRow);
+}
+
+export function getDepositsByUser(userEmailOrId) {
+  if (!userEmailOrId) return [];
+  const clean = String(userEmailOrId).toLowerCase().trim();
+  const stmt = db.prepare(`
+    SELECT * FROM deposits
+    WHERE LOWER(userEmail) = ? OR userId = ? OR userKey = ?
+    ORDER BY createdAt DESC
+  `);
+  const rows = stmt.all(clean, clean, clean);
+  return rows.map(formatDepositRow);
+}
+
+export function getDepositById(id) {
+  if (!id) return null;
+  const stmt = db.prepare('SELECT * FROM deposits WHERE id = ? LIMIT 1');
+  const row = stmt.get(id);
+  return row ? formatDepositRow(row) : null;
+}
+
+export function saveDeposit(d) {
+  const now = new Date().toISOString();
+  const id = d.id || `DEP-${Date.now().toString().slice(-6)}`;
+
+  const stmt = db.prepare(`
+    INSERT INTO deposits (
+      id, userId, userKey, userName, userEmail, userPhone, userPicture,
+      amount, creditedAmount, totalPaid, taxAmount, paymentMethod, isGatewayPaid,
+      paymentId, proofImage, proofUrl, customerNote, status, adminNote,
+      rejectionReason, approvedAt, approvedBy, createdAt, updatedAt
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      userName = COALESCE(excluded.userName, deposits.userName),
+      userPhone = COALESCE(excluded.userPhone, deposits.userPhone),
+      amount = COALESCE(excluded.amount, deposits.amount),
+      creditedAmount = COALESCE(excluded.creditedAmount, deposits.creditedAmount),
+      totalPaid = COALESCE(excluded.totalPaid, deposits.totalPaid),
+      taxAmount = COALESCE(excluded.taxAmount, deposits.taxAmount),
+      paymentMethod = COALESCE(excluded.paymentMethod, deposits.paymentMethod),
+      isGatewayPaid = COALESCE(excluded.isGatewayPaid, deposits.isGatewayPaid),
+      paymentId = COALESCE(excluded.paymentId, deposits.paymentId),
+      proofImage = COALESCE(excluded.proofImage, deposits.proofImage),
+      proofUrl = COALESCE(excluded.proofUrl, deposits.proofUrl),
+      customerNote = COALESCE(excluded.customerNote, deposits.customerNote),
+      status = excluded.status,
+      adminNote = COALESCE(excluded.adminNote, deposits.adminNote),
+      rejectionReason = COALESCE(excluded.rejectionReason, deposits.rejectionReason),
+      approvedAt = COALESCE(excluded.approvedAt, deposits.approvedAt),
+      approvedBy = COALESCE(excluded.approvedBy, deposits.approvedBy),
+      updatedAt = excluded.updatedAt
+  `);
+
+  stmt.run(
+    id,
+    d.userId || id,
+    d.userKey || d.userId || id,
+    d.userName || 'Pengguna',
+    (d.userEmail || '').toLowerCase().trim(),
+    d.userPhone || '',
+    d.userPicture || null,
+    Number(d.amount) || 0,
+    Number(d.creditedAmount) || Number(d.amount) || 0,
+    Number(d.totalPaid) || Number(d.amount) || 0,
+    Number(d.taxAmount) || 100,
+    d.paymentMethod || 'JansPayment Gateway (Realtime QRIS)',
+    d.isGatewayPaid ? 1 : 0,
+    d.paymentId || '',
+    d.proofImage || null,
+    d.proofUrl || null,
+    d.customerNote || '',
+    d.status || 'pending',
+    d.adminNote || '',
+    d.rejectionReason || null,
+    d.approvedAt || null,
+    d.approvedBy || null,
+    d.createdAt || now,
+    now
+  );
+
+  return getDepositById(id);
+}
+
+export function updateDeposit(id, patch) {
+  const existing = getDepositById(id);
+  if (!existing) return null;
+
+  const updated = {
+    ...existing,
+    ...patch,
+    updatedAt: new Date().toISOString()
+  };
+
+  saveDeposit(updated);
+  return getDepositById(id);
+}
+
+export function deleteDeposit(id) {
+  const stmt = db.prepare('DELETE FROM deposits WHERE id = ?');
+  stmt.run(id);
+  return true;
+}
+
+export function clearDeposits() {
+  db.exec('DELETE FROM deposits');
+  return true;
 }

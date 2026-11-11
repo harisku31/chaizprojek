@@ -59,7 +59,7 @@ import {
   syncDepositsFromCloud,
   listenToDeposits
 } from '../utils/deposits';
-import { compressImageFile } from '../utils/format';
+import { compressImageFile, formatRupiah } from '../utils/format';
 import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled, unlockAudio, isAudioContextUnlocked } from '../utils/audioNotification';
 import { subscribeAdminSocket, isSocketConnected } from '../utils/socketClient';
 import { checkSqlBackendHealth } from '../utils/sqlApi';
@@ -661,6 +661,20 @@ export default function AdminApp() {
           }
           return [user, ...prev];
         });
+      },
+      onIncomingDeposit: (payload) => {
+        const dep = payload?.deposit || payload;
+        if (!dep || !dep.id) return;
+        setDepositsList((prev) => {
+          if (prev.some((d) => d.id === dep.id)) return prev;
+          return [dep, ...prev];
+        });
+        playAdminOrderSound();
+        showToast(`💰 [INSTAN] Top Up Saldo masuk: ${formatRupiah(dep.amount)} dari ${dep.userName || 'Pelanggan'}!`, 'fa-wallet text-success', 'success');
+      },
+      onDepositUpdated: (updatedDep) => {
+        if (!updatedDep || !updatedDep.id) return;
+        setDepositsList((prev) => prev.map((d) => (d.id === updatedDep.id ? { ...d, ...updatedDep } : d)));
       }
     });
 

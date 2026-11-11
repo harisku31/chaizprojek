@@ -14,6 +14,9 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import fs from 'fs';
 import {
   getAllTransactions,
   getTransactionsByUser,
@@ -28,12 +31,23 @@ import {
   getAllVisits,
   saveVisit,
   getAllActivities,
-  saveActivity
+  saveActivity,
+  getAllDeposits,
+  getDepositsByUser,
+  getDepositById,
+  saveDeposit,
+  updateDeposit,
+  deleteDeposit,
+  clearDeposits
 } from './db.js';
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005;
 const app = express();
 const server = http.createServer(app);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const distDir = join(__dirname, '..', 'dist');
 
 // Socket.io Realtime WebSocket Engine with unrestricted CORS
 const io = new Server(server, {
@@ -51,6 +65,27 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// Serve frontend static assets from dist if available
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+
+  app.get('/admin', (req, res) => {
+    const adminPath = join(distDir, 'admin.html');
+    if (fs.existsSync(adminPath)) {
+      return res.sendFile(adminPath);
+    }
+    res.sendFile(join(distDir, 'index.html'));
+  });
+
+  app.get('/admin.html', (req, res) => {
+    const adminPath = join(distDir, 'admin.html');
+    if (fs.existsSync(adminPath)) {
+      return res.sendFile(adminPath);
+    }
+    res.status(404).send('Admin page not found');
+  });
+}
+
 // Tracking connected clients
 let adminSocketsCount = 0;
 let userSocketsCount = 0;
@@ -66,18 +101,47 @@ io.on('connection', (socket) => {
     const userKey = socket.handshake.query.userKey;
     if (userKey) {
       socket.join(`user-${userKey}`);
+      socket.join(`user-${String(userKey).toLowerCase().trim()}`);
     }
   }
 
   // Admin registers
   socket.on('admin:register', () => {
     socket.join('admin-room');
+    console.log(`⚡ [Socket.io]: Admin Registered room (${socket.id})`);
   });
 
-  // User registers their private channel
-  socket.on('user:register', (userKey) => {
-    if (userKey) {
-      socket.join(`user-${userKey}`);
+  // User registers their private channel (supports string or object with userKey, userId, email, orderIds)
+  socket.on('user:register', (data) => {
+    if (!data) return;
+    if (typeof data === 'string') {
+      const clean = data.trim();
+      socket.join(`user-${clean}`);
+      socket.join(`user-${clean.toLowerCase()}`);
+    } else if (typeof data === 'object') {
+      if (data.userKey) {
+        socket.join(`user-${data.userKey}`);
+        socket.join(`user-${String(data.userKey).toLowerCase().trim()}`);
+      }
+      if (data.userId) {
+        socket.join(`user-${data.userId}`);
+        socket.join(`user-${String(data.userId).toLowerCase().trim()}`);
+      }
+      if (data.email) {
+        socket.join(`user-${String(data.email).toLowerCase().trim()}`);
+      }
+      if (Array.isArray(data.orderIds)) {
+        data.orderIds.forEach((oid) => {
+          if (oid) socket.join(`order-${oid}`);
+        });
+      }
+    }
+  });
+
+  // Pelanggan melacak pesanan spesifik (guest & member)
+  socket.on('order:track', (orderId) => {
+    if (orderId) {
+      socket.join(`order-${orderId}`);
     }
   });
 
@@ -357,6 +421,7 @@ app.post('/api/transactions', (req, res) => {
       sound: true
     });
     // Broadcast fallback ke global socket
+    io.emit('order:incoming', { newTrx: saved, timestamp: Date.now(), sound: true });
     io.emit('order:new_global', saved);
 
     console.log(`🔔 [Socket.io Event]: New Order Emitted: ${saved.id} (${saved.productName}) by ${saved.customerName}`);
@@ -378,13 +443,36 @@ const handleUpdateTransaction = (req, res) => {
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
 
-    // Beritahukan ke pembeli di node privatnya secara instan
-    if (updated.userKey || updated.userId) {
-      const uKey = updated.userKey || updated.userId;
-      io.to(`user-${uKey}`).emit('order:user_updated', updated);
-    }
-    // Beritahukan ke seluruh admin
+    // 1. Beritahukan ke seluruh admin
     io.to('admin-room').emit('order:updated', updated);
+
+    // 2. Beritahukan ke pembeli di semua channel (order room, user room, email room)
+    const targetRooms = new Set();
+    if (updated.id) targetRooms.add(`order-${updated.id}`);
+    if (updated.userKey) {
+      targetRooms.add(`user-${updated.userKey}`);
+      targetRooms.add(`user-${String(updated.userKey).toLowerCase().trim()}`);
+    }
+    if (updated.userId) {
+      targetRooms.add(`user-${updated.userId}`);
+      targetRooms.add(`user-${String(updated.userId).toLowerCase().trim()}`);
+    }
+    if (updated.userEmail && updated.userEmail !== '-') {
+      targetRooms.add(`user-${String(updated.userEmail).toLowerCase().trim()}`);
+    }
+    if (updated.customerEmail && updated.customerEmail !== '-') {
+      targetRooms.add(`user-${String(updated.customerEmail).toLowerCase().trim()}`);
+    }
+
+    targetRooms.forEach((room) => {
+      io.to(room).emit('order:user_updated', updated);
+    });
+
+    // 3. Broadcast fallback ke seluruh client agar browser/tab yang terbuka langsung terupdate
+    io.emit('order:updated', updated);
+    io.emit('order:user_updated_global', updated);
+
+    console.log(`⚡ [Socket.io Event]: Order ${updated.id} status updated to [${updated.status}] -> Broadcasted to rooms:`, Array.from(targetRooms));
 
     res.json({ success: true, data: updated, transaction: updated });
   } catch (err) {
@@ -430,6 +518,104 @@ app.delete('/api/transactions', (req, res) => {
     clearTransactions();
     io.to('admin-room').emit('orders:cleared');
     res.json({ success: true, message: 'All transactions cleared' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------------
+// 1B. CHAIZMONEY DEPOSITS (TOP UP SALDO)
+// -------------------------------------------------------------------
+
+app.get('/api/deposits', (req, res) => {
+  try {
+    const list = getAllDeposits();
+    res.json({ success: true, data: list, count: list.length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/deposits/user/:userKey', (req, res) => {
+  try {
+    const list = getDepositsByUser(req.params.userKey);
+    res.json({ success: true, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/deposits', (req, res) => {
+  try {
+    const depData = req.body;
+    if (!depData || !depData.amount) {
+      return res.status(400).json({ success: false, error: 'Amount is required' });
+    }
+    const saved = saveDeposit(depData);
+
+    // Emit realtime ke admin
+    io.to('admin-room').emit('deposit:incoming', {
+      deposit: saved,
+      timestamp: Date.now(),
+      sound: true
+    });
+    io.emit('deposit:new_global', saved);
+
+    console.log(`💰 [Deposit Event]: New Deposit ${saved.id}: Rp ${saved.amount} by ${saved.userName}`);
+    res.status(201).json({ success: true, data: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+const handleUpdateDeposit = (req, res) => {
+  try {
+    const id = req.params.id || req.body.id;
+    const patch = req.body;
+    const updated = updateDeposit(id, patch);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Deposit not found' });
+    }
+
+    const targetRooms = new Set();
+    if (updated.id) targetRooms.add(`deposit-${updated.id}`);
+    if (updated.userKey) {
+      targetRooms.add(`user-${updated.userKey}`);
+      targetRooms.add(`user-${String(updated.userKey).toLowerCase().trim()}`);
+    }
+    if (updated.userId) {
+      targetRooms.add(`user-${updated.userId}`);
+      targetRooms.add(`user-${String(updated.userId).toLowerCase().trim()}`);
+    }
+    if (updated.userEmail && updated.userEmail !== '-') {
+      targetRooms.add(`user-${String(updated.userEmail).toLowerCase().trim()}`);
+    }
+
+    targetRooms.forEach((room) => {
+      io.to(room).emit('deposit:user_updated', updated);
+    });
+
+    io.to('admin-room').emit('deposit:updated', updated);
+    io.emit('deposit:updated', updated);
+    io.emit('deposit:user_updated_global', updated);
+
+    console.log(`💰 [Socket.io Event]: Deposit ${updated.id} status updated to [${updated.status}]`);
+
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+app.put('/api/deposits/:id', handleUpdateDeposit);
+app.patch('/api/deposits/:id', handleUpdateDeposit);
+app.patch('/api/deposits', handleUpdateDeposit);
+
+app.delete('/api/deposits/:id', (req, res) => {
+  try {
+    deleteDeposit(req.params.id);
+    io.to('admin-room').emit('deposit:deleted', { id: req.params.id });
+    res.json({ success: true, message: 'Deposit deleted' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -602,10 +788,10 @@ app.post('/api/sync/from-firebase', async (req, res) => {
 });
 
 // Start Server
-server.listen(PORT, async () => {
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`\n======================================================`);
   console.log(`🚀 CHAIZSTORE DEDICATED BACKEND SERVER RUNNING`);
-  console.log(`📡 URL: http://localhost:${PORT}`);
+  console.log(`📡 URL: http://0.0.0.0:${PORT}`);
   console.log(`⚡ WebSocket Engine: Socket.io Active`);
   console.log(`💾 Database: SQLite High-Performance WAL Storage`);
   console.log(`======================================================\n`);

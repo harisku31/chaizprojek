@@ -58,7 +58,9 @@ export function subscribeAdminSocket({
   onOrderUpdated,
   onOrdersCleared,
   onPresenceUpdated,
-  onBanChanged
+  onBanChanged,
+  onIncomingDeposit,
+  onDepositUpdated
 }) {
   const socket = getSocket();
   if (!socket) return () => {};
@@ -102,11 +104,25 @@ export function subscribeAdminSocket({
     }
   };
 
+  const depositIncomingHandler = (payload) => {
+    if (typeof onIncomingDeposit === 'function') {
+      onIncomingDeposit(payload);
+    }
+  };
+
+  const depositUpdateHandler = (deposit) => {
+    if (typeof onDepositUpdated === 'function') {
+      onDepositUpdated(deposit);
+    }
+  };
+
   socket.on('order:incoming', incomingHandler);
   socket.on('order:updated', updateHandler);
   socket.on('orders:cleared', clearHandler);
   socket.on('user:presence_updated', presenceHandler);
   socket.on('user:banned_changed', banHandler);
+  socket.on('deposit:incoming', depositIncomingHandler);
+  socket.on('deposit:updated', depositUpdateHandler);
 
   return () => {
     socket.off('order:incoming', incomingHandler);
@@ -114,19 +130,23 @@ export function subscribeAdminSocket({
     socket.off('orders:cleared', clearHandler);
     socket.off('user:presence_updated', presenceHandler);
     socket.off('user:banned_changed', banHandler);
+    socket.off('deposit:incoming', depositIncomingHandler);
+    socket.off('deposit:updated', depositUpdateHandler);
   };
 }
 
 /**
  * Hubungkan Pembeli ke Sinyal WebSocket Privat (Pengiriman Akun & Update Status)
+ * Mendukung string userKey maupun objek { userKey, userId, email, orderIds }
  */
-export function subscribeUserSocket(userKey, { onOrderUpdated, onBanUpdated }) {
-  if (!userKey) return () => {};
+export function subscribeUserSocket(userOrKey, { onOrderUpdated, onBanUpdated, onDepositUpdated } = {}) {
   const socket = getSocket();
   if (!socket) return () => {};
 
   const register = () => {
-    socket.emit('user:register', userKey);
+    if (userOrKey) {
+      socket.emit('user:register', userOrKey);
+    }
   };
 
   if (socket.connected) {
@@ -136,7 +156,7 @@ export function subscribeUserSocket(userKey, { onOrderUpdated, onBanUpdated }) {
   }
 
   const updateHandler = (order) => {
-    if (typeof onOrderUpdated === 'function') {
+    if (typeof onOrderUpdated === 'function' && order) {
       onOrderUpdated(order);
     }
   };
@@ -147,11 +167,41 @@ export function subscribeUserSocket(userKey, { onOrderUpdated, onBanUpdated }) {
     }
   };
 
+  const depositHandler = (deposit) => {
+    if (typeof onDepositUpdated === 'function' && deposit) {
+      onDepositUpdated(deposit);
+    }
+  };
+
   socket.on('order:user_updated', updateHandler);
+  socket.on('order:user_updated_global', updateHandler);
+  socket.on('order:updated', updateHandler);
   socket.on('user:ban_status_updated', banHandler);
+  socket.on('deposit:user_updated', depositHandler);
+  socket.on('deposit:user_updated_global', depositHandler);
 
   return () => {
     socket.off('order:user_updated', updateHandler);
+    socket.off('order:user_updated_global', updateHandler);
+    socket.off('order:updated', updateHandler);
     socket.off('user:ban_status_updated', banHandler);
+    socket.off('deposit:user_updated', depositHandler);
+    socket.off('deposit:user_updated_global', depositHandler);
   };
+}
+
+/**
+ * Pelanggan melacak nomor pesanan spesifik via socket (Guest maupun Member)
+ */
+export function trackOrderSocket(orderId) {
+  if (!orderId) return;
+  const socket = getSocket();
+  if (!socket) return;
+  if (socket.connected) {
+    socket.emit('order:track', orderId);
+  } else {
+    socket.once('connect', () => {
+      socket.emit('order:track', orderId);
+    });
+  }
 }

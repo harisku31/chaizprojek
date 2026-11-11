@@ -1376,6 +1376,12 @@ export function recordUserHeartbeat(user) {
           lastHeartbeat: now,
           lastActiveAt: nowIso
         }).catch(() => {});
+        saveUserToSql({
+          id: userId,
+          lastHeartbeat: now,
+          lastActiveTime: nowIso,
+          sessionStatus: 'logged_in'
+        }).catch(() => {});
       } catch (e) {}
     }
   }

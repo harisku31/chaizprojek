@@ -56,6 +56,9 @@ import {
 import {
   getUserKey,
   getUserTransactions,
+  saveUserTransactions,
+  getTransactions,
+  saveTransactions,
   getRecentOrderIds,
   isOrderBelongsToSession,
   getActiveNotificationCount,
@@ -586,6 +589,27 @@ export default function App() {
       // Simpan status terbaru
       knownStatuses[id] = currentStatus;
 
+      // Sinkronkan ke local storage agar halaman Transaksi & modal langsung terupdate
+      try {
+        if (authUser) {
+          const userList = getUserTransactions(authUser);
+          const uIdx = userList.findIndex((t) => t.id === id);
+          if (uIdx >= 0) {
+            userList[uIdx] = { ...userList[uIdx], ...trx };
+          } else {
+            userList.unshift(trx);
+          }
+          saveUserTransactions(authUser, userList, { broadcast: false });
+        }
+        const allList = getTransactions();
+        const aIdx = allList.findIndex((t) => t.id === id);
+        if (aIdx >= 0) {
+          allList[aIdx] = { ...allList[aIdx], ...trx };
+          saveTransactions(allList, { broadcast: false });
+        }
+        window.dispatchEvent(new CustomEvent('chaiz_trx_updated', { detail: { type: 'ORDER_UPDATED', data: trx } }));
+      } catch (storageErr) {}
+
       // Jika status adalah 'completed' dan belum pernah dinotifikasi untuk status ini
       if (currentStatus === 'completed' && notifiedMap[id] !== 'completed') {
         notifiedMap[id] = 'completed';
@@ -628,9 +652,8 @@ export default function App() {
       }
     };
 
-    // 1. Firebase RTDB Watcher & Socket.io: Langganan node privat user jika login
+    // 1. Firebase RTDB Watcher: Langganan node privat user jika login
     let unsubscribeUserTrx = () => {};
-    let unsubscribeSocketUser = () => {};
     if (authUser) {
       unsubscribeUserTrx = listenToUserTransactions(authUser, (userList) => {
         if (Array.isArray(userList)) {
@@ -638,18 +661,24 @@ export default function App() {
           updateBadge();
         }
       });
-      const uKey = authUser.id || authUser.userId || (authUser.email ? getUserKey(authUser) : null);
-      if (uKey) {
-        unsubscribeSocketUser = subscribeUserSocket(uKey, {
-          onOrderUpdated: (updatedTrx) => {
-            if (updatedTrx) {
-              handleOrderStatusChange(updatedTrx, 'socket_user_trx');
-              updateBadge();
-            }
-          }
-        });
-      }
     }
+
+    // 1B. Socket.io Realtime Listener (Sub-10ms Bel Chime untuk Member & Guest!)
+    const recentOrderIdsList = getRecentOrderIds();
+    const userSocketPayload = {
+      userKey: authUser ? (authUser.id || getUserKey(authUser)) : null,
+      userId: authUser?.id || null,
+      email: authUser?.email || null,
+      orderIds: recentOrderIdsList
+    };
+    const unsubscribeSocketUser = subscribeUserSocket(userSocketPayload, {
+      onOrderUpdated: (updatedTrx) => {
+        if (updatedTrx) {
+          handleOrderStatusChange(updatedTrx, 'socket_user_trx');
+          updateBadge();
+        }
+      }
+    });
 
     // 2. Firebase RTDB Watcher: Langganan langsung ke ID pesanan yang masih 'processing'
     const unsubsOrders = [];

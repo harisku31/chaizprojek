@@ -11,6 +11,11 @@ import {
   listenToFirebase
 } from './firebase.js';
 import { getRegisteredUsers, saveRegisteredUsers, recordUserActivity } from './userTracker.js';
+import {
+  createDepositInSql,
+  fetchAllDepositsFromSql,
+  updateDepositInSql
+} from './sqlApi.js';
 
 const STORAGE_KEY_DEPOSITS = 'chaiz_admin_deposits';
 const FIREBASE_PATH_DEPOSITS = 'deposits';
@@ -150,6 +155,9 @@ export async function createDeposit(depositData) {
     );
   } catch (e) {}
 
+  // 5. Simpan ke database SQLite Dedicated Server
+  createDepositInSql(cleanDeposit).catch(() => {});
+
   return cleanDeposit;
 }
 
@@ -233,6 +241,15 @@ export async function approveDeposit(depositId, creditedAmount, adminName = 'Adm
       updatedAt: nowIso
     });
   } catch (e) {}
+
+  // 4B. Update in SQLite Dedicated Server
+  updateDepositInSql(deposit.id, {
+    status: 'approved',
+    creditedAmount: finalAmount,
+    approvedAt: nowIso,
+    approvedBy: adminName,
+    updatedAt: nowIso
+  }).catch(() => {});
 
   // 5. Broadcast to cross-tabs / client app
   if (typeof BroadcastChannel !== 'undefined') {
@@ -394,6 +411,9 @@ export async function createApprovedGatewayDeposit({
     );
   } catch (e) {}
 
+  // 7. Simpan ke database SQLite Dedicated Server
+  createDepositInSql(cleanDeposit).catch(() => {});
+
   return { success: true, deposit: cleanDeposit, newBalance: userNewBalance };
 }
 
@@ -423,6 +443,15 @@ export async function rejectDeposit(depositId, reason = 'Bukti pembayaran tidak 
       updatedAt: nowIso
     });
   } catch (e) {}
+
+  // Update in SQLite Dedicated Server
+  updateDepositInSql(deposit.id, {
+    status: 'rejected',
+    rejectionReason: reason,
+    rejectedAt: nowIso,
+    rejectedBy: adminName,
+    updatedAt: nowIso
+  }).catch(() => {});
 
   // Broadcast
   if (typeof BroadcastChannel !== 'undefined') {
@@ -456,6 +485,18 @@ export async function rejectDeposit(depositId, reason = 'Bukti pembayaran tidak 
  */
 export async function syncDepositsFromCloud() {
   if (typeof window === 'undefined') return getDeposits();
+
+  // 1. Tarik dari database SQLite Dedicated Server jika aktif
+  try {
+    const sqlDeposits = await fetchAllDepositsFromSql();
+    if (Array.isArray(sqlDeposits) && sqlDeposits.length > 0) {
+      sqlDeposits.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      saveDeposits(sqlDeposits);
+      return sqlDeposits;
+    }
+  } catch (_) {}
+
+  // 2. Fallback ke Firebase
   try {
     const cloudData = await readFromFirebase(FIREBASE_PATH_DEPOSITS);
     if (cloudData) {

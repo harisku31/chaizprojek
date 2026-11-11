@@ -6,8 +6,10 @@ import {
   syncUserTransactionsFromCloud,
   listenToUserTransactions,
   getUserKey,
-  isOrderOwnedByUser
+  isOrderOwnedByUser,
+  getRecentOrderIds
 } from '../utils/transactions';
+import { subscribeUserSocket } from '../utils/socketClient';
 import TransactionModal from './TransactionModal';
 import RatingModal from './RatingModal';
 import { playUserSuccessSound, playUserRejectSound } from '../utils/audioNotification';
@@ -202,8 +204,41 @@ export default function TransactionsPage({
 
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
 
+    // 6. Realtime Socket.io Watcher khusus pesanan user (0ms respons tanpa reload)
+    const unsubSocket = subscribeUserSocket(
+      {
+        userKey: authUser ? (authUser.id || getUserKey(authUser)) : null,
+        userId: authUser?.id || null,
+        email: authUser?.email || null,
+        orderIds: getRecentOrderIds()
+      },
+      {
+        onOrderUpdated: (updatedTrx) => {
+          if (!updatedTrx || !updatedTrx.id) return;
+          if (isOrderOwnedByUser(updatedTrx, authUser)) {
+            setTransactions((prev) => {
+              const idx = prev.findIndex((t) => t.id === updatedTrx.id);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = { ...next[idx], ...updatedTrx };
+                return next;
+              }
+              return [updatedTrx, ...prev];
+            });
+            setSelectedTrxDetail((curr) => {
+              if (curr && curr.id === updatedTrx.id) {
+                return { ...curr, ...updatedTrx };
+              }
+              return curr;
+            });
+          }
+        }
+      }
+    );
+
     return () => {
       if (unsubscribeCloud) unsubscribeCloud();
+      if (unsubSocket) unsubSocket();
       clearInterval(pollInterval);
       if (bc) bc.close();
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);

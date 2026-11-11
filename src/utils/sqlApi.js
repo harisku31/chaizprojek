@@ -4,9 +4,11 @@
 // High Performance, Sub-10ms Queries, Zero Browser Socket Limitations
 // ===================================================================
 
-const DEFAULT_LOCAL_API = 'http://localhost:3001';
+const DEFAULT_LOCAL_API = 'http://127.0.0.1:3005';
+let activeBackendUrl = null;
 
 export function getSqlApiBaseUrl() {
+  if (activeBackendUrl) return activeBackendUrl;
   if (typeof window === 'undefined') return DEFAULT_LOCAL_API;
 
   // 1. Cek environment variable jika didefinisikan di .env
@@ -17,13 +19,8 @@ export function getSqlApiBaseUrl() {
     return import.meta.env.VITE_SQL_API_URL.trim().replace(/\/+$/, '');
   }
 
-  // 2. Jika diakses via domain produksi dengan subfolder atau origin
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return window.location.origin;
-  }
-
-  // 3. Default saat development lokal: Dedicated Node Server Port 3001
-  return DEFAULT_LOCAL_API;
+  // 2. Default: gunakan origin browser (terhubung via reverse proxy / Vite proxy ke port 3005)
+  return window.location.origin;
 }
 
 let isSqlChecked = false;
@@ -35,32 +32,51 @@ let lastCheckTime = 0;
  */
 export async function checkSqlBackendHealth() {
   const now = Date.now();
-  if (isSqlChecked && now - lastCheckTime < 15000) {
-    return isSqlAvailable;
+  if (isSqlChecked && isSqlAvailable && now - lastCheckTime < 10000) {
+    return true;
   }
 
-  try {
-    const baseUrl = getSqlApiBaseUrl();
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
+  const tryUrls = [
+    getSqlApiBaseUrl(),
+    typeof window !== 'undefined' ? `http://${window.location.hostname}:3005` : 'http://127.0.0.1:3005',
+    'http://127.0.0.1:3005',
+    DEFAULT_LOCAL_API
+  ];
 
-    const res = await fetch(`${baseUrl}/health`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+  const uniqueUrls = [...new Set(tryUrls.filter(Boolean))];
 
-    isSqlChecked = true;
-    lastCheckTime = now;
-    isSqlAvailable = res.ok;
-    return isSqlAvailable;
-  } catch (err) {
-    isSqlChecked = true;
-    lastCheckTime = now;
-    isSqlAvailable = false;
-    return false;
+  for (const url of uniqueUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+      const res = await fetch(`${url}/health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        activeBackendUrl = url;
+        isSqlChecked = true;
+        lastCheckTime = now;
+        isSqlAvailable = true;
+        return true;
+      }
+    } catch (_) {}
   }
+
+  isSqlChecked = true;
+  lastCheckTime = now;
+  isSqlAvailable = false;
+  return false;
+}
+
+function getCandidateUrls() {
+  const current = getSqlApiBaseUrl();
+  const direct = typeof window !== 'undefined' ? `http://${window.location.hostname}:3005` : 'http://127.0.0.1:3005';
+  return [...new Set([current, direct, 'http://127.0.0.1:3005', DEFAULT_LOCAL_API].filter(Boolean))];
 }
 
 /**
@@ -68,30 +84,29 @@ export async function checkSqlBackendHealth() {
  */
 export async function fetchUserTransactionsFromSql(userEmailOrKey) {
   if (!userEmailOrKey) return null;
-  const isHealthy = await checkSqlBackendHealth();
-  if (!isHealthy) return null;
-
-  const baseUrl = getSqlApiBaseUrl();
   const clean = encodeURIComponent(String(userEmailOrKey).toLowerCase().trim());
+  const urls = getCandidateUrls();
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+  for (const baseUrl of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-    const res = await fetch(`${baseUrl}/api/transactions/user/${clean}`, {
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+      const res = await fetch(`${baseUrl}/api/transactions/user/${clean}`, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && Array.isArray(data.data)) {
-        return data.data;
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.data)) {
+          activeBackendUrl = baseUrl;
+          isSqlAvailable = true;
+          return data.data;
+        }
       }
-    }
-  } catch (err) {
-    // Backend offline / fallback ke Firebase
+    } catch (err) {}
   }
   return null;
 }
@@ -100,27 +115,29 @@ export async function fetchUserTransactionsFromSql(userEmailOrKey) {
  * 2. Ambil Semua Transaksi untuk Admin Dashboard dari Server Dedicated
  */
 export async function fetchAllTransactionsFromSql() {
-  const isHealthy = await checkSqlBackendHealth();
-  if (!isHealthy) return null;
+  const urls = getCandidateUrls();
 
-  const baseUrl = getSqlApiBaseUrl();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+  for (const baseUrl of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-    const res = await fetch(`${baseUrl}/api/transactions`, {
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+      const res = await fetch(`${baseUrl}/api/transactions`, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && Array.isArray(data.data)) {
-        return data.data;
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.data)) {
+          activeBackendUrl = baseUrl;
+          isSqlAvailable = true;
+          return data.data;
+        }
       }
-    }
-  } catch (err) {}
+    } catch (err) {}
+  }
   return null;
 }
 
@@ -129,33 +146,33 @@ export async function fetchAllTransactionsFromSql() {
  * Memicu WebSocket 0ms ke seluruh Admin yang sedang membuka panel!
  */
 export async function createTransactionInSql(transactionData) {
-  const isHealthy = await checkSqlBackendHealth();
-  if (!isHealthy) return null;
+  const urls = getCandidateUrls();
 
-  const baseUrl = getSqlApiBaseUrl();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+  for (const baseUrl of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-    const res = await fetch(`${baseUrl}/api/transactions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(transactionData),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+      const res = await fetch(`${baseUrl}/api/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(transactionData),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && (data.data || data.transaction)) {
-        return data.data || data.transaction;
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && (data.data || data.transaction)) {
+          activeBackendUrl = baseUrl;
+          isSqlAvailable = true;
+          return data.data || data.transaction;
+        }
       }
-    }
-  } catch (err) {
-    console.warn('[Dedicated Server] Gagal menyimpan ke backend:', err);
+    } catch (err) {}
   }
   return null;
 }
@@ -164,28 +181,35 @@ export async function createTransactionInSql(transactionData) {
  * 4. Update Status Transaksi di Backend (Fulfill / Reject / Note)
  */
 export async function updateTransactionInSql(patchData) {
-  const baseUrl = getSqlApiBaseUrl();
-  const id = patchData.id;
+  const id = patchData?.id;
   if (!id) return null;
+  const urls = getCandidateUrls();
 
-  try {
-    const res = await fetch(`${baseUrl}/api/transactions/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(patchData)
-    });
+  for (const baseUrl of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success) {
-        return data.data || data.transaction;
+      const res = await fetch(`${baseUrl}/api/transactions/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(patchData),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          activeBackendUrl = baseUrl;
+          isSqlAvailable = true;
+          return data.data || data.transaction;
+        }
       }
-    }
-  } catch (err) {
-    console.warn('[Dedicated Server] Gagal update transaksi:', err);
+    } catch (err) {}
   }
   return null;
 }
@@ -377,5 +401,97 @@ export async function saveActivityToSql(act) {
       return data?.data || null;
     }
   } catch (err) {}
+  return null;
+}
+
+// ===================================================================
+// DEPOSIT REPOSITORY CALLS (CHAIZMONEY)
+// ===================================================================
+
+export async function createDepositInSql(dep) {
+  if (!dep) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/deposits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dep)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (err) {
+    console.warn('Failed to save deposit in SQL:', err.message);
+  }
+  return null;
+}
+
+export async function fetchAllDepositsFromSql() {
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/deposits`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch deposits from SQL:', err.message);
+  }
+  return null;
+}
+
+export async function fetchUserDepositsFromSql(userEmailOrKey) {
+  if (!userEmailOrKey) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  const clean = encodeURIComponent(String(userEmailOrKey).toLowerCase().trim());
+  try {
+    const res = await fetch(`${baseUrl}/api/deposits/user/${clean}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch user deposits from SQL:', err.message);
+  }
+  return null;
+}
+
+export async function updateDepositInSql(id, patch) {
+  if (!id || !patch) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/deposits/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (err) {
+    console.warn('Failed to update deposit in SQL:', err.message);
+  }
   return null;
 }
