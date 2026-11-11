@@ -1,20 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { CONFIG, PAYMENT_INFO } from '../data/config';
-import { VOUCHERS, findVoucher } from '../data/vouchers';
-import {
-  formatRupiah,
-  copyToClipboard,
-  compressImageFile,
-  copyImageBlobToClipboard
-} from '../utils/format';
+import React, { useState, useEffect } from 'react';
+import { findVoucher } from '../data/vouchers';
+import { formatRupiah, copyToClipboard } from '../utils/format';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
-import {
-  generateQrisDataUrl,
-  QRIS_GATEWAY_CLIENT_KEY,
-  MERCHANT_NMID,
-  verifyGatewayPayment
-} from '../utils/qrisGateway';
+import { generateQrisDataUrl } from '../utils/qrisGateway';
 import { QrisLogo, GopayLogo } from './PaymentLogos';
 
 export default function CheckoutModal({
@@ -55,7 +44,7 @@ export default function CheckoutModal({
   }, [isOpen, initialVoucher]);
 
   // Auto-fill dari akun login (Google / Member / Chaiz)
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       if (authUser) {
         setBuyerUsername(authUser.username || (authUser.name ? authUser.name.toLowerCase().replace(/\s+/g, '_') : ''));
