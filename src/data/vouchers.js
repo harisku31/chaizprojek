@@ -48,8 +48,19 @@ export const VOUCHERS = [
     color: '#a855f7'
   },
   {
+    code: 'FREEDEM321',
+    aliases: ['FREEDEM', 'FREEDEM-321', 'FREE-DEM-321', 'FREEDEM321', 'GRATIS321'],
+    name: 'Gratis 1 Pesanan (Full 100%)',
+    description: 'Voucher spesial: Gratis 1 pesanan (Total tagihan menjadi Rp 0).',
+    type: 'full_free',
+    discountAmount: 0, // dynamic: 100% of total
+    badge: 'Gratis 1 Pesanan',
+    icon: 'fa-solid fa-gift',
+    color: '#10b981'
+  },
+  {
     code: 'FULLGRATIS',
-    aliases: ['CHAIZGRATIS', 'GRATIS', 'FREE', 'FREEALL', 'GRATIS100', 'CHAIZFREE'],
+    aliases: ['CHAIZGRATIS', 'GRATIS', 'FREE', 'FREEALL', 'GRATIS100', 'CHAIZFREE', 'FREEDEM321'],
     name: 'Full Gratis 100%',
     description: 'Seluruh total tagihan pesanan menjadi Rp 0 (Full Gratis).',
     type: 'full_free',

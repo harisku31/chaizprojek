@@ -405,6 +405,78 @@ export default function CheckoutModal({
                 </tbody>
               </table>
             </div>
+
+            {/* Voucher & Kode Diskon Input */}
+            <div className="checkout-voucher-section">
+              <div className="checkout-voucher-header">
+                <label htmlFor="checkoutVoucherInput" className="checkout-voucher-title">
+                  <i className="fa-solid fa-ticket text-cyan"></i>
+                  <span>Punya Kode Voucher / Diskon?</span>
+                </label>
+                {!appliedVoucher && (
+                  <span
+                    className="voucher-hint-badge"
+                    onClick={() => handleApplyVoucher('freedem321')}
+                    title="Klik untuk langsung menggunakan kode ini"
+                  >
+                    Klaim: <strong>freedem321</strong>
+                  </span>
+                )}
+              </div>
+
+              {!appliedVoucher ? (
+                <div className="checkout-voucher-input-row">
+                  <div className="clean-input-wrapper voucher-input-wrap">
+                    <i className="fa-solid fa-tag clean-input-lead-icon text-cyan"></i>
+                    <input
+                      type="text"
+                      id="checkoutVoucherInput"
+                      className="clean-field-control checkout-voucher-input"
+                      placeholder="Ketik kode voucher (contoh: freedem321)..."
+                      value={voucherCodeInput}
+                      onChange={(e) => setVoucherCodeInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyVoucher();
+                        }
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-apply-voucher"
+                    onClick={() => handleApplyVoucher()}
+                  >
+                    <i className="fa-solid fa-check"></i> Gunakan
+                  </button>
+                </div>
+              ) : (
+                <div className="checkout-applied-voucher-card">
+                  <div className="applied-voucher-left">
+                    <div className="applied-voucher-icon">
+                      <i className={appliedVoucher.icon || "fa-solid fa-circle-check text-emerald"}></i>
+                    </div>
+                    <div className="applied-voucher-details">
+                      <div className="applied-voucher-code-wrap">
+                        <strong className="applied-voucher-code">{appliedVoucher.code}</strong>
+                        <span className="applied-voucher-badge">{appliedVoucher.badge || 'Aktif'}</span>
+                      </div>
+                      <small className="applied-voucher-desc">{appliedVoucher.description}</small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-remove-voucher"
+                    onClick={handleRemoveVoucher}
+                    title="Batalkan Voucher"
+                  >
+                    <i className="fa-solid fa-xmark"></i> Batal
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Rincian Subtotal, Diskon, dan Total Tagihan */}
             <div className="checkout-totals-block">
               <div className="checkout-total-row subtotal-row">

@@ -19401,4 +19401,653 @@ body.auth-locked {
   border-color: #cbd5e1 !important;
 }
 
+/* ==========================================================================
+   CHECKOUT VOUCHER COMPONENT (DARK & LIGHT BASE)
+   ========================================================================== */
+.checkout-voucher-section {
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px dashed rgba(99, 102, 241, 0.35);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkout-voucher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.checkout-voucher-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.voucher-hint-badge {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.voucher-hint-badge:hover {
+  background: rgba(16, 185, 129, 0.25);
+  transform: scale(1.02);
+}
+
+.checkout-voucher-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.voucher-input-wrap {
+  flex: 1;
+}
+
+.btn-apply-voucher {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff !important;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-apply-voucher:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.checkout-applied-voucher-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.applied-voucher-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.applied-voucher-icon {
+  font-size: 1.25rem;
+  color: #10b981;
+}
+
+.applied-voucher-code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.applied-voucher-code {
+  font-size: 0.95rem;
+  color: #10b981;
+  letter-spacing: 0.05em;
+}
+
+.applied-voucher-badge {
+  font-size: 0.7rem;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.applied-voucher-desc {
+  display: block;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.btn-remove-voucher {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-voucher:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+/* Clean Form Base */
+.clean-vertical-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.clean-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clean-field-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.clean-field-badge {
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.clean-field-badge.badge-req {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.clean-field-badge.badge-opt {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.clean-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  transition: all 0.2s ease;
+}
+
+.clean-input-lead-icon {
+  font-size: 0.95rem;
+}
+
+.clean-field-control {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.clean-field-control::placeholder {
+  color: #64748b;
+}
+
+.clean-field-hint {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   CHECKOUT MODAL LIGHT MODE SUPPORT (HIGH CONTRAST & CLEAR READABILITY)
+   ========================================================================== */
+[data-theme="light"] .checkout-modal-box,
+:root:not([data-theme="dark"]) .checkout-modal-box {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.16) !important;
+}
+
+[data-theme="light"] .checkout-modal-box .modal-header,
+:root:not([data-theme="dark"]) .checkout-modal-box .modal-header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .checkout-modal-box .modal-tag,
+:root:not([data-theme="dark"]) .checkout-modal-box .modal-tag {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  border: 1px solid #c7d2fe !important;
+}
+
+[data-theme="light"] .checkout-modal-box .modal-header h3,
+:root:not([data-theme="dark"]) .checkout-modal-box .modal-header h3 {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="light"] .checkout-modal-box .checkout-header-icon,
+:root:not([data-theme="dark"]) .checkout-modal-box .checkout-header-icon {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  border: 1px solid #c7d2fe !important;
+}
+
+[data-theme="light"] .checkout-modal-box .modal-close-btn,
+:root:not([data-theme="dark"]) .checkout-modal-box .modal-close-btn {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .checkout-modal-box .modal-close-btn:hover,
+:root:not([data-theme="dark"]) .checkout-modal-box .modal-close-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Sections */
+[data-theme="light"] .checkout-modal-box .checkout-section,
+:root:not([data-theme="dark"]) .checkout-modal-box .checkout-section {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .checkout-modal-box .checkout-section-title,
+:root:not([data-theme="dark"]) .checkout-modal-box .checkout-section-title {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="light"] .checkout-modal-box .checkout-section-desc,
+:root:not([data-theme="dark"]) .checkout-modal-box .checkout-section-desc {
+  color: #475569 !important;
+}
+
+/* Table */
+[data-theme="light"] .checkout-items-table-wrapper,
+:root:not([data-theme="dark"]) .checkout-items-table-wrapper {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .checkout-items-table th,
+:root:not([data-theme="dark"]) .checkout-items-table th {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+  border-bottom: 1.5px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .checkout-items-table td,
+:root:not([data-theme="dark"]) .checkout-items-table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .checkout-item-title,
+:root:not([data-theme="dark"]) .checkout-item-title {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .checkout-item-badge,
+:root:not([data-theme="dark"]) .checkout-item-badge {
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  border: 1px solid #c7d2fe !important;
+}
+
+/* Voucher Box in Light Mode */
+[data-theme="light"] .checkout-voucher-section,
+:root:not([data-theme="dark"]) .checkout-voucher-section {
+  background: #ffffff !important;
+  border: 1.5px dashed #cbd5e1 !important;
+}
+
+[data-theme="light"] .checkout-voucher-title,
+:root:not([data-theme="dark"]) .checkout-voucher-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .voucher-hint-badge,
+:root:not([data-theme="dark"]) .voucher-hint-badge {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+[data-theme="light"] .voucher-hint-badge:hover,
+:root:not([data-theme="dark"]) .voucher-hint-badge:hover {
+  background: #d1fae5 !important;
+}
+
+[data-theme="light"] .checkout-voucher-section .clean-input-wrapper,
+:root:not([data-theme="dark"]) .checkout-voucher-section .clean-input-wrapper {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .checkout-voucher-input,
+:root:not([data-theme="dark"]) .checkout-voucher-input {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .checkout-applied-voucher-card,
+:root:not([data-theme="dark"]) .checkout-applied-voucher-card {
+  background: #f0fdf4 !important;
+  border: 1.5px solid #86efac !important;
+}
+
+[data-theme="light"] .applied-voucher-code,
+:root:not([data-theme="dark"]) .applied-voucher-code {
+  color: #15803d !important;
+}
+
+[data-theme="light"] .applied-voucher-badge,
+:root:not([data-theme="dark"]) .applied-voucher-badge {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+}
+
+[data-theme="light"] .applied-voucher-desc,
+:root:not([data-theme="dark"]) .applied-voucher-desc {
+  color: #166534 !important;
+}
+
+/* Totals Block in Light Mode */
+[data-theme="light"] .checkout-totals-block,
+:root:not([data-theme="dark"]) .checkout-totals-block {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+}
+
+[data-theme="light"] .checkout-total-row,
+:root:not([data-theme="dark"]) .checkout-total-row {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .checkout-total-row span:last-child,
+:root:not([data-theme="dark"]) .checkout-total-row span:last-child {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .discount-row,
+:root:not([data-theme="dark"]) .discount-row {
+  color: #059669 !important;
+}
+
+[data-theme="light"] .discount-value,
+:root:not([data-theme="dark"]) .discount-value {
+  color: #059669 !important;
+}
+
+[data-theme="light"] .checkout-grand-total,
+:root:not([data-theme="dark"]) .checkout-grand-total {
+  border-top: 1.5px dashed #cbd5e1 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .checkout-grand-total strong,
+:root:not([data-theme="dark"]) .checkout-grand-total strong {
+  color: #059669 !important;
+}
+
+/* Google Sync Notice in Light Mode */
+[data-theme="light"] .checkout-google-sync-notice,
+:root:not([data-theme="dark"]) .checkout-google-sync-notice {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+[data-theme="light"] .sync-notice-text,
+:root:not([data-theme="dark"]) .sync-notice-text {
+  color: #166534 !important;
+}
+
+[data-theme="light"] .sync-notice-text strong,
+:root:not([data-theme="dark"]) .sync-notice-text strong {
+  color: #14532d !important;
+}
+
+[data-theme="light"] .sync-notice-pill,
+:root:not([data-theme="dark"]) .sync-notice-pill {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+}
+
+/* Form Inputs in Light Mode */
+[data-theme="light"] .clean-field-label,
+:root:not([data-theme="dark"]) .clean-field-label {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .clean-field-badge.badge-req,
+:root:not([data-theme="dark"]) .clean-field-badge.badge-req {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fecaca !important;
+}
+
+[data-theme="light"] .clean-field-badge.badge-opt,
+:root:not([data-theme="dark"]) .clean-field-badge.badge-opt {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .clean-input-wrapper,
+:root:not([data-theme="dark"]) .clean-input-wrapper {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .clean-input-wrapper:focus-within,
+:root:not([data-theme="dark"]) .clean-input-wrapper:focus-within {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14) !important;
+}
+
+[data-theme="light"] .clean-field-control,
+:root:not([data-theme="dark"]) .clean-field-control {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .clean-field-control::placeholder,
+:root:not([data-theme="dark"]) .clean-field-control::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .clean-field-hint,
+:root:not([data-theme="dark"]) .clean-field-hint {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+
+/* Payment Methods Grid in Light Mode */
+[data-theme="light"] .checkout-pay-card,
+:root:not([data-theme="dark"]) .checkout-pay-card {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .checkout-pay-card:hover,
+:root:not([data-theme="dark"]) .checkout-pay-card:hover {
+  background: #f8fafc !important;
+  border-color: #818cf8 !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="light"] .checkout-pay-card.active,
+:root:not([data-theme="dark"]) .checkout-pay-card.active {
+  background: #eef2ff !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.16) !important;
+}
+
+[data-theme="light"] .pay-card-body strong,
+:root:not([data-theme="dark"]) .pay-card-body strong {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="light"] .pay-card-body small,
+:root:not([data-theme="dark"]) .pay-card-body small {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .pay-card-badge.badge-emerald,
+:root:not([data-theme="dark"]) .pay-card-badge.badge-emerald {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+[data-theme="light"] .pay-card-badge.badge-cyan,
+:root:not([data-theme="dark"]) .pay-card-badge.badge-cyan {
+  background: #ecfeff !important;
+  color: #0e7490 !important;
+  border: 1px solid #a5f3fc !important;
+}
+
+[data-theme="light"] .pay-card-badge.badge-blue,
+:root:not([data-theme="dark"]) .pay-card-badge.badge-blue {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+[data-theme="light"] .pay-card-badge.badge-purple,
+:root:not([data-theme="dark"]) .pay-card-badge.badge-purple {
+  background: #faf5ff !important;
+  color: #7e22ce !important;
+  border: 1px solid #e9d5ff !important;
+}
+
+/* Detail Panels in Light Mode */
+[data-theme="light"] .checkout-method-detail-panel,
+:root:not([data-theme="dark"]) .checkout-method-detail-panel {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .panel-title-text strong,
+:root:not([data-theme="dark"]) .panel-title-text strong {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="light"] .panel-title-text small,
+:root:not([data-theme="dark"]) .panel-title-text small {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .panel-account-strip,
+:root:not([data-theme="dark"]) .panel-account-strip {
+  background: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .strip-label,
+:root:not([data-theme="dark"]) .strip-label {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .strip-number,
+:root:not([data-theme="dark"]) .strip-number {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="light"] .strip-owner,
+:root:not([data-theme="dark"]) .strip-owner {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .btn-strip-copy,
+:root:not([data-theme="dark"]) .btn-strip-copy {
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  border: 1px solid #c7d2fe !important;
+}
+
+[data-theme="light"] .btn-strip-copy:hover,
+:root:not([data-theme="dark"]) .btn-strip-copy:hover {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+
+[data-theme="light"] .panel-feat-item span,
+:root:not([data-theme="dark"]) .panel-feat-item span {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .panel-feat-item span strong,
+:root:not([data-theme="dark"]) .panel-feat-item span strong {
+  color: #0f172a !important;
+}
+
+/* Free Order Banner */
+[data-theme="light"] .method-free-banner,
+:root:not([data-theme="dark"]) .method-free-banner {
+  background: #ecfdf5 !important;
+  border: 1.5px solid #6ee7b7 !important;
+  color: #065f46 !important;
+}
+
+[data-theme="light"] .method-free-banner strong,
+:root:not([data-theme="dark"]) .method-free-banner strong {
+  color: #047857 !important;
+}
+
+/* Order Guarantee */
+[data-theme="light"] .order-guarantee-text,
+:root:not([data-theme="dark"]) .order-guarantee-text {
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+
+
 
