@@ -65,7 +65,6 @@ export default function UserProfilePage({
   const [topUpTimerSeconds, setTopUpTimerSeconds] = useState(TOP_UP_TIMEOUT_SECONDS);
   const [isTopUpPaid, setIsTopUpPaid] = useState(false);
   const [isTopUpExpired, setIsTopUpExpired] = useState(false);
-  const [isCheckingStatusManually, setIsCheckingStatusManually] = useState(false);
   const [newCalculatedBalance, setNewCalculatedBalance] = useState(null);
   const isTopUpPaidRef = useRef(false);
 
@@ -394,32 +393,6 @@ export default function UserProfilePage({
       onUpdateUser?.({ chaizMoney: fallbackBal });
       onShowToast?.('Pembayaran berhasil, memperbarui saldo...', 'fa-circle-check text-success');
       setTopUpStep(3);
-    }
-  };
-
-  // Cek Status Manual ke JansPayment (HANYA lolos jika check.paid === true, ANTI-TIPU)
-  const handleManualCheckStatus = async () => {
-    if (isTopUpExpired) {
-      onShowToast?.('⚠️ Sesi QRIS sudah hangus karena melebihi batas waktu 6 menit. Silakan buat QRIS baru.', 'fa-triangle-exclamation text-danger');
-      return;
-    }
-    if (!topUpJansData?.paymentId || isTopUpPaidRef.current || isCheckingStatusManually) return;
-    setIsCheckingStatusManually(true);
-    try {
-      const check = await checkJansPaymentStatus({ paymentId: topUpJansData.paymentId });
-      if (check.paid) {
-        handlePaymentSuccess(check);
-      } else {
-        const requiredPay = Number(topUpJansData?.amount || activeNominal).toLocaleString('id-ID');
-        onShowToast?.(
-          `Pembayaran belum terdeteksi. Silakan transfer tepat Rp ${requiredPay} melalui scan QRIS di aplikasi Anda terlebih dahulu.`,
-          'fa-clock text-warning'
-        );
-      }
-    } catch (e) {
-      onShowToast?.('Gagal memeriksa status ke gateway, coba sesaat lagi.', 'fa-triangle-exclamation text-danger');
-    } finally {
-      setIsCheckingStatusManually(false);
     }
   };
 
@@ -1726,31 +1699,27 @@ export default function UserProfilePage({
                         <span>Buat QRIS Baru (6 Menit)</span>
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        disabled={isCheckingStatusManually}
-                        onClick={handleManualCheckStatus}
+                      <div
+                        className="topup-live-status-pill"
                         style={{
                           flex: 1.6,
                           minWidth: '200px',
-                          background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
-                          color: '#fff',
-                          fontWeight: 700,
-                          border: 'none',
+                          background: 'rgba(6, 182, 212, 0.1)',
+                          border: '1px solid rgba(6, 182, 212, 0.35)',
+                          color: '#06b6d4',
+                          fontWeight: 600,
                           padding: '11px 16px',
                           borderRadius: '10px',
-                          cursor: isCheckingStatusManually ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '8px',
-                          boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
+                          fontSize: '0.88rem'
                         }}
                       >
-                        <i className={`fa-solid ${isCheckingStatusManually ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
-                        <span>{isCheckingStatusManually ? 'Memeriksa ke Gateway...' : 'Periksa Status Pembayaran'}</span>
-                      </button>
+                        <i className="fa-solid fa-spinner fa-spin text-cyan"></i>
+                        <span>Menunggu Pembayaran (Otomatis)...</span>
+                      </div>
                     )}
                   </div>
                 </div>
