@@ -174,7 +174,7 @@ export default function App() {
         setActiveTab('transaksi');
       } else if (window.location.hash === '#testimoni') {
         setActiveTab('testimoni');
-      } else if (window.location.hash === '#profile') {
+      } else if (window.location.hash.startsWith('#profile')) {
         setActiveTab('profile');
       } else {
         setActiveTab('store');
@@ -233,8 +233,9 @@ export default function App() {
         recordUserActivity(authUser, 'VIEW_TESTIMONIALS', 'Membuka Halaman Testimoni & Kritik');
       }
     } else if (tab === 'profile') {
-      if (window.location.hash !== '#profile') {
-        window.location.hash = 'profile';
+      const hashStr = extraParams ? `profile?${extraParams}` : 'profile';
+      if (!window.location.hash.startsWith('#profile') || extraParams) {
+        window.location.hash = hashStr;
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       if (authUser) {

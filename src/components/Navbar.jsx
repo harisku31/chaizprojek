@@ -515,6 +515,48 @@ export default function Navbar({
               <strong className="strip-value">Rp {(authUser.chaizMoney || 0).toLocaleString('id-ID')}</strong>
             </div>
 
+            {/* ITEMKU SELLER SHORTCUT: MULAI JUALAN / TOKO SAYA */}
+            <div style={{ padding: '4px 16px 12px' }}>
+              <button
+                type="button"
+                className="btn-itemku-seller-shortcut"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                  border: '1px solid #fed7aa',
+                  borderRadius: '10px',
+                  color: '#ea580c',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => {
+                  setIsProfileModalOpen(false);
+                  onSwitchTab('profile', 'tab=toko');
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-store" style={{ color: '#ff5c00' }}></i>
+                  <span>Toko Saya (Mulai Jualan)</span>
+                </div>
+                <span style={{
+                  background: '#ff5c00',
+                  color: '#ffffff',
+                  fontSize: '0.7rem',
+                  padding: '2px 7px',
+                  borderRadius: '10px',
+                  fontWeight: 800
+                }}>
+                  CUAN
+                </span>
+              </button>
+            </div>
+
             {/* DUA TOMBOL UTAMA */}
             <div className="profile-dropdown-actions">
               <button

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
+import { getAllActiveMarketplaceProducts } from '../utils/sellerStores';
 
 export default function ProductCatalog({
   products,
@@ -14,8 +15,25 @@ export default function ProductCatalog({
   activeTab = 'store',
   onSwitchTab
 }) {
+  const [sellerProducts, setSellerProducts] = useState(() => {
+    try {
+      return getAllActiveMarketplaceProducts();
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setSellerProducts(getAllActiveMarketplaceProducts());
+    };
+    window.addEventListener('storage', handleUpdate);
+    return () => window.removeEventListener('storage', handleUpdate);
+  }, []);
+
   const categories = [
     { id: 'all', label: 'Semua Akun', icon: 'fa-solid fa-border-all' },
+    { id: 'marketplace', label: 'Toko Penjual (Itemku)', icon: 'fa-solid fa-store' },
     { id: 'streaming', label: 'Streaming Video', icon: 'fa-solid fa-tv' },
     { id: 'musik', label: 'Musik VIP', icon: 'fa-solid fa-music' },
     { id: 'produktivitas', label: 'Produktivitas & Desain', icon: 'fa-solid fa-pen-nib' },
@@ -23,11 +41,38 @@ export default function ProductCatalog({
     { id: 'utility', label: 'VPN & Utilitas', icon: 'fa-solid fa-shield-virus' }
   ];
 
-  const filteredProducts = (products || []).filter((product) => {
+  const formattedSellerProducts = (sellerProducts || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    category: p.category || 'marketplace',
+    badge: `🏪 ${p.sellerStoreName || 'Toko'}`,
+    currentPrice: p.price,
+    oldPrice: p.originalPrice || Math.round(p.price * 1.25),
+    stock: p.stock,
+    description: p.description,
+    features: ['Pengiriman Kilat Otomatis', 'Garansi Toko Terpercaya', `Penjual: ${p.sellerStoreName || 'Super Seller'}`],
+    durations: [
+      { id: '1x', name: '1 Akun / Item', price: p.price, currentPrice: p.price, stock: p.stock }
+    ],
+    icon: 'fa-solid fa-store',
+    iconColor: '#ff5c00',
+    isSellerProduct: true,
+    sellerStoreName: p.sellerStoreName,
+    sellerId: p.sellerId
+  }));
+
+  const allCombinedProducts = [
+    ...(products || []),
+    ...formattedSellerProducts
+  ];
+
+  const filteredProducts = allCombinedProducts.filter((product) => {
     if (!product) return false;
     const matchCategory =
       currentCategory === 'all' ||
-      ((product.category || '').toLowerCase() === (currentCategory || '').toLowerCase());
+      (currentCategory === 'marketplace'
+        ? !!product.isSellerProduct
+        : ((product.category || '').toLowerCase() === (currentCategory || '').toLowerCase()));
 
     const q = (searchQuery || '').toLowerCase().trim();
     if (!q) return matchCategory;

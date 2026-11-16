@@ -19,6 +19,18 @@ import {
   MERCHANT_NAME
 } from '../utils/qrisGateway';
 import { playUserSuccessSound, playUserRejectSound } from '../utils/audioNotification';
+import {
+  getUserStore,
+  registerUserStore,
+  updateUserStore,
+  getSellerProducts,
+  addSellerProduct,
+  updateSellerProduct,
+  deleteSellerProduct,
+  toggleSellerProductStatus,
+  syncSellerStoresFromCloud,
+  listenToSellerUpdates
+} from '../utils/sellerStores';
 
 export default function UserProfilePage({
   authUser,
@@ -44,6 +56,61 @@ export default function UserProfilePage({
   );
   const [avatarPreview, setAvatarPreview] = useState(authUser?.picture || '');
   const [copiedField, setCopiedField] = useState(null);
+
+  // Profile Sub-Tab: 'profile' (Profil & Dompet) | 'toko' (Mulai Jualan / Toko Saya) | 'orders' (Riwayat Pesanan)
+  const [profileActiveTab, setProfileActiveTab] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location.hash.includes('tab=toko')) {
+        return 'toko';
+      }
+    } catch {}
+    return 'profile';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (typeof window !== 'undefined') {
+        if (window.location.hash.includes('tab=toko')) {
+          setProfileActiveTab('toko');
+        } else if (window.location.hash.includes('tab=orders')) {
+          setProfileActiveTab('orders');
+        }
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  // Itemku Seller & Dagangan State
+  const [userStore, setUserStore] = useState(null);
+  const [sellerProducts, setSellerProducts] = useState([]);
+  const [isStoreRegisterModalOpen, setIsStoreRegisterModalOpen] = useState(false);
+  const [isEditStoreModalOpen, setIsEditStoreModalOpen] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [visibleCredentials, setVisibleCredentials] = useState({});
+
+  // Form State: Buka Toko (Register Store)
+  const [regStoreName, setRegStoreName] = useState('');
+  const [regSlogan, setRegSlogan] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regAgreed, setRegAgreed] = useState(false);
+  const [isSubmittingStore, setIsSubmittingStore] = useState(false);
+
+  // Form State: Edit Store
+  const [editStoreName, setEditStoreName] = useState('');
+  const [editSlogan, setEditSlogan] = useState('');
+  const [editStorePhone, setEditStorePhone] = useState('');
+
+  // Form State: Tambah Dagangan Baru
+  const [prodName, setProdName] = useState('');
+  const [prodCategory, setProdCategory] = useState('game');
+  const [prodPrice, setProdPrice] = useState('');
+  const [prodStock, setProdStock] = useState('1');
+  const [prodDesc, setProdDesc] = useState('');
+  const [prodAccountUser, setProdAccountUser] = useState('');
+  const [prodAccountPass, setProdAccountPass] = useState('');
+  const [prodAccountNote, setProdAccountNote] = useState('');
+  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
 
   // Top Up ChaizMoney Realtime QRIS Flow State
   const PAJAK_TOPUP = 100;
@@ -98,7 +165,42 @@ export default function UserProfilePage({
       syncDepositsFromCloud().then(() => {
         setUserDepositsList(getUserDeposits(authUser));
       });
+
+      // Muat data toko & dagangan seller (Itemku)
+      const store = getUserStore(authUser.id, authUser.email);
+      setUserStore(store);
+      if (store) {
+        setSellerProducts(getSellerProducts(authUser.id));
+        setEditStoreName(store.storeName || '');
+        setEditSlogan(store.slogan || '');
+        setEditStorePhone(store.phone || authUser.whatsapp || authUser.phone || '');
+      } else {
+        const defaultName = authUser.name ? `${authUser.name.split(' ')[0]} Store` : 'Toko Chaiz';
+        setRegStoreName(defaultName);
+        setRegSlogan('Spesialis Akun Game & Streaming Garansi Cepat');
+        setRegPhone(authUser.whatsapp || authUser.phone || '');
+      }
+      syncSellerStoresFromCloud().then(() => {
+        const freshStore = getUserStore(authUser.id, authUser.email);
+        setUserStore(freshStore);
+        if (freshStore) {
+          setSellerProducts(getSellerProducts(authUser.id));
+        }
+      });
     }
+  }, [authUser]);
+
+  // Realtime Listener untuk Update Toko & Dagangan Penjual
+  useEffect(() => {
+    if (!authUser) return;
+    const unsub = listenToSellerUpdates(() => {
+      const freshStore = getUserStore(authUser.id, authUser.email);
+      setUserStore(freshStore);
+      if (freshStore) {
+        setSellerProducts(getSellerProducts(authUser.id));
+      }
+    });
+    return unsub;
   }, [authUser]);
 
   // Realtime BroadcastChannel Listener untuk Persetujuan Deposit dari Admin
@@ -160,6 +262,214 @@ export default function UserProfilePage({
     setCopiedField(fieldName);
     onShowToast?.(`${fieldName} disalin!`, 'fa-solid fa-check text-success');
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // =========================================================================
+  // ITEMKU SELLER & TOKO SAYA HANDLERS
+  // =========================================================================
+
+  // Buka Modal Buka Toko
+  const handleOpenStoreRegisterModal = () => {
+    if (!regStoreName) {
+      setRegStoreName(authUser?.name ? `${authUser.name.split(' ')[0]} Store` : 'Toko Chaiz');
+    }
+    if (!regPhone) {
+      setRegPhone(authUser?.whatsapp || authUser?.phone || '');
+    }
+    setRegAgreed(false);
+    setIsStoreRegisterModalOpen(true);
+  };
+
+  // Submit Pendaftaran Buka Toko
+  const handleRegisterStoreSubmit = async (e) => {
+    e.preventDefault();
+    if (!authUser) {
+      onShowToast?.('Silakan masuk terlebih dahulu untuk membuka toko!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+    const cleanStoreName = regStoreName.trim();
+    if (!cleanStoreName) {
+      onShowToast?.('Nama toko tidak boleh kosong!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+    if (!regAgreed) {
+      onShowToast?.('Anda harus menyetujui ketentuan penjual ChaizStore!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+
+    try {
+      setIsSubmittingStore(true);
+      const newStore = await registerUserStore(authUser.id, {
+        storeName: cleanStoreName,
+        slogan: regSlogan || 'Pusat Akun & Layanan Digital Terpercaya',
+        phone: regPhone || authUser.whatsapp || authUser.phone || '',
+        ownerName: authUser.name || 'Penjual',
+        ownerEmail: authUser.email || '',
+        avatar: avatarPreview
+      });
+      setUserStore(newStore);
+      setIsStoreRegisterModalOpen(false);
+      setProfileActiveTab('toko');
+      playUserSuccessSound();
+      onShowToast?.(
+        `🎉 Selamat! Toko "${newStore.storeName}" berhasil dibuka! Mulai tambahkan dagangan Anda sekarang.`,
+        'fa-store text-success'
+      );
+    } catch (err) {
+      onShowToast?.(err.message || 'Gagal membuka toko', 'fa-triangle-exclamation text-danger');
+    } finally {
+      setIsSubmittingStore(false);
+    }
+  };
+
+  // Buka Modal Edit Toko
+  const handleOpenEditStoreModal = () => {
+    if (userStore) {
+      setEditStoreName(userStore.storeName || '');
+      setEditSlogan(userStore.slogan || '');
+      setEditStorePhone(userStore.phone || '');
+    }
+    setIsEditStoreModalOpen(true);
+  };
+
+  // Submit Simpan Pengaturan Toko
+  const handleSaveStoreSettings = async (e) => {
+    e.preventDefault();
+    if (!authUser || !userStore) return;
+    const cleanName = editStoreName.trim();
+    if (!cleanName) {
+      onShowToast?.('Nama toko tidak boleh kosong!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+
+    try {
+      const updated = await updateUserStore(authUser.id, {
+        storeName: cleanName,
+        slogan: editSlogan.trim(),
+        phone: editStorePhone.trim()
+      });
+      setUserStore(updated);
+      setIsEditStoreModalOpen(false);
+      onShowToast?.('Pengaturan toko berhasil diperbarui!', 'fa-circle-check text-success');
+    } catch (err) {
+      onShowToast?.('Gagal memperbarui pengaturan toko', 'fa-triangle-exclamation text-danger');
+    }
+  };
+
+  // Buka Modal Tambah Dagangan
+  const handleOpenAddProductModal = () => {
+    setProdName('');
+    setProdCategory('game');
+    setProdPrice('');
+    setProdStock('1');
+    setProdDesc('');
+    setProdAccountUser('');
+    setProdAccountPass('');
+    setProdAccountNote('');
+    setIsAddProductModalOpen(true);
+  };
+
+  // Submit Tambah Dagangan Baru
+  const handleAddProductSubmit = async (e) => {
+    e.preventDefault();
+    if (!authUser || !userStore) {
+      onShowToast?.('Buka toko terlebih dahulu sebelum menambahkan dagangan!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+    const cleanName = prodName.trim();
+    if (!cleanName) {
+      onShowToast?.('Nama dagangan / produk wajib diisi!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+    const priceNum = parseInt(prodPrice, 10);
+    if (!priceNum || priceNum < 1000) {
+      onShowToast?.('Harga dagangan minimal Rp 1.000!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+    const stockNum = parseInt(prodStock, 10);
+    if (!stockNum || stockNum < 1) {
+      onShowToast?.('Stok dagangan minimal 1!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+    if (!prodAccountUser.trim() || !prodAccountPass.trim()) {
+      onShowToast?.('Username / Email dan Password akun wajib diisi untuk pengiriman otomatis!', 'fa-triangle-exclamation text-warning');
+      return;
+    }
+
+    const catLabels = {
+      game: 'Akun Game',
+      streaming: 'Streaming VIP',
+      ai: 'AI & Bot',
+      voucher: 'Voucher & Topup',
+      other: 'Produk Digital'
+    };
+
+    try {
+      setIsSubmittingProduct(true);
+      await addSellerProduct(authUser.id, {
+        storeName: userStore.storeName,
+        ownerName: authUser.name,
+        ownerEmail: authUser.email,
+        name: cleanName,
+        category: prodCategory,
+        categoryLabel: catLabels[prodCategory] || 'Produk Digital',
+        price: priceNum,
+        stock: stockNum,
+        description: prodDesc.trim() || 'Akun legal siap pakai langsung bergaransi',
+        credentials: {
+          accountUser: prodAccountUser.trim(),
+          accountPass: prodAccountPass.trim(),
+          accountNote: prodAccountNote.trim()
+        }
+      });
+      setSellerProducts(getSellerProducts(authUser.id));
+      setIsAddProductModalOpen(false);
+      playUserSuccessSound();
+      onShowToast?.(
+        `🎉 Dagangan "${cleanName}" berhasil diterbitkan ke pasar ChaizStore!`,
+        'fa-box-open text-success'
+      );
+    } catch (err) {
+      onShowToast?.(err.message || 'Gagal menambahkan dagangan', 'fa-triangle-exclamation text-danger');
+    } finally {
+      setIsSubmittingProduct(false);
+    }
+  };
+
+  // Toggle Status Aktif / Nonaktif Dagangan
+  const handleToggleProductStatus = async (productId) => {
+    try {
+      const updated = await toggleSellerProductStatus(productId);
+      if (updated) {
+        setSellerProducts(getSellerProducts(authUser.id));
+        const statusLabel = updated.status === 'active' ? 'diaktifkan (Dijual)' : 'dinonaktifkan';
+        onShowToast?.(`Dagangan berhasil ${statusLabel}!`, 'fa-circle-check text-success');
+      }
+    } catch (err) {
+      onShowToast?.('Gagal mengubah status dagangan', 'fa-triangle-exclamation text-danger');
+    }
+  };
+
+  // Hapus Dagangan
+  const handleDeleteProduct = async (productId, name) => {
+    if (!window.confirm(`Yakin ingin menghapus dagangan "${name}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    try {
+      await deleteSellerProduct(productId);
+      setSellerProducts(getSellerProducts(authUser.id));
+      onShowToast?.('Dagangan berhasil dihapus!', 'fa-trash text-warning');
+    } catch (err) {
+      onShowToast?.('Gagal menghapus dagangan', 'fa-triangle-exclamation text-danger');
+    }
+  };
+
+  // Toggle Sensor Password
+  const toggleCredentialVisibility = (productId) => {
+    setVisibleCredentials((prev) => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
   };
 
   // Avatar presets
@@ -568,64 +878,130 @@ export default function UserProfilePage({
       {/* ============================================================ */}
       <section className="profile-content-section">
         <div className="container">
-          <div className="profile-grid-layout">
-            {/* -------------------------------------------------------- */}
-            {/* KOLOM KIRI: KARTU UTAMA PROFIL & CHAIZMONEY              */}
-            {/* -------------------------------------------------------- */}
-            <div className="profile-column-primary">
-              {/* KARTU 1: CHAIZMONEY DIGITAL WALLET */}
-              <div className="chaizmoney-wallet-card">
-                <div className="wallet-card-glow"></div>
-                <div className="wallet-card-header">
-                  <div className="wallet-brand">
-                    <span className="wallet-icon">
-                      <i className="fa-solid fa-wallet"></i>
+          {/* TAB BAR ALA ITEMKU: /id/akun */}
+          <div className="itemku-profile-tabnav">
+            <button
+              type="button"
+              className={`profile-tabnav-btn ${profileActiveTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setProfileActiveTab('profile')}
+            >
+              <i className="fa-solid fa-user-circle"></i>
+              <span>Profil & Dompet</span>
+            </button>
+
+            <button
+              type="button"
+              className={`profile-tabnav-btn tab-seller-highlight ${profileActiveTab === 'toko' ? 'active' : ''}`}
+              onClick={() => setProfileActiveTab('toko')}
+            >
+              <i className="fa-solid fa-store"></i>
+              <span>{userStore ? 'Toko Saya' : 'Mulai Jualan'}</span>
+              <span className="badge-itemku-seller-pill">
+                {userStore ? 'Aktif' : 'Cuan'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`profile-tabnav-btn ${profileActiveTab === 'orders' ? 'active' : ''}`}
+              onClick={() => setProfileActiveTab('orders')}
+            >
+              <i className="fa-solid fa-receipt"></i>
+              <span>Riwayat Pesanan</span>
+              {userOrders.length > 0 && (
+                <span className="tabnav-count-badge">{userOrders.length}</span>
+              )}
+            </button>
+          </div>
+
+          {profileActiveTab === 'profile' && (
+            <div className="profile-grid-layout">
+              {/* -------------------------------------------------------- */}
+              {/* KOLOM KIRI: KARTU UTAMA PROFIL & CHAIZMONEY              */}
+              {/* -------------------------------------------------------- */}
+              <div className="profile-column-primary">
+                {/* KARTU 1: CHAIZMONEY DIGITAL WALLET */}
+                <div className="chaizmoney-wallet-card">
+                  <div className="wallet-card-glow"></div>
+                  <div className="wallet-card-header">
+                    <div className="wallet-brand">
+                      <span className="wallet-icon">
+                        <i className="fa-solid fa-wallet"></i>
+                      </span>
+                      <div>
+                        <span className="wallet-label">Dompet Digital Resmi</span>
+                        <h4 className="wallet-name">ChaizMoney</h4>
+                      </div>
+                    </div>
+                    <span className="wallet-badge-active">
+                      <i className="fa-solid fa-circle-check"></i> 100% Aktif
                     </span>
-                    <div>
-                      <span className="wallet-label">Dompet Digital Resmi</span>
-                      <h4 className="wallet-name">ChaizMoney</h4>
+                  </div>
+
+                  <div className="wallet-balance-row">
+                    <div className="balance-info">
+                      <span className="balance-title">ChaizMoney:</span>
+                      <h2 className="balance-amount">
+                        Rp. {(authUser.chaizMoney || 0).toLocaleString('id-ID')}
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-topup-chaizmoney"
+                      onClick={handleOpenTopUpModal}
+                    >
+                      <i className="fa-solid fa-plus-circle"></i>
+                      <span>Isi Saldo</span>
+                    </button>
+                  </div>
+
+                  {/* Banner Status Jika Sedang Ada Permintaan Deposit Pending */}
+                  {pendingDeposit && (
+                    <div className="pending-deposit-banner">
+                      <span className="pulse-yellow-dot"></span>
+                      <div className="pending-dep-text">
+                        <strong>Deposit Menunggu Verifikasi Admin</strong>
+                        <small>Permintaan {formatRupiah(pendingDeposit.amount)} sedang diperiksa. Saldo akan otomatis bertambah setelah disetujui.</small>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="wallet-footer-strip">
+                    <div className="wallet-tip">
+                      <i className="fa-solid fa-bolt text-warning"></i>
+                      <span>Dapat dipakai langsung untuk belanja akun streaming, robux & steam key otomatis!</span>
                     </div>
                   </div>
-                  <span className="wallet-badge-active">
-                    <i className="fa-solid fa-circle-check"></i> 100% Aktif
-                  </span>
                 </div>
 
-                <div className="wallet-balance-row">
-                  <div className="balance-info">
-                    <span className="balance-title">ChaizMoney:</span>
-                    <h2 className="balance-amount">
-                      Rp. {(authUser.chaizMoney || 0).toLocaleString('id-ID')}
-                    </h2>
+                {/* BANNER ITEMKU: MULAI JUALAN DI CHAIZSTORE */}
+                <div
+                  className="itemku-seller-banner-quick"
+                  onClick={() => setProfileActiveTab('toko')}
+                >
+                  <div className="seller-banner-content">
+                    <div className="seller-banner-icon">
+                      <i className="fa-solid fa-store"></i>
+                    </div>
+                    <div className="seller-banner-text">
+                      <div className="seller-banner-tag">
+                        <i className="fa-solid fa-bolt"></i> FITUR ITEMKU SELLER
+                      </div>
+                      <h4 className="seller-banner-title">
+                        {userStore ? `Toko Anda: ${userStore.storeName}` : 'Mulai Jualan di ChaizStore'}
+                      </h4>
+                      <p className="seller-banner-sub">
+                        {userStore
+                          ? `${sellerProducts.length} Dagangan Aktif • Kelola produk, harga & stok toko Anda`
+                          : 'Buka tokomu gratis sekarang! Jual akun game, streaming, AI & raih keuntungan ke ChaizMoney'}
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className="btn-topup-chaizmoney"
-                    onClick={handleOpenTopUpModal}
-                  >
-                    <i className="fa-solid fa-plus-circle"></i>
-                    <span>Isi Saldo</span>
+                  <button type="button" className="btn-seller-banner-action">
+                    <span>{userStore ? 'Buka Toko Saya' : 'Mulai Jualan'}</span>
+                    <i className="fa-solid fa-arrow-right"></i>
                   </button>
                 </div>
-
-                {/* Banner Status Jika Sedang Ada Permintaan Deposit Pending */}
-                {pendingDeposit && (
-                  <div className="pending-deposit-banner">
-                    <span className="pulse-yellow-dot"></span>
-                    <div className="pending-dep-text">
-                      <strong>Deposit Menunggu Verifikasi Admin</strong>
-                      <small>Permintaan {formatRupiah(pendingDeposit.amount)} sedang diperiksa. Saldo akan otomatis bertambah setelah disetujui.</small>
-                    </div>
-                  </div>
-                )}
-
-                <div className="wallet-footer-strip">
-                  <div className="wallet-tip">
-                    <i className="fa-solid fa-bolt text-warning"></i>
-                    <span>Dapat dipakai langsung untuk belanja akun streaming, robux & steam key otomatis!</span>
-                  </div>
-                </div>
-              </div>
 
               {/* KARTU 2: KARTU IDENTITAS PROFIL PENGGUNA */}
               <div className="user-identity-card">
@@ -1074,6 +1450,423 @@ export default function UserProfilePage({
               </div>
             </div>
           </div>
+          )}
+
+          {/* ============================================================ */}
+          {/* TAB 2: TOKO SAYA / MULAI JUALAN (ITEMKU SELLER HUB)          */}
+          {/* ============================================================ */}
+          {profileActiveTab === 'toko' && (
+            <>
+              {!userStore ? (
+                /* CASE A: USER BELUM MEMILIKI TOKO (ITEMKU MULAI JUALAN) */
+                <div className="itemku-seller-landing">
+                  {/* HERO BANNER MULAI JUALAN */}
+                  <div className="itemku-seller-hero-card">
+                    <div className="seller-hero-glow-1"></div>
+                    <div className="seller-hero-glow-2"></div>
+                    <div className="seller-hero-tag">
+                      <i className="fa-solid fa-store"></i> FITUR JUALAN ITEMKU CHAIZSTORE
+                    </div>
+                    <h2 className="seller-hero-title">
+                      Mulai Jualan & <span>Raih Cuan Jutaan Rupiah!</span>
+                    </h2>
+                    <p className="seller-hero-subtitle">
+                      Punya akun game nganggur, langganan AI/streaming sisa slot, voucher atau produk digital? Buka tokomu secara GRATIS dan jual langsung ke ratusan pembeli aktif di ChaizStore. Hasil penjualan langsung cair otomatis ke saldo ChaizMoney Anda!
+                    </p>
+                    <div className="seller-hero-cta-row">
+                      <button
+                        type="button"
+                        className="btn-itemku-open-store"
+                        onClick={handleOpenStoreRegisterModal}
+                      >
+                        <i className="fa-solid fa-rocket"></i>
+                        <span>Buka Toko Gratis Sekarang</span>
+                      </button>
+                      <div className="seller-hero-guarantee">
+                        <i className="fa-solid fa-shield-check"></i>
+                        <span>100% Gratis • Bebas Biaya Pendaftaran • Aman</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 KEUNGGULAN JUALAN */}
+                  <div className="seller-benefits-grid">
+                    <div className="seller-benefit-card">
+                      <div className="benefit-icon-wrap benefit-icon-orange">
+                        <i className="fa-solid fa-bolt"></i>
+                      </div>
+                      <h4 className="benefit-card-title">Buka Toko Instant & Gratis</h4>
+                      <p className="benefit-card-desc">
+                        Hanya butuh waktu 1 menit untuk memberi nama tokomu dan langsung siap memajang produk digital pertamamu.
+                      </p>
+                    </div>
+
+                    <div className="seller-benefit-card">
+                      <div className="benefit-icon-wrap benefit-icon-green">
+                        <i className="fa-solid fa-wallet"></i>
+                      </div>
+                      <h4 className="benefit-card-title">Cuan Masuk Otomatis</h4>
+                      <p className="benefit-card-desc">
+                        Hasil transaksi dari pembeli langsung terverifikasi otomatis dan bertambah ke saldo dompet ChaizMoney Anda.
+                      </p>
+                    </div>
+
+                    <div className="seller-benefit-card">
+                      <div className="benefit-icon-wrap benefit-icon-blue">
+                        <i className="fa-solid fa-shield-halved"></i>
+                      </div>
+                      <h4 className="benefit-card-title">Kredensial Terenkripsi Aman</h4>
+                      <p className="benefit-card-desc">
+                        Data email dan password akun tersimpan aman di database terproteksi dan hanya dikirimkan ke pembeli sah.
+                      </p>
+                    </div>
+
+                    <div className="seller-benefit-card">
+                      <div className="benefit-icon-wrap benefit-icon-purple">
+                        <i className="fa-solid fa-users"></i>
+                      </div>
+                      <h4 className="benefit-card-title">Pasar Ratusan Pelanggan</h4>
+                      <p className="benefit-card-desc">
+                        Produkmu langsung tampil di hadapan ratusan pengunjung aktif harian ChaizStore di seluruh Indonesia.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 3 LANGKAH MUDAH JUALAN */}
+                  <div className="seller-steps-section">
+                    <div className="seller-steps-header">
+                      <h3>3 Langkah Mudah Jualan di ChaizStore</h3>
+                      <p>Cara tercepat menghasilkan uang dari akun & produk digital Anda</p>
+                    </div>
+                    <div className="seller-steps-grid">
+                      <div className="seller-step-item">
+                        <span className="step-num-badge">1</span>
+                        <div className="step-content">
+                          <h4>Buka Toko</h4>
+                          <p>Daftarkan nama tokomu dan atur nomor WhatsApp untuk notifikasi pesanan.</p>
+                        </div>
+                      </div>
+                      <div className="seller-step-item">
+                        <span className="step-num-badge">2</span>
+                        <div className="step-content">
+                          <h4>Pajang Dagangan</h4>
+                          <p>Masukkan nama produk, harga, stok, dan data akun yang akan dikirim ke pembeli.</p>
+                        </div>
+                      </div>
+                      <div className="seller-step-item">
+                        <span className="step-num-badge">3</span>
+                        <div className="step-content">
+                          <h4>Terima Pembayaran</h4>
+                          <p>Begitu ada yang beli, saldo ChaizMoney langsung bertambah tanpa potongan aneh-aneh!</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* CASE B: USER SUDAH MEMILIKI TOKO (DASHBOARD TOKO SAYA) */
+                <div className="itemku-seller-dashboard">
+                  {/* KARTU HEADER TOKO SAYA */}
+                  <div className="itemku-store-header-card">
+                    <div className="store-header-left">
+                      <div className="store-avatar-box">
+                        <i className="fa-solid fa-store"></i>
+                      </div>
+                      <div className="store-meta-info">
+                        <div className="store-title-row">
+                          <h3 className="store-name-text">{userStore.storeName}</h3>
+                          <span className="store-badge-verified">
+                            <i className="fa-solid fa-circle-check"></i> Penjual Terverifikasi
+                          </span>
+                          <span className="store-badge-super">
+                            <i className="fa-solid fa-trophy"></i> Super Seller
+                          </span>
+                        </div>
+                        <p className="store-slogan-text">{userStore.slogan || 'Pusat Akun & Layanan Digital Terpercaya'}</p>
+                        <div className="store-sub-details">
+                          <span>
+                            <i className="fa-solid fa-user-tie"></i> @{displayUsername}
+                          </span>
+                          {userStore.phone && (
+                            <span>
+                              <i className="fa-brands fa-whatsapp text-success"></i> {userStore.phone}
+                            </span>
+                          )}
+                          <span>
+                            <i className="fa-solid fa-signal text-success"></i> Menerima Pesanan
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="store-header-actions">
+                      <button
+                        type="button"
+                        className="btn-seller-add-product"
+                        onClick={handleOpenAddProductModal}
+                      >
+                        <i className="fa-solid fa-plus-circle"></i>
+                        <span>Tambah Dagangan</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-seller-edit-store"
+                        onClick={handleOpenEditStoreModal}
+                      >
+                        <i className="fa-solid fa-gear"></i>
+                        <span>Pengaturan Toko</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* STATISTIK PENJUAL */}
+                  <div className="itemku-seller-stats-grid">
+                    <div className="seller-stat-card">
+                      <div className="stat-card-icon stat-icon-blue">
+                        <i className="fa-solid fa-box-open"></i>
+                      </div>
+                      <div className="stat-card-content">
+                        <span className="stat-card-label">Total Dagangan Aktif</span>
+                        <strong className="stat-card-value">{sellerProducts.length} Produk</strong>
+                      </div>
+                    </div>
+
+                    <div className="seller-stat-card">
+                      <div className="stat-card-icon stat-icon-green">
+                        <i className="fa-solid fa-cart-shopping"></i>
+                      </div>
+                      <div className="stat-card-content">
+                        <span className="stat-card-label">Total Penjualan</span>
+                        <strong className="stat-card-value">{userStore.totalSales || 0} Terjual</strong>
+                      </div>
+                    </div>
+
+                    <div className="seller-stat-card">
+                      <div className="stat-card-icon stat-icon-orange">
+                        <i className="fa-solid fa-wallet"></i>
+                      </div>
+                      <div className="stat-card-content">
+                        <span className="stat-card-label">Saldo ChaizMoney</span>
+                        <strong className="stat-card-value">Rp {(authUser.chaizMoney || 0).toLocaleString('id-ID')}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION KELOLA DAGANGAN */}
+                  <div className="itemku-dagangan-section">
+                    <div className="dagangan-section-header">
+                      <div className="dagangan-title-wrap">
+                        <i className="fa-solid fa-cubes text-blue"></i>
+                        <h3>Daftar Dagangan Toko</h3>
+                        <span className="dagangan-count-badge">{sellerProducts.length} Produk</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-seller-add-product"
+                        onClick={handleOpenAddProductModal}
+                      >
+                        <i className="fa-solid fa-plus"></i>
+                        <span>Tambah Dagangan Baru</span>
+                      </button>
+                    </div>
+
+                    {sellerProducts.length === 0 ? (
+                      <div className="empty-dagangan-box">
+                        <div className="empty-dagangan-icon">
+                          <i className="fa-solid fa-box-open"></i>
+                        </div>
+                        <h4 className="empty-dagangan-title">Belum Ada Dagangan</h4>
+                        <p className="empty-dagangan-desc">
+                          Toko Anda sudah siap! Yuk tambahkan akun game, akun streaming, atau voucher pertamamu sekarang dan mulai hasilkan cuan.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn-seller-add-product"
+                          onClick={handleOpenAddProductModal}
+                        >
+                          <i className="fa-solid fa-plus-circle"></i>
+                          <span>Tambah Dagangan Pertama</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="itemku-dagangan-grid">
+                        {sellerProducts.map((prod) => {
+                          const isVisible = !!visibleCredentials[prod.id];
+                          const isActive = prod.status === 'active';
+
+                          return (
+                            <div key={prod.id} className="itemku-dagangan-card">
+                              <div className="dagangan-top-row">
+                                <span className="dagangan-category-tag">
+                                  <i className="fa-solid fa-tag"></i> {prod.categoryLabel || 'Produk'}
+                                </span>
+                                <span
+                                  className={`dagangan-status-badge ${
+                                    isActive ? 'status-badge-active' : 'status-badge-inactive'
+                                  }`}
+                                >
+                                  <i className={`fa-solid ${isActive ? 'fa-circle-check' : 'fa-circle-pause'}`}></i>
+                                  <span>{isActive ? 'Aktif Dijual' : 'Nonaktif'}</span>
+                                </span>
+                              </div>
+
+                              <h4 className="dagangan-name-title">{prod.name}</h4>
+
+                              <div className="dagangan-price-row">
+                                <span className="dagangan-price-val">{formatRupiah(prod.price)}</span>
+                                <span className="dagangan-stock-val">
+                                  <i className="fa-solid fa-layer-group"></i> Stok: <strong>{prod.stock}</strong>
+                                </span>
+                              </div>
+
+                              {/* Kredensial Akun yang Dikirim ke Pembeli */}
+                              <div className="dagangan-cred-box">
+                                <div className="cred-row">
+                                  <span className="cred-label">User/Email:</span>
+                                  <span className="cred-value">{prod.credentials?.accountUser || '-'}</span>
+                                </div>
+                                <div className="cred-row">
+                                  <span className="cred-label">Password:</span>
+                                  <span className="cred-value">
+                                    {isVisible ? prod.credentials?.accountPass : '••••••••'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="btn-toggle-cred"
+                                    onClick={() => toggleCredentialVisibility(prod.id)}
+                                    title={isVisible ? 'Sembunyikan' : 'Lihat Password'}
+                                  >
+                                    <i className={`fa-solid ${isVisible ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                  </button>
+                                </div>
+                                {prod.credentials?.accountNote && (
+                                  <div className="cred-row" style={{ marginTop: '2px' }}>
+                                    <span className="cred-label">Catatan:</span>
+                                    <span className="cred-value" style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                      {prod.credentials.accountNote}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="dagangan-actions-row">
+                                <button
+                                  type="button"
+                                  className="btn-dagangan-toggle"
+                                  onClick={() => handleToggleProductStatus(prod.id)}
+                                >
+                                  <i className={`fa-solid ${isActive ? 'fa-pause' : 'fa-play'}`}></i>
+                                  <span>{isActive ? 'Nonaktifkan' : 'Aktifkan'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-dagangan-delete"
+                                  onClick={() => handleDeleteProduct(prod.id, prod.name)}
+                                  title="Hapus Dagangan"
+                                >
+                                  <i className="fa-solid fa-trash"></i>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ============================================================ */}
+          {/* TAB 3: RIWAYAT PESANAN SAYA                                  */}
+          {/* ============================================================ */}
+          {profileActiveTab === 'orders' && (
+            <div className="itemku-profile-orders-view">
+              <div className="profile-box-card">
+                <div className="box-card-header-between">
+                  <div className="box-card-header">
+                    <div className="header-icon-pill">
+                      <i className="fa-solid fa-receipt text-cyan"></i>
+                    </div>
+                    <div>
+                      <h3 className="box-card-title">Riwayat Pesanan Anda</h3>
+                      <p className="box-card-subtitle">Semua riwayat pembelian akun & topup yang pernah Anda lakukan</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={onGoToTransactions}
+                  >
+                    <i className="fa-solid fa-list-check"></i>
+                    <span>Buka Halaman Transaksi Lengkap</span>
+                  </button>
+                </div>
+
+                {userOrders.length === 0 ? (
+                  <div className="empty-recent-orders" style={{ padding: '36px 16px' }}>
+                    <div className="empty-order-icon">
+                      <i className="fa-solid fa-basket-shopping"></i>
+                    </div>
+                    <p className="empty-order-text">Belum ada transaksi pada akun ini. Yuk belanja akun premium atau top up game sekarang!</p>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={onBackToStore}
+                    >
+                      <i className="fa-solid fa-store"></i> Jelajahi Katalog
+                    </button>
+                  </div>
+                ) : (
+                  <div className="recent-orders-list">
+                    {userOrders.map((order) => {
+                      const isSuccess = order.status === 'completed' || order.status === 'approved' || order.status === 'success';
+                      const isPending = order.status === 'pending' || order.status === 'processing';
+
+                      return (
+                        <div key={order.id} className="recent-order-card" onClick={onGoToTransactions}>
+                          <div className="order-main-info">
+                            <span className="order-id-badge">#{order.id?.slice(-8) || 'TRX'}</span>
+                            <h4 className="order-prod-title">
+                              {order.productName || order.items?.[0]?.name || 'Pesanan Akun'}
+                            </h4>
+                            <span className="order-date-text">
+                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'Hari ini'}
+                            </span>
+                          </div>
+
+                          <div className="order-status-side">
+                            <span className="order-price-val">
+                              {formatRupiah(order.totalPrice || order.total || order.price || 0)}
+                            </span>
+                            <span
+                              className={`order-status-badge ${
+                                isSuccess ? 'status-done' : isPending ? 'status-wait' : 'status-fail'
+                              }`}
+                            >
+                              <i
+                                className={`fa-solid ${
+                                  isSuccess ? 'fa-check-circle' : isPending ? 'fa-hourglass-half' : 'fa-times-circle'
+                                }`}
+                              ></i>
+                              {isSuccess ? ' Selesai' : isPending ? ' Diproses' : ' Ditolak'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1836,6 +2629,375 @@ export default function UserProfilePage({
             <div className="proof-zoom-body">
               <img src={selectedProofToView} alt="Bukti Transfer" className="proof-zoom-img" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 7. MODAL BUKA TOKO (ITEMKU MULAI JUALAN)                     */}
+      {/* ============================================================ */}
+      {isStoreRegisterModalOpen && (
+        <div className="profile-modal-overlay" style={{ display: 'flex' }}>
+          <div
+            className="profile-modal-backdrop"
+            onClick={() => setIsStoreRegisterModalOpen(false)}
+          ></div>
+          <div className="seller-modal-card">
+            <div className="seller-modal-header">
+              <div className="seller-modal-title-wrap">
+                <i className="fa-solid fa-store text-orange"></i>
+                <h3>Buka Toko di ChaizStore</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-modal-close"
+                onClick={() => setIsStoreRegisterModalOpen(false)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleRegisterStoreSubmit}>
+              <div className="seller-modal-body">
+                <div className="seller-form-group">
+                  <label className="seller-form-label">
+                    <i className="fa-solid fa-shop text-orange"></i> Nama Toko
+                  </label>
+                  <input
+                    type="text"
+                    className="seller-form-input"
+                    placeholder="Contoh: Chaiz Gaming Shop"
+                    value={regStoreName}
+                    onChange={(e) => setRegStoreName(e.target.value)}
+                    required
+                  />
+                  <span className="seller-form-hint">
+                    Nama tokomu akan dilihat oleh calon pembeli di marketplace ChaizStore.
+                  </span>
+                </div>
+
+                <div className="seller-form-group">
+                  <label className="seller-form-label">
+                    <i className="fa-solid fa-quote-left text-blue"></i> Slogan / Deskripsi Singkat
+                  </label>
+                  <input
+                    type="text"
+                    className="seller-form-input"
+                    placeholder="Contoh: Jual Akun Game & Streaming Garansi Cepat"
+                    value={regSlogan}
+                    onChange={(e) => setRegSlogan(e.target.value)}
+                  />
+                </div>
+
+                <div className="seller-form-group">
+                  <label className="seller-form-label">
+                    <i className="fa-brands fa-whatsapp text-success"></i> Nomor WhatsApp Penjual
+                  </label>
+                  <input
+                    type="tel"
+                    className="seller-form-input"
+                    placeholder="081234567890"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    required
+                  />
+                  <span className="seller-form-hint">
+                    Digunakan untuk notifikasi pesanan masuk dan koordinasi dengan Admin.
+                  </span>
+                </div>
+
+                <label className="seller-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={regAgreed}
+                    onChange={(e) => setRegAgreed(e.target.checked)}
+                    required
+                  />
+                  <span>
+                    Saya setuju mematuhi <strong>Ketentuan Penjual ChaizStore</strong>, menjual produk legal, dan bersedia memberikan garansi akun kepada pembeli.
+                  </span>
+                </label>
+              </div>
+
+              <div className="seller-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setIsStoreRegisterModalOpen(false)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn-seller-submit"
+                  disabled={isSubmittingStore}
+                >
+                  <i className="fa-solid fa-rocket"></i>
+                  <span>{isSubmittingStore ? 'Memproses...' : 'Daftar & Aktifkan Toko'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 8. MODAL PENGATURAN TOKO SAYA                                */}
+      {/* ============================================================ */}
+      {isEditStoreModalOpen && (
+        <div className="profile-modal-overlay" style={{ display: 'flex' }}>
+          <div
+            className="profile-modal-backdrop"
+            onClick={() => setIsEditStoreModalOpen(false)}
+          ></div>
+          <div className="seller-modal-card">
+            <div className="seller-modal-header">
+              <div className="seller-modal-title-wrap">
+                <i className="fa-solid fa-gear text-blue"></i>
+                <h3>Pengaturan Toko Saya</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-modal-close"
+                onClick={() => setIsEditStoreModalOpen(false)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStoreSettings}>
+              <div className="seller-modal-body">
+                <div className="seller-form-group">
+                  <label className="seller-form-label">Nama Toko</label>
+                  <input
+                    type="text"
+                    className="seller-form-input"
+                    value={editStoreName}
+                    onChange={(e) => setEditStoreName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="seller-form-group">
+                  <label className="seller-form-label">Slogan Toko</label>
+                  <input
+                    type="text"
+                    className="seller-form-input"
+                    value={editSlogan}
+                    onChange={(e) => setEditSlogan(e.target.value)}
+                  />
+                </div>
+
+                <div className="seller-form-group">
+                  <label className="seller-form-label">Nomor WhatsApp Notifikasi</label>
+                  <input
+                    type="tel"
+                    className="seller-form-input"
+                    value={editStorePhone}
+                    onChange={(e) => setEditStorePhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="seller-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setIsEditStoreModalOpen(false)}
+                >
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <i className="fa-solid fa-floppy-disk"></i>
+                  <span>Simpan Pengaturan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 9. MODAL TAMBAH DAGANGAN BARU (ITEMKU LISTING)               */}
+      {/* ============================================================ */}
+      {isAddProductModalOpen && (
+        <div className="profile-modal-overlay" style={{ display: 'flex' }}>
+          <div
+            className="profile-modal-backdrop"
+            onClick={() => setIsAddProductModalOpen(false)}
+          ></div>
+          <div className="seller-modal-card" style={{ maxWidth: '600px' }}>
+            <div className="seller-modal-header">
+              <div className="seller-modal-title-wrap">
+                <i className="fa-solid fa-box-open text-orange"></i>
+                <h3>Tambah Dagangan Baru</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-modal-close"
+                onClick={() => setIsAddProductModalOpen(false)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddProductSubmit}>
+              <div className="seller-modal-body">
+                <div className="seller-form-group">
+                  <label className="seller-form-label">
+                    <i className="fa-solid fa-cube text-orange"></i> Nama Dagangan / Akun
+                  </label>
+                  <input
+                    type="text"
+                    className="seller-form-input"
+                    placeholder="Contoh: Akun Mobile Legends Mythic Skin Epic / Netflix UHD Shared"
+                    value={prodName}
+                    onChange={(e) => setProdName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="seller-form-group">
+                    <label className="seller-form-label">
+                      <i className="fa-solid fa-shapes text-blue"></i> Kategori
+                    </label>
+                    <select
+                      className="seller-form-select"
+                      value={prodCategory}
+                      onChange={(e) => setProdCategory(e.target.value)}
+                    >
+                      <option value="game">🎮 Akun Game</option>
+                      <option value="streaming">🎬 Streaming VIP</option>
+                      <option value="ai">🤖 AI & Bot Tools</option>
+                      <option value="voucher">🎟️ Voucher & Top Up</option>
+                      <option value="other">📦 Produk Digital Lain</option>
+                    </select>
+                  </div>
+
+                  <div className="seller-form-group">
+                    <label className="seller-form-label">
+                      <i className="fa-solid fa-layer-group text-purple"></i> Stok
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="seller-form-input"
+                      placeholder="1"
+                      value={prodStock}
+                      onChange={(e) => setProdStock(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="seller-form-group">
+                  <label className="seller-form-label">
+                    <i className="fa-solid fa-money-bill-wave text-success"></i> Harga Jual (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="1000"
+                    step="500"
+                    className="seller-form-input"
+                    placeholder="Contoh: 15000"
+                    value={prodPrice}
+                    onChange={(e) => setProdPrice(e.target.value)}
+                    required
+                  />
+                  <span className="seller-form-hint">
+                    Harga bersih yang akan Anda terima via ChaizMoney saat produk terjual.
+                  </span>
+                </div>
+
+                <div className="seller-form-group">
+                  <label className="seller-form-label">Deskripsi & Garansi</label>
+                  <textarea
+                    className="seller-form-textarea"
+                    placeholder="Tuliskan spesifikasi akun, garansi, atau catatan pemakaian..."
+                    value={prodDesc}
+                    onChange={(e) => setProdDesc(e.target.value)}
+                  ></textarea>
+                </div>
+
+                {/* Box Data Kredensial Pengiriman Otomatis */}
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-key text-orange"></i>
+                    <strong style={{ fontSize: '0.88rem', color: '#0f172a' }}>
+                      Data Kredensial Akun (Otomatis Dikirim saat Dibeli)
+                    </strong>
+                  </div>
+
+                  <div className="seller-form-group">
+                    <label className="seller-form-label" style={{ fontSize: '0.82rem' }}>
+                      Username / Email Akun:
+                    </label>
+                    <input
+                      type="text"
+                      className="seller-form-input"
+                      placeholder="Contoh: gamer_pro99@gmail.com"
+                      value={prodAccountUser}
+                      onChange={(e) => setProdAccountUser(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="seller-form-group">
+                    <label className="seller-form-label" style={{ fontSize: '0.82rem' }}>
+                      Password / PIN Akun:
+                    </label>
+                    <input
+                      type="text"
+                      className="seller-form-input"
+                      placeholder="Contoh: RaHaSiA123!"
+                      value={prodAccountPass}
+                      onChange={(e) => setProdAccountPass(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="seller-form-group">
+                    <label className="seller-form-label" style={{ fontSize: '0.82rem' }}>
+                      Catatan Tambahan untuk Pembeli (Opsional):
+                    </label>
+                    <input
+                      type="text"
+                      className="seller-form-input"
+                      placeholder="Contoh: Jangan ubah email utama, garansi 30 hari aktif"
+                      value={prodAccountNote}
+                      onChange={(e) => setProdAccountNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="seller-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setIsAddProductModalOpen(false)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn-seller-submit"
+                  disabled={isSubmittingProduct}
+                >
+                  <i className="fa-solid fa-cloud-arrow-up"></i>
+                  <span>{isSubmittingProduct ? 'Menerbitkan...' : 'Terbitkan Dagangan Sekarang'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
