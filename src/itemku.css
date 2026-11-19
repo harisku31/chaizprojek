@@ -2145,27 +2145,149 @@ body {
   color: var(--itemku-blue);
 }
 
+/* ==========================================================================
+   FRAMED PAYMENT LOGOS (Bingkai Foto PNG Metode Pembayaran Resmi)
+   ========================================================================== */
+.payment-framed-grid,
 .itemku-payment-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+  align-items: center;
 }
 
+.pay-badge-frame {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  height: 38px;
+  min-width: 68px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.pay-badge-frame:hover {
+  transform: translateY(-2px);
+  border-color: #0066ff;
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.18);
+}
+
+.pay-badge-qris-wide {
+  width: 100%;
+  justify-content: center;
+  gap: 10px;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1;
+  padding: 6px 14px;
+  height: 42px;
+  border-radius: 9px;
+}
+
+.pay-badge-qris-wide:hover {
+  border-color: #ff5c00;
+  box-shadow: 0 4px 14px rgba(255, 92, 0, 0.22);
+}
+
+.pay-frame-text {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.2px;
+}
+
+.pay-logo-img {
+  max-height: 22px;
+  max-width: 64px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.pay-badge-frame:hover .pay-logo-img {
+  transform: scale(1.05);
+}
+
+.pay-logo-qris {
+  max-height: 26px;
+  max-width: 55px;
+}
+
+.pay-logo-dana {
+  max-height: 20px;
+  max-width: 60px;
+}
+
+.pay-logo-gopay {
+  max-height: 20px;
+  max-width: 60px;
+}
+
+.pay-logo-ovo {
+  max-height: 19px;
+  max-width: 52px;
+}
+
+.pay-logo-spay {
+  max-height: 22px;
+  max-width: 65px;
+}
+
+.pay-logo-bca {
+  max-height: 19px;
+  max-width: 55px;
+}
+
+.pay-logo-mandiri {
+  max-height: 20px;
+  max-width: 60px;
+}
+
+.pay-logo-bri {
+  max-height: 22px;
+  max-width: 58px;
+}
+
+.pay-logo-seabank {
+  max-height: 20px;
+  max-width: 60px;
+}
+
+/* Fallback span when image loads */
 .itemku-payment-badges .pay-badge {
-  background: #f8fafc;
+  background: #ffffff;
   border: 1px solid var(--itemku-border);
   color: var(--itemku-text-dark);
   font-size: 11px;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-.itemku-payment-badges .qris-badge {
-  background: #eef4ff;
-  border-color: var(--itemku-blue-border);
-  color: var(--itemku-blue);
-  width: 100%;
+[data-theme="dark"] .pay-badge-frame {
+  background: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .pay-badge-frame:hover {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35) !important;
+}
+
+[data-theme="dark"] .pay-badge-qris-wide {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .pay-frame-text {
+  color: #0f172a !important;
 }
 
 .itemku-footer .footer-bottom {

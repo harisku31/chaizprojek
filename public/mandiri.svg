@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50">
+  <defs>
+    <linearGradient id="mandiriGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD100"/>
+      <stop offset="100%" stop-color="#F39200"/>
+    </linearGradient>
+  </defs>
+  <!-- Mandiri Blue Text -->
+  <text x="8" y="34" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="28" font-weight="900" fill="#003876" letter-spacing="-1">mandırı</text>
+  <!-- Mandiri Golden Wave Curve -->
+  <path d="M102,14 C112,8 126,8 138,14 C148,19 152,17 154,12 C146,8 132,6 120,8 C110,10 104,13 102,14 Z" fill="url(#mandiriGold)" />
+  <path d="M110,18 C122,12 136,12 148,18 C152,20 156,19 158,16 C148,11 134,9 122,12 C114,14 111,17 110,18 Z" fill="#F39200" opacity="0.8" />
+</svg>

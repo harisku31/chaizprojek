@@ -108,18 +108,55 @@ export default function Footer({ onOpenLogin, onOpenInstall, onOpenTestimonials,
         </div>
 
         {/* Metode Pembayaran */}
-        <div className="footer-col">
+        <div className="footer-col footer-col-payment">
           <h4>Metode Pembayaran</h4>
           <p className="payment-note">Transaksi aman, instan & otomatis 24 jam:</p>
-          <div className="itemku-payment-badges">
-            <span className="pay-badge qris-badge"><i className="fa-solid fa-qrcode"></i> QRIS (Semua E-Wallet)</span>
-            <span className="pay-badge dana-badge">DANA</span>
-            <span className="pay-badge gopay-badge">GoPay</span>
-            <span className="pay-badge ovo-badge">OVO</span>
-            <span className="pay-badge spay-badge">ShopeePay</span>
-            <span className="pay-badge bca-badge">BCA</span>
-            <span className="pay-badge mandiri-badge">Mandiri</span>
-            <span className="pay-badge bri-badge">BRI</span>
+          <div className="itemku-payment-badges payment-framed-grid">
+            {/* 1. QRIS (Semua E-Wallet) */}
+            <div className="pay-badge-frame pay-badge-qris-wide" title="QRIS (Semua E-Wallet & Bank)">
+              <img src="/Qris.png" alt="QRIS" className="pay-logo-img pay-logo-qris" />
+              <span className="pay-frame-text">QRIS (Semua E-Wallet)</span>
+            </div>
+
+            {/* 2. DANA */}
+            <div className="pay-badge-frame" title="DANA E-Wallet">
+              <img src="/dana.png" alt="DANA" className="pay-logo-img pay-logo-dana" />
+            </div>
+
+            {/* 3. GoPay */}
+            <div className="pay-badge-frame" title="GoPay Instant">
+              <img src="/gopay.png" alt="GoPay" className="pay-logo-img pay-logo-gopay" />
+            </div>
+
+            {/* 4. OVO */}
+            <div className="pay-badge-frame" title="OVO E-Wallet">
+              <img src="/ovo.png" alt="OVO" className="pay-logo-img pay-logo-ovo" />
+            </div>
+
+            {/* 5. ShopeePay */}
+            <div className="pay-badge-frame" title="ShopeePay">
+              <img src="/shoopepay.png" alt="ShopeePay" className="pay-logo-img pay-logo-spay" />
+            </div>
+
+            {/* 6. BCA */}
+            <div className="pay-badge-frame" title="Bank BCA">
+              <img src="/bca.png" alt="BCA" className="pay-logo-img pay-logo-bca" />
+            </div>
+
+            {/* 7. Mandiri */}
+            <div className="pay-badge-frame" title="Bank Mandiri">
+              <img src="/mandiri.svg" alt="Mandiri" className="pay-logo-img pay-logo-mandiri" />
+            </div>
+
+            {/* 8. BRI */}
+            <div className="pay-badge-frame" title="Bank BRI">
+              <img src="/bri.svg" alt="BRI" className="pay-logo-img pay-logo-bri" />
+            </div>
+
+            {/* 9. SeaBank */}
+            <div className="pay-badge-frame" title="SeaBank">
+              <img src="/seanbank.png" alt="SeaBank" className="pay-logo-img pay-logo-seabank" />
+            </div>
           </div>
         </div>
       </div>
