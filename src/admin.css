@@ -5587,3 +5587,374 @@ body.admin-body {
 .gateway-admin-note-box p {
   margin: 0;
 }
+
+
+/* =========================================================================
+   DEPO NOTIFICATIONS & CHAIZMONEY DEPOSITS HUB (MENU 5)
+   ========================================================================= */
+
+.admin-nav-btn.btn-depo-quick {
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #22d3ee;
+  font-weight: 700;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.admin-nav-btn.btn-depo-quick:hover,
+.admin-nav-btn.btn-depo-quick.active-quick-depo {
+  background: linear-gradient(135deg, #0891b2, #06b6d4);
+  color: #ffffff;
+  border-color: #22d3ee;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+}
+
+.admin-nav-btn.btn-depo-quick .badge-depo-alert {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: pulseDepoBadge 1.5s infinite;
+}
+
+@keyframes pulseDepoBadge {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* User & Account Cell */
+.depo-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.depo-user-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.depo-user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(6, 182, 212, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.depo-user-initial {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0891b2, #3b82f6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  border: 2px solid rgba(6, 182, 212, 0.5);
+}
+
+.depo-user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.depo-user-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.depo-user-email {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  word-break: break-all;
+}
+
+.depo-user-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  color: #25d366;
+  text-decoration: none;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.depo-user-phone:hover {
+  text-decoration: underline;
+}
+
+/* Saldo ChaizMoney Akun Saat Ini Badge */
+.user-current-chaizmoney-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  width: fit-content;
+  margin-top: 3px;
+}
+
+.user-current-chaizmoney-badge .badge-label {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.user-current-chaizmoney-badge strong {
+  color: #22d3ee;
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+/* Time & Date Cell */
+.depo-time-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.depo-id-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  padding: 2px 6px;
+  border-radius: 5px;
+  width: fit-content;
+}
+
+.depo-date-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.depo-time-text {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  font-family: monospace;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.depo-relative-text {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Gateway Badge */
+.depo-gateway-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.depo-gateway-pill.gateway-janspay {
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #facc15;
+}
+
+.depo-gateway-pill.gateway-manual {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+}
+
+/* Live Depo Notification Banner */
+.depo-live-alert-box {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.depo-live-alert-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.depo-live-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #22d3ee;
+  margin: 0;
+}
+
+.depo-live-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+.depo-live-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.depo-live-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.depo-live-card.urgent {
+  border-color: rgba(234, 179, 8, 0.45);
+  background: rgba(234, 179, 8, 0.07);
+}
+
+.depo-live-card.approved {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.depo-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.depo-card-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.depo-card-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(6, 182, 212, 0.4);
+}
+
+.depo-card-initial {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0891b2, #3b82f6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.depo-card-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.depo-card-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.depo-card-email {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.depo-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.depo-card-nominal {
+  display: flex;
+  flex-direction: column;
+}
+
+.depo-card-nominal-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.depo-card-nominal-val {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #22d3ee;
+}
+
+.depo-card-balance {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+.depo-card-balance-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.depo-card-balance-val {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.depo-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.depo-card-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

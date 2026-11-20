@@ -385,10 +385,15 @@ export async function createApprovedGatewayDeposit({
     await writeToFirebase(`${FIREBASE_PATH_DEPOSITS}/${cleanDeposit.id}`, cleanDeposit);
   } catch (e) {}
 
-  // 5. Broadcast Channel sync
+  // 5. Broadcast Channel sync & Realtime Admin Event
   if (typeof BroadcastChannel !== 'undefined') {
     try {
       const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      bc.postMessage({
+        type: 'NEW_DEPOSIT',
+        data: cleanDeposit,
+        deposit: cleanDeposit
+      });
       bc.postMessage({
         type: 'DEPOSIT_APPROVED',
         depositId: cleanDeposit.id,
@@ -401,6 +406,11 @@ export async function createApprovedGatewayDeposit({
       bc.close();
     } catch (e) {}
   }
+
+  try {
+    window.dispatchEvent(new CustomEvent('chaiz_admin_deposits_updated', { detail: cleanDeposit }));
+    window.dispatchEvent(new CustomEvent('chaiz_trx_updated', { detail: { type: 'NEW_DEPOSIT', data: cleanDeposit } }));
+  } catch (e) {}
 
   // 6. Record activity
   try {

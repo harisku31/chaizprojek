@@ -285,6 +285,8 @@ export default function AdminApp() {
   const [adminSoundOn, setAdminSoundOn] = useState(() => isSoundEnabled());
   const knownOrderIdsRef = React.useRef(new Set());
   const isInitialLoadRef = React.useRef(true);
+  const knownDepositIdsRef = React.useRef(new Set());
+  const isInitialDepositsLoadRef = React.useRef(true);
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
   const [proofImgError, setProofImgError] = useState(false);
   const [isFulfilling, setIsFulfilling] = useState(false);
@@ -417,6 +419,39 @@ export default function AdminApp() {
 
   // Real-time synchronization (Storage & BroadcastChannel & Polling)
   useEffect(() => {
+    // Inisialisasi daftar deposit yang sudah diketahui agar tidak double alert
+    try {
+      const initDeps = getDeposits();
+      if (Array.isArray(initDeps)) {
+        initDeps.forEach((d) => d && d.id && knownDepositIdsRef.current.add(d.id));
+      }
+    } catch {}
+
+    // Handler Notifikasi Bel Chime & Toast Depo Baru Masuk
+    const handleNewDepositNotification = (dep) => {
+      if (!dep || !dep.id) return;
+      const isNew = !knownDepositIdsRef.current.has(dep.id);
+      knownDepositIdsRef.current.add(dep.id);
+      if (isNew) {
+        playAdminOrderSound();
+        const amtFormatted = formatRupiah(dep.amount || 0);
+        const userDisplay = dep.userName || dep.userEmail || 'Pelanggan';
+        if (dep.status === 'approved') {
+          showToast(
+            `💰 [DEPO LUNAS OTOMATIS] Top Up ${amtFormatted} dari ${userDisplay} berhasil masuk dompet!`,
+            'fa-wallet text-success',
+            'success'
+          );
+        } else {
+          showToast(
+            `🔔 [DEPO BARU] Permintaan Top Up ${amtFormatted} dari ${userDisplay} masuk!`,
+            'fa-bell text-warning',
+            'warning'
+          );
+        }
+      }
+    };
+
     const handleStorageChange = (e) => {
       if (!e) return;
       if (e.key === 'chaiz_transactions') {
@@ -439,7 +474,15 @@ export default function AdminApp() {
       } else if (e.key === 'chaiz_admin_activity_logs') {
         setActivityLogs(getActivityLogs());
       } else if (e.key === 'chaiz_admin_deposits') {
-        setDepositsList(getDeposits());
+        const freshDeps = getDeposits();
+        setDepositsList(freshDeps);
+        try {
+          freshDeps.forEach((dep) => {
+            if (dep && dep.id && !knownDepositIdsRef.current.has(dep.id)) {
+              handleNewDepositNotification(dep);
+            }
+          });
+        } catch {}
       }
     };
 
@@ -501,6 +544,22 @@ export default function AdminApp() {
           } else if (type === 'TRANSACTION_RATED') {
             setOrdersList(getTransactions());
             showToast('Pelanggan telah memberikan rating bintang!', 'fa-star', 'info');
+          } else if (type === 'NEW_DEPOSIT' || type === 'DEPOSIT_CREATED') {
+            const dep = ev.data?.data?.deposit || ev.data?.data || ev.data?.deposit;
+            const freshDeps = getDeposits();
+            setDepositsList(freshDeps);
+            setRegisteredUsers(getRegisteredUsers());
+            if (dep && dep.id) {
+              handleNewDepositNotification(dep);
+            }
+          } else if (type === 'DEPOSIT_APPROVED') {
+            const depId = ev.data?.depositId;
+            setDepositsList(getDeposits());
+            setRegisteredUsers(getRegisteredUsers());
+            showToast(`Deposit #${String(depId || '').slice(-6)} disetujui & saldo berhasil dikirim!`, 'fa-circle-check', 'success');
+          } else if (type === 'DEPOSITS_UPDATED') {
+            setDepositsList(getDeposits());
+            setRegisteredUsers(getRegisteredUsers());
           }
         };
       } catch (e) {
@@ -511,6 +570,16 @@ export default function AdminApp() {
     // Cloud Event Listeners (Firebase Cloud Realtime Updates)
     const handleCustomTrx = (e) => {
       const type = e.detail?.type;
+      if (type === 'NEW_DEPOSIT' || type === 'DEPOSIT_CREATED') {
+        const dep = e.detail?.data?.deposit || e.detail?.data || e.detail?.deposit;
+        const freshDeps = getDeposits();
+        setDepositsList(freshDeps);
+        setRegisteredUsers(getRegisteredUsers());
+        if (dep && dep.id) {
+          handleNewDepositNotification(dep);
+        }
+        return;
+      }
       if (type === 'USER_TRANSACTIONS_UPDATED' || type === 'NOTIFICATIONS_READ') {
         return;
       }
@@ -538,6 +607,17 @@ export default function AdminApp() {
     };
 
     window.addEventListener('chaiz_trx_updated', handleCustomTrx);
+
+    const handleDepositUpdatedEvent = (ev) => {
+      const dep = ev.detail?.deposit || ev.detail;
+      const freshDeps = getDeposits();
+      setDepositsList(freshDeps);
+      setRegisteredUsers(getRegisteredUsers());
+      if (dep && dep.id) {
+        handleNewDepositNotification(dep);
+      }
+    };
+    window.addEventListener('chaiz_admin_deposits_updated', handleDepositUpdatedEvent);
 
     // Native Firebase SSE streaming untuk seluruh pesanan (sub-50ms instant delta)
     const unsubscribeAllTrx = listenToAllTransactions((liveOrders) => {
@@ -595,7 +675,39 @@ export default function AdminApp() {
           setPermanentVisits(fresh);
         }
       });
+      syncDepositsFromCloud().then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          fresh.forEach((d) => {
+            if (d && d.id && !knownDepositIdsRef.current.has(d.id)) {
+              handleNewDepositNotification(d);
+            }
+          });
+          setDepositsList(fresh);
+        }
+      });
     }, 25000);
+
+    // Realtime streaming pesanan deposit dari Firebase RTDB
+    const unsubscribeDeposits = listenToDeposits((liveDeps) => {
+      if (Array.isArray(liveDeps)) {
+        if (isInitialDepositsLoadRef.current) {
+          const pendingCount = liveDeps.filter((d) => d && d.status === 'pending').length;
+          if (pendingCount > 0) {
+            playAdminOrderSound();
+            showToast(`🔔 Ada ${pendingCount} pesanan deposit baru yang menunggu verifikasi!`, 'fa-wallet text-warning', 'info');
+          }
+          liveDeps.forEach((d) => d && d.id && knownDepositIdsRef.current.add(d.id));
+          isInitialDepositsLoadRef.current = false;
+        } else {
+          liveDeps.forEach((d) => {
+            if (d && d.id && !knownDepositIdsRef.current.has(d.id)) {
+              handleNewDepositNotification(d);
+            }
+          });
+        }
+        setDepositsList(liveDeps);
+      }
+    });
 
     // Realtime streaming daftar pengguna dari Firebase RTDB (Semua, Online, Offline, Masih Login)
     const unsubscribeUsers = listenToRegisteredUsers((liveUsers) => {
@@ -669,8 +781,7 @@ export default function AdminApp() {
           if (prev.some((d) => d.id === dep.id)) return prev;
           return [dep, ...prev];
         });
-        playAdminOrderSound();
-        showToast(`💰 [INSTAN] Top Up Saldo masuk: ${formatRupiah(dep.amount)} dari ${dep.userName || 'Pelanggan'}!`, 'fa-wallet text-success', 'success');
+        handleNewDepositNotification(dep);
       },
       onDepositUpdated: (updatedDep) => {
         if (!updatedDep || !updatedDep.id) return;
@@ -687,6 +798,8 @@ export default function AdminApp() {
       if (unsubscribeVisits) unsubscribeVisits();
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
+      window.removeEventListener('chaiz_admin_deposits_updated', handleDepositUpdatedEvent);
+      if (unsubscribeDeposits) unsubscribeDeposits();
       if (bc) bc.close();
       clearInterval(interval);
       clearInterval(cloudPollInterval);
@@ -1580,6 +1693,35 @@ export default function AdminApp() {
     }, 1500);
   };
 
+  // Format Tanggal & Waktu Lengkap Bahasa Indonesia untuk Depo
+  const formatDepositFullDateTime = (isoString) => {
+    if (!isoString) return { dateFormatted: '-', timeFormatted: '-', full: '-' };
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return { dateFormatted: '-', timeFormatted: '-', full: '-' };
+      const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const monthNames = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      const day = dayNames[d.getDay()];
+      const date = d.getDate();
+      const month = monthNames[d.getMonth()];
+      const year = d.getFullYear();
+      const pad = (n) => String(n).padStart(2, '0');
+      const hours = pad(d.getHours());
+      const minutes = pad(d.getMinutes());
+      const seconds = pad(d.getSeconds());
+      return {
+        dateFormatted: `${day}, ${date} ${month} ${year}`,
+        timeFormatted: `${hours}:${minutes}:${seconds} WIB`,
+        full: `${day}, ${date} ${month} ${year} • ${hours}:${minutes}:${seconds} WIB`
+      };
+    } catch {
+      return { dateFormatted: '-', timeFormatted: '-', full: '-' };
+    }
+  };
+
   // Format Relative Time
   const formatTimeAgo = (isoString) => {
     if (!isoString) return '-';
@@ -2182,6 +2324,21 @@ export default function AdminApp() {
 
             <button
               type="button"
+              className={`admin-nav-btn btn-depo-quick ${activeAdminTab === 'deposits' ? 'active-quick-depo' : ''}`}
+              onClick={() => setActiveAdminTab('deposits')}
+              title="Buka Halaman Pesanan Depo (Deposit Saldo Pengguna)"
+            >
+              <i className="fa-solid fa-money-bill-transfer"></i>
+              <span>Depo</span>
+              {pendingDepositsCount > 0 && (
+                <span className="badge-depo-alert">
+                  {pendingDepositsCount} Baru
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               className="admin-nav-btn btn-store"
               onClick={() => window.open('/', '_blank')}
               title="Buka Website Toko Utama di Tab Baru"
@@ -2287,7 +2444,7 @@ export default function AdminApp() {
               </span>
             </button>
 
-            {/* Menu 5: PESANAN DEPOSIT (CHAIZMONEY) */}
+            {/* Menu 5: DEPO (DEPOSIT SALDO CHAIZMONEY) */}
             <button
               type="button"
               className={`admin-nav-tab ${activeAdminTab === 'deposits' ? 'active' : ''}`}
@@ -2298,8 +2455,8 @@ export default function AdminApp() {
                 <i className="fa-solid fa-money-bill-transfer"></i>
               </div>
               <div className="nav-tab-text">
-                <strong>5. Pesanan Deposit</strong>
-                <span>Deposit ChaizMoney Pelanggan & Verifikasi QRIS</span>
+                <strong>5. Depo (Deposit Saldo)</strong>
+                <span>Notifikasi Depo Masuk, Akun Pengguna & Waktu Lengkap</span>
               </div>
               <span className={`nav-tab-counter ${pendingDepositsCount > 0 ? 'badge-alert-pulse' : ''}`} style={pendingDepositsCount > 0 ? { background: '#06b6d4', color: '#fff' } : {}}>
                 {pendingDepositsCount > 0 ? `${pendingDepositsCount} Baru` : depositsList.length}
@@ -4113,9 +4270,9 @@ export default function AdminApp() {
             {/* Header & Description */}
             <section className="admin-welcome-bar">
               <div className="welcome-text">
-                <h2>Pesanan Deposit Saldo ChaizMoney</h2>
+                <h2>🔔 Notifikasi Depo & Pesanan Saldo ChaizMoney</h2>
                 <p>
-                  Daftar seluruh pesanan pengisian saldo <strong>ChaizMoney</strong> dari pengguna toko. Cek foto bukti transfer QRIS dan mutasi Anda.
+                  Pantau notifikasi deposit masuk dari akun yang sedang login, cek <strong>saldo ChaizMoney pengguna saat ini</strong>, tanggal & waktu lengkap (WIB), serta verifikasi QRIS secara instan.
                   Cukup <strong>sekali klik & ketik nominal</strong> untuk mengirimkan saldo ChaizMoney ke dompet pengguna secara realtime!
                 </p>
               </div>
@@ -4134,10 +4291,86 @@ export default function AdminApp() {
                   title="Muat ulang data pengajuan deposit"
                 >
                   <i className="fa-solid fa-arrows-rotate"></i>
-                  <span>Refresh Deposit</span>
+                  <span>Refresh Depo</span>
                 </button>
               </div>
             </section>
+
+            {/* Live Depo Alert Box (Menampilkan Notifikasi Depo Terkini) */}
+            {depositsList.length > 0 && (
+              <section className="depo-live-alert-box">
+                <div className="depo-live-alert-header">
+                  <h4 className="depo-live-alert-title">
+                    <i className="fa-solid fa-bell text-warning"></i>
+                    <span>Notifikasi Depo Masuk Terkini</span>
+                  </h4>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                    Menampilkan 3 deposit terbaru dari akun pengguna
+                  </span>
+                </div>
+                <div className="depo-live-alert-grid">
+                  {depositsList.slice(0, 3).map((dep) => {
+                    const matchedUser = (registeredUsers || []).find(
+                      (u) =>
+                        (dep.userId && (u.id === dep.userId || u.userId === dep.userId)) ||
+                        (dep.userEmail && u.email && u.email.toLowerCase() === dep.userEmail.toLowerCase())
+                    );
+                    const userBal = matchedUser?.chaizMoney != null ? Number(matchedUser.chaizMoney) : 0;
+                    const avatar = matchedUser?.picture || matchedUser?.photoURL || dep.userAvatar;
+                    const dt = formatDepositFullDateTime(dep.createdAt);
+                    const isUrgent = dep.status === 'pending';
+
+                    return (
+                      <div key={`live-card-${dep.id}`} className={`depo-live-card ${isUrgent ? 'urgent' : dep.status === 'approved' ? 'approved' : ''}`}>
+                        <div className="depo-card-top">
+                          <div className="depo-card-user">
+                            {avatar ? (
+                              <img
+                                src={avatar}
+                                alt={dep.userName || 'User'}
+                                className="depo-card-avatar"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <div className="depo-card-initial">
+                                {((dep.userName || matchedUser?.name || 'U').charAt(0)).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="depo-card-info">
+                              <strong className="depo-card-name">{dep.userName || matchedUser?.name || 'Pengguna'}</strong>
+                              <span className="depo-card-email">{dep.userEmail || matchedUser?.email || '-'}</span>
+                            </div>
+                          </div>
+                          <span className={`deposit-badge ${dep.status}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                            {dep.status === 'pending' ? 'Menunggu' : dep.status === 'approved' ? 'Lunas' : 'Ditolak'}
+                          </span>
+                        </div>
+
+                        <div className="depo-card-body">
+                          <div className="depo-card-nominal">
+                            <span className="depo-card-nominal-label">Nominal Depo:</span>
+                            <strong className="depo-card-nominal-val">+ Rp {Number(dep.amount || 0).toLocaleString('id-ID')}</strong>
+                          </div>
+                          <div className="depo-card-balance">
+                            <span className="depo-card-balance-label">Saldo Akun Saat Ini:</span>
+                            <strong className="depo-card-balance-val">Rp {userBal.toLocaleString('id-ID')}</strong>
+                          </div>
+                        </div>
+
+                        <div className="depo-card-footer">
+                          <div className="depo-card-time">
+                            <i className="fa-regular fa-clock" style={{ color: '#06b6d4' }}></i>
+                            <span>{dt.full}</span>
+                          </div>
+                          <span style={{ fontStyle: 'italic' }}>{formatTimeAgo(dep.createdAt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Stat Cards Pesanan Deposit */}
             <section className="admin-stats-grid orders-stats-grid">
@@ -4280,11 +4513,11 @@ export default function AdminApp() {
                   <table className="admin-orders-table">
                     <thead>
                       <tr>
-                        <th>ID & Waktu Deposit</th>
-                        <th>Pengguna / Akun</th>
-                        <th>Nominal Pengajuan</th>
-                        <th>Bukti Transfer</th>
-                        <th>Status</th>
+                        <th>ID & Waktu Lengkap (WIB)</th>
+                        <th>Akun Pengguna & Saldo ChaizMoney</th>
+                        <th>Nominal Depo & Metode</th>
+                        <th>Bukti QRIS / Verifikasi</th>
+                        <th>Status Depo</th>
                         <th style={{ textAlign: 'center' }}>Aksi Kirim Saldo</th>
                       </tr>
                     </thead>
@@ -4294,60 +4527,105 @@ export default function AdminApp() {
                         const isApproved = dep.status === 'approved';
                         const isRejected = dep.status === 'rejected';
 
+                        const matchedUser = (registeredUsers || []).find(
+                          (u) =>
+                            (dep.userId && (u.id === dep.userId || u.userId === dep.userId)) ||
+                            (dep.userEmail && u.email && u.email.toLowerCase() === dep.userEmail.toLowerCase())
+                        );
+                        const userCurrentChaizMoney = matchedUser?.chaizMoney != null ? Number(matchedUser.chaizMoney) : 0;
+                        const userAvatar = matchedUser?.picture || matchedUser?.photoURL || dep.userAvatar;
+                        const dt = formatDepositFullDateTime(dep.createdAt);
+
                         return (
                           <tr key={dep.id} className={isPending ? 'order-row-urgent' : ''}>
                             {/* ID & Date */}
                             <td>
-                              <div className="order-id-cell">
-                                <span className="order-id-badge" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee' }}>
-                                  #{String(dep.id || '').slice(-8)}
-                                </span>
-                                <span className="order-time-text">
-                                  {dep.createdAt ? new Date(dep.createdAt).toLocaleString('id-ID', {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  }) : '-'}
-                                </span>
+                              <div className="depo-time-cell">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className="depo-id-badge">#{String(dep.id || '').slice(-8)}</span>
+                                  <span className="depo-relative-text">{formatTimeAgo(dep.createdAt)}</span>
+                                </div>
+                                <div className="depo-date-text">
+                                  <i className="fa-regular fa-calendar" style={{ marginRight: '4px', color: '#06b6d4' }}></i>
+                                  {dt.dateFormatted}
+                                </div>
+                                <div className="depo-time-text">
+                                  <i className="fa-regular fa-clock" style={{ color: '#38bdf8' }}></i>
+                                  {dt.timeFormatted}
+                                </div>
                               </div>
                             </td>
 
-                            {/* User details */}
+                            {/* User details & Current ChaizMoney Balance */}
                             <td>
-                              <div className="order-customer-cell">
-                                <strong className="customer-name">{dep.userName || 'Pengguna'}</strong>
-                                <span className="customer-email">{dep.userEmail || '-'}</span>
-                                {dep.userPhone && (
-                                  <a
-                                    href={`https://wa.me/${String(dep.userPhone).replace(/\D/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="customer-phone"
-                                    style={{ color: '#25d366', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                  >
-                                    <i className="fa-brands fa-whatsapp"></i> {dep.userPhone}
-                                  </a>
-                                )}
+                              <div className="depo-user-cell">
+                                <div className="depo-user-avatar-wrap">
+                                  {userAvatar ? (
+                                    <img
+                                      src={userAvatar}
+                                      alt={dep.userName || 'User'}
+                                      className="depo-user-avatar"
+                                      referrerPolicy="no-referrer"
+                                      onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                  ) : (
+                                    <div className="depo-user-initial">
+                                      {((dep.userName || matchedUser?.name || 'U').charAt(0)).toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="depo-user-details">
+                                  <strong className="depo-user-name">
+                                    {dep.userName || matchedUser?.name || 'Pengguna'}
+                                  </strong>
+                                  <span className="depo-user-email">
+                                    <i className="fa-regular fa-envelope" style={{ marginRight: '4px' }}></i>
+                                    {dep.userEmail || matchedUser?.email || '-'}
+                                  </span>
+                                  {dep.userPhone && (
+                                    <a
+                                      href={`https://wa.me/${String(dep.userPhone).replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="depo-user-phone"
+                                    >
+                                      <i className="fa-brands fa-whatsapp"></i> {dep.userPhone}
+                                    </a>
+                                  )}
+                                  {/* Saldo ChaizMoney Akun Saat Ini */}
+                                  <div className="user-current-chaizmoney-badge" title="Jumlah Saldo ChaizMoney yang dimiliki akun ini saat ini">
+                                    <i className="fa-solid fa-wallet text-cyan"></i>
+                                    <span className="badge-label">Saldo Akun:</span>
+                                    <strong>Rp {userCurrentChaizMoney.toLocaleString('id-ID')}</strong>
+                                  </div>
+                                </div>
                               </div>
                             </td>
 
-                            {/* Nominal */}
+                            {/* Nominal & Gateway */}
                             <td>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <strong style={{ fontSize: '1.05rem', color: '#22d3ee', fontWeight: 800 }}>
-                                  Rp {Number(dep.amount || 0).toLocaleString('id-ID')}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <strong style={{ fontSize: '1.08rem', color: '#22d3ee', fontWeight: 800 }}>
+                                  + Rp {Number(dep.amount || 0).toLocaleString('id-ID')}
                                 </strong>
+                                {dep.gateway === 'janspayment' ? (
+                                  <span className="depo-gateway-pill gateway-janspay">
+                                    <i className="fa-solid fa-bolt text-warning"></i> JansPayment QRIS
+                                  </span>
+                                ) : (
+                                  <span className="depo-gateway-pill gateway-manual">
+                                    <i className="fa-solid fa-qrcode"></i> QRIS Manual
+                                  </span>
+                                )}
                                 {isApproved && dep.creditedAmount && dep.creditedAmount !== dep.amount && (
-                                  <span style={{ fontSize: '0.74rem', color: '#34d399' }}>
-                                    Terkirim: Rp {Number(dep.creditedAmount).toLocaleString('id-ID')}
+                                  <span style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: 600 }}>
+                                    <i className="fa-solid fa-check"></i> Masuk: Rp {Number(dep.creditedAmount).toLocaleString('id-ID')}
                                   </span>
                                 )}
                               </div>
                             </td>
 
-                            {/* Bukti Foto */}
+                            {/* Bukti Foto / QRIS Gateway */}
                             <td>
                               {dep.proofUrl ? (
                                 <button
@@ -4362,6 +4640,15 @@ export default function AdminApp() {
                                     className="deposit-proof-thumb"
                                   />
                                 </button>
+                              ) : dep.gateway === 'janspayment' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <i className="fa-solid fa-shield-check"></i> Gateway Otomatis
+                                  </span>
+                                  <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                    NMID JansPay
+                                  </span>
+                                </div>
                               ) : (
                                 <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Tidak ada foto</span>
                               )}
@@ -4373,7 +4660,7 @@ export default function AdminApp() {
                                 {isPending && <i className="fa-solid fa-clock"></i>}
                                 {isApproved && <i className="fa-solid fa-circle-check"></i>}
                                 {isRejected && <i className="fa-solid fa-circle-xmark"></i>}
-                                {isPending ? 'Menunggu' : isApproved ? 'Berhasil' : 'Ditolak'}
+                                {isPending ? 'Menunggu' : isApproved ? 'Lunas / Berhasil' : 'Ditolak'}
                               </span>
                               {isApproved && dep.approvedBy && (
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
@@ -4411,7 +4698,9 @@ export default function AdminApp() {
                                   </button>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Selesai Diproses</span>
+                                <span style={{ fontSize: '0.78rem', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <i className="fa-solid fa-circle-check text-success"></i> Selesai Diproses
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -4429,132 +4718,172 @@ export default function AdminApp() {
       {/* ===================================================================
           MODAL: KIRIM CHAIZMONEY KE PENGGUNA (SEKALI KETIK RP)
           =================================================================== */}
-      {selectedDepositForCredit && (
-        <div className="admin-modal-backdrop" onClick={() => !isProcessingDeposit && setSelectedDepositForCredit(null)}>
-          <div className="modal-box-credit-deposit" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-header" style={{ borderBottomColor: 'rgba(6, 182, 212, 0.3)', paddingBottom: '12px' }}>
-              <div className="modal-title-wrap">
-                <i className="fa-solid fa-money-bill-transfer" style={{ color: '#06b6d4', fontSize: '1.3rem' }}></i>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Kirim Saldo ChaizMoney</h3>
-                  <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Sekali konfirmasi nominal, saldo langsung masuk dompet pengguna</span>
+      {selectedDepositForCredit && (() => {
+        const creditTargetUser = (registeredUsers || []).find(
+          (u) =>
+            (selectedDepositForCredit.userId && (u.id === selectedDepositForCredit.userId || u.userId === selectedDepositForCredit.userId)) ||
+            (selectedDepositForCredit.userEmail && u.email && u.email.toLowerCase() === selectedDepositForCredit.userEmail.toLowerCase())
+        );
+        const currentChaizMoney = creditTargetUser?.chaizMoney != null ? Number(creditTargetUser.chaizMoney) : 0;
+        const inputNominal = parseInt(creditNominalInput, 10) || 0;
+        const estimatedNewBalance = currentChaizMoney + inputNominal;
+        const dtCredit = formatDepositFullDateTime(selectedDepositForCredit.createdAt);
+        const targetAvatar = creditTargetUser?.picture || creditTargetUser?.photoURL || selectedDepositForCredit.userAvatar;
+
+        return (
+          <div className="admin-modal-backdrop" onClick={() => !isProcessingDeposit && setSelectedDepositForCredit(null)}>
+            <div className="modal-box-credit-deposit" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-modal-header" style={{ borderBottomColor: 'rgba(6, 182, 212, 0.3)', paddingBottom: '12px' }}>
+                <div className="modal-title-wrap">
+                  <i className="fa-solid fa-money-bill-transfer" style={{ color: '#06b6d4', fontSize: '1.3rem' }}></i>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Kirim Saldo ChaizMoney</h3>
+                    <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>Konfirmasi nominal, saldo langsung masuk dompet akun</span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  className="admin-modal-close"
+                  onClick={() => setSelectedDepositForCredit(null)}
+                  disabled={isProcessingDeposit}
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
               </div>
-              <button
-                type="button"
-                className="admin-modal-close"
-                onClick={() => setSelectedDepositForCredit(null)}
-                disabled={isProcessingDeposit}
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
 
-            <form onSubmit={handleExecuteApproveDeposit}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Target User Info */}
-                <div style={{ background: 'rgba(15, 23, 42, 0.9)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                  <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginBottom: '4px' }}>Tujuan Penerima:</div>
-                  <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block' }}>{selectedDepositForCredit.userName}</strong>
-                  <span style={{ fontSize: '0.8rem', color: '#22d3ee' }}>{selectedDepositForCredit.userEmail}</span>
-                  {selectedDepositForCredit.userPhone && (
-                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
-                      WA: {selectedDepositForCredit.userPhone}
-                    </span>
-                  )}
-                </div>
+              <form onSubmit={handleExecuteApproveDeposit}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Target User Info & Realtime Balance */}
+                  <div style={{ background: 'rgba(15, 23, 42, 0.9)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                      {targetAvatar ? (
+                        <img
+                          src={targetAvatar}
+                          alt="Avatar"
+                          style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(6, 182, 212, 0.4)' }}
+                        />
+                      ) : (
+                        <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #0891b2, #3b82f6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                          {((selectedDepositForCredit.userName || 'U').charAt(0)).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Akun Tujuan Depo:</div>
+                        <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block' }}>{selectedDepositForCredit.userName}</strong>
+                        <span style={{ fontSize: '0.8rem', color: '#22d3ee' }}>{selectedDepositForCredit.userEmail}</span>
+                      </div>
+                    </div>
 
-                {/* Proof preview snippet */}
-                {selectedDepositForCredit.proofUrl && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '10px' }}>
-                    <img
-                      src={selectedDepositForCredit.proofUrl}
-                      alt="Bukti Transfer"
-                      style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }}
-                      onClick={() => setSelectedDepositProof(selectedDepositForCredit)}
-                    />
-                    <div style={{ flex: 1, fontSize: '0.78rem', color: '#cbd5e1' }}>
-                      <span>Bukti transfer terlampir.</span>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDepositProof(selectedDepositForCredit)}
-                        style={{ display: 'block', background: 'none', border: 'none', color: '#22d3ee', padding: 0, cursor: 'pointer', fontSize: '0.76rem', marginTop: '2px' }}
-                      >
-                        Klik untuk perbesar foto ↗
-                      </button>
+                    {/* Saldo Akun Saat Ini vs Estimasi Saldo Baru */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0, 0, 0, 0.3)', padding: '10px', borderRadius: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Saldo Akun Saat Ini:</span>
+                        <strong style={{ fontSize: '0.92rem', color: '#e2e8f0' }}>Rp {currentChaizMoney.toLocaleString('id-ID')}</strong>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Estimasi Saldo Baru:</span>
+                        <strong style={{ fontSize: '0.92rem', color: '#34d399' }}>Rp {estimatedNewBalance.toLocaleString('id-ID')}</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-regular fa-clock" style={{ color: '#06b6d4' }}></i>
+                      <span>Waktu Pengajuan: {dtCredit.full}</span>
                     </div>
                   </div>
-                )}
 
-                {/* Nominal Input (Sekali ketik Rp Chaizmoney) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>
-                    Nominal ChaizMoney yang Dikirim (Rp):
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: '#22d3ee' }}>
-                      Rp
+                  {/* Proof preview snippet */}
+                  {selectedDepositForCredit.proofUrl && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '10px' }}>
+                      <img
+                        src={selectedDepositForCredit.proofUrl}
+                        alt="Bukti Transfer"
+                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }}
+                        onClick={() => setSelectedDepositProof(selectedDepositForCredit)}
+                      />
+                      <div style={{ flex: 1, fontSize: '0.78rem', color: '#cbd5e1' }}>
+                        <span>Bukti transfer terlampir.</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDepositProof(selectedDepositForCredit)}
+                          style={{ display: 'block', background: 'none', border: 'none', color: '#22d3ee', padding: 0, cursor: 'pointer', fontSize: '0.76rem', marginTop: '2px' }}
+                        >
+                          Klik untuk perbesar foto ↗
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nominal Input (Sekali ketik Rp Chaizmoney) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>
+                      Nominal ChaizMoney yang Dikirim (Rp):
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: '#22d3ee' }}>
+                        Rp
+                      </span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={creditNominalInput}
+                        onChange={(e) => setCreditNominalInput(e.target.value)}
+                        placeholder="Contoh: 50000"
+                        required
+                        autoFocus
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px 12px 42px',
+                          fontSize: '1.2rem',
+                          fontWeight: 800,
+                          color: '#22d3ee',
+                          background: '#090d16',
+                          border: '1.5px solid rgba(6, 182, 212, 0.5)',
+                          borderRadius: '12px',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Nominal pengajuan pelanggan: <strong>Rp {Number(selectedDepositForCredit.amount || 0).toLocaleString('id-ID')}</strong>
                     </span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={creditNominalInput}
-                      onChange={(e) => setCreditNominalInput(e.target.value)}
-                      placeholder="Contoh: 50000"
-                      required
-                      autoFocus
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px 12px 42px',
-                        fontSize: '1.2rem',
-                        fontWeight: 800,
-                        color: '#22d3ee',
-                        background: '#090d16',
-                        border: '1.5px solid rgba(6, 182, 212, 0.5)',
-                        borderRadius: '12px',
-                        outline: 'none'
-                      }}
-                    />
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                    Nominal pengajuan pelanggan: <strong>Rp {Number(selectedDepositForCredit.amount || 0).toLocaleString('id-ID')}</strong>
-                  </span>
-                </div>
 
-                {/* Modal Actions */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-                  <button
-                    type="button"
-                    className="admin-modal-btn btn-cancel"
-                    onClick={() => setSelectedDepositForCredit(null)}
-                    disabled={isProcessingDeposit}
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="admin-modal-btn btn-confirm-ban"
-                    style={{ background: 'linear-gradient(135deg, #06b6d4, #10b981)', border: 'none', color: '#fff' }}
-                    disabled={isProcessingDeposit}
-                  >
-                    {isProcessingDeposit ? (
-                      <>
-                        <i className="fa-solid fa-spinner fa-spin"></i>
-                        <span>Mengirim Saldo...</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="fa-solid fa-paper-plane"></i>
-                        <span>Kirim ChaizMoney Sekarang</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Modal Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      className="admin-modal-btn btn-cancel"
+                      onClick={() => setSelectedDepositForCredit(null)}
+                      disabled={isProcessingDeposit}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="admin-modal-btn btn-confirm-ban"
+                      style={{ background: 'linear-gradient(135deg, #06b6d4, #10b981)', border: 'none', color: '#fff' }}
+                      disabled={isProcessingDeposit}
+                    >
+                      {isProcessingDeposit ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin"></i>
+                          <span>Mengirim Saldo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-paper-plane"></i>
+                          <span>Kirim ChaizMoney Sekarang</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ===================================================================
           MODAL: PREVIEW BUKTI TRANSFER PEMBAYARAN QRIS
