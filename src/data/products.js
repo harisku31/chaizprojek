@@ -85,24 +85,26 @@ export const PRODUCTS = [
     iconColor: "#38bdf8",
     image: "gemini.png",
     stock: 20,
-    warranty: "1 Bulan / 1 Tahun",
-    badge: "1 Bln & 1 Thn",
+    warranty: "1 Bulan / 3 Bulan / 1 Tahun",
+    badge: "Version 4 Argon & Student",
     badgeClass: "badge-flash",
     isFlashSale: true,
-    oldPrice: 15000,
-    currentPrice: 5000,
-    priceNote: "1 Bln Rp 5.000 • 1 Thn Rp 35.000",
+    oldPrice: 20000,
+    currentPrice: 7000,
+    priceNote: "Mulai Rp 7.000 (Student & Version 4 Argon)",
     features: [
-      "Paket 1: 1 Bulan Rp 5.000",
-      "Paket 2: 1 Tahun Rp 35.000 (Privat)",
-      "Garansi: Sesuai Pilihan Durasi Paket",
-      "Akses Model Gemini 1.5 Pro & Canggih",
-      "Penyimpanan Cloud Google One 2TB",
-      "Bisa untuk Riset Dokumen, AI & Koding Cepat"
+      "Pilihan: Version Student & Version 4 Argon (AI Canggih)",
+      "1 Bulan Student: Rp 7.000 | 1 Thn Student Pro: Rp 50.000",
+      "1 Bulan Version 4 Argon: Rp 8.000 | 3 Bulan: Rp 45.000",
+      "Akses Model Gemini 1.5 Pro, Ultra & AI Canggih",
+      "Penyimpanan Cloud Google One 2TB & Riset Cepat",
+      "Garansi Penuh Sesuai Pilihan Durasi Paket"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan (Paket 1)", price: 5000, warranty: "1 Bulan", tag: "Rp 5.000/bln" },
-      { id: "1y", name: "1 Tahun (Privat)", price: 35000, warranty: "1 Tahun", tag: "Rp 35.000/thn" }
+      { id: "1m-student", name: "1 Bulan (Version Student)", price: 7000, warranty: "1 Bulan", tag: "Student Rp 7.000" },
+      { id: "1m-argon", name: "1 Bulan (Version 4 Argon AI Canggih)", price: 8000, warranty: "1 Bulan", tag: "V4 Argon Rp 8.000" },
+      { id: "3m-argon", name: "3 Bulan (Version 4 Argon)", price: 45000, warranty: "3 Bulan", tag: "V4 Argon Rp 45.000" },
+      { id: "1y-student-pro", name: "1 Tahun (Gemini Student Pro)", price: 50000, warranty: "1 Tahun", tag: "Student Pro 1 Thn" }
     ]
   },
   {

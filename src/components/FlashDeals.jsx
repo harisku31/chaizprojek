@@ -49,8 +49,8 @@ export default function FlashDeals({
       name: 'Gemini Pro (Google AI)',
       category: 'ai',
       image: 'gemini.png',
-      currentPrice: 5000,
-      oldPrice: 15000,
+      currentPrice: 7000,
+      oldPrice: 20000,
       stock: 20
     },
     alightProd || {
