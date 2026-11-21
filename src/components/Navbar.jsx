@@ -33,12 +33,11 @@ export default function Navbar({
     { label: 'Netflix 4K', tag: 'Netflix', icon: 'fa-solid fa-film text-danger' },
     { label: 'Robux Roblox', tag: 'Roblox', icon: 'fa-solid fa-cube text-danger' },
     { label: 'Steam Key', tag: 'Steam', icon: 'fa-brands fa-steam text-cyan' },
-    { label: 'Spotify', tag: 'Spotify', icon: 'fa-brands fa-spotify text-success' },
-    { label: 'YouTube No-Ads', tag: 'YouTube', icon: 'fa-brands fa-youtube text-danger' },
     { label: 'Canva Pro', tag: 'Canva', icon: 'fa-solid fa-palette text-cyan' },
-    { label: 'Gemini AI', tag: 'Gemini', icon: 'fa-solid fa-wand-magic-sparkles text-purple' },
-    { label: 'Disney+', tag: 'Disney', icon: 'fa-solid fa-film text-blue' },
-    { label: 'Vidio Platinum', tag: 'Vidio', icon: 'fa-solid fa-play text-danger' }
+    { label: 'Gemini Pro', tag: 'Gemini', icon: 'fa-solid fa-wand-magic-sparkles text-purple' },
+    { label: 'CapCut Pro', tag: 'CapCut', icon: 'fa-solid fa-scissors text-teal' },
+    { label: 'Alight Motion', tag: 'Alight Motion', icon: 'fa-solid fa-play text-success' },
+    { label: 'VIU Premium', tag: 'VIU', icon: 'fa-solid fa-video text-warning' }
   ];
 
   const quickCategories = [
@@ -47,7 +46,6 @@ export default function Navbar({
     { id: 'steam', label: 'Steam Games', icon: 'fa-brands fa-steam', isTab: 'steam' },
     { id: 'topup', label: 'Top Up Kilat', icon: 'fa-solid fa-bolt', isTab: 'topup' },
     { id: 'streaming', label: 'Streaming Video', icon: 'fa-solid fa-tv', tag: 'Netflix' },
-    { id: 'musik', label: 'Musik VIP', icon: 'fa-solid fa-music', tag: 'Spotify' },
     { id: 'produktivitas', label: 'Canva & Desain', icon: 'fa-solid fa-palette', tag: 'Canva' },
     { id: 'ai', label: 'AI & Bot', icon: 'fa-solid fa-robot', tag: 'Gemini' }
   ];
@@ -412,7 +410,7 @@ export default function Navbar({
               <input
                 type="text"
                 ref={mobileInputRef}
-                placeholder="Cari game, Netflix, Spotify, Canva, Robux..."
+                placeholder="Cari game, Netflix, Canva, Robux, Gemini, CapCut..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 onKeyDown={handleKeyDown}

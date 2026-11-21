@@ -35,7 +35,6 @@ export default function ProductCatalog({
     { id: 'all', label: 'Semua Akun', icon: 'fa-solid fa-border-all' },
     { id: 'marketplace', label: 'Toko Penjual (Itemku)', icon: 'fa-solid fa-store' },
     { id: 'streaming', label: 'Streaming Video', icon: 'fa-solid fa-tv' },
-    { id: 'musik', label: 'Musik VIP', icon: 'fa-solid fa-music' },
     { id: 'produktivitas', label: 'Produktivitas & Desain', icon: 'fa-solid fa-pen-nib' },
     { id: 'ai', label: 'AI & Bot', icon: 'fa-solid fa-brain' },
     { id: 'utility', label: 'VPN & Utilitas', icon: 'fa-solid fa-shield-virus' }

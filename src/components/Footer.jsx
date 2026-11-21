@@ -53,7 +53,7 @@ export default function Footer({ onOpenLogin, onOpenInstall, onOpenTestimonials,
             <li><a href="#katalog"><i className="fa-solid fa-cube text-danger"></i> Robux & Roblox Kilat</a></li>
             <li><a href="#katalog"><i className="fa-brands fa-steam text-cyan"></i> Steam Key Resmi Valve</a></li>
             <li><a href="#katalog"><i className="fa-solid fa-film text-danger"></i> Netflix Premium 4K UHD</a></li>
-            <li><a href="#katalog"><i className="fa-brands fa-spotify text-success"></i> Spotify VIP Musik</a></li>
+            <li><a href="#katalog"><i className="fa-solid fa-play text-success"></i> Alight Motion Pro</a></li>
             <li><a href="#katalog"><i className="fa-brands fa-youtube text-danger"></i> YouTube Premium No-Ads</a></li>
             <li><a href="#katalog"><i className="fa-solid fa-palette text-cyan"></i> Canva Pro Desain & AI</a></li>
             <li><a href="#katalog"><i className="fa-solid fa-robot text-purple"></i> Gemini Advanced AI</a></li>

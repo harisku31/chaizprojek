@@ -34,14 +34,14 @@ export default function ItemkuCategoryGrid({
       }
     },
     {
-      id: 'spotify',
-      name: 'Spotify Premium',
-      badge: 'BEBAS IKLAN',
+      id: 'alightmotion',
+      name: 'Alight Motion Pro',
+      badge: 'XML PRESET',
       badgeColor: 'green',
-      image: '/spotify.png',
+      image: '/alightmotion.png',
       action: () => {
         onSwitchTab('store');
-        onSelectCategory('musik', 'Spotify');
+        onSelectCategory('produktivitas', 'Alight Motion');
       }
     },
     {
@@ -78,25 +78,25 @@ export default function ItemkuCategoryGrid({
       }
     },
     {
-      id: 'vidio',
-      name: 'Vidio Platinum',
-      badge: 'EPL & FILM',
-      badgeColor: 'red',
-      image: '/vidio.png',
+      id: 'viu',
+      name: 'VIU Premium',
+      badge: 'DRAMA ASIA',
+      badgeColor: 'orange',
+      image: '/viu.png',
       action: () => {
         onSwitchTab('store');
-        onSelectCategory('streaming', 'Vidio');
+        onSelectCategory('streaming', 'VIU');
       }
     },
     {
-      id: 'disney',
-      name: 'Disney+ Hotstar',
-      badge: 'ORIGINAL',
+      id: 'bstation',
+      name: 'Bstation Bilibili',
+      badge: 'ANIME 4K',
       badgeColor: 'blue',
-      image: '/disney.png',
+      image: '/bstation.png',
       action: () => {
         onSwitchTab('store');
-        onSelectCategory('streaming', 'Disney');
+        onSelectCategory('streaming', 'Bstation');
       }
     },
     {

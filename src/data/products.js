@@ -31,22 +31,25 @@ export const PRODUCTS = [
     icon: "fa-brands fa-youtube",
     iconColor: "#ef4444",
     image: "youtube.png",
-    stock: 15,
-    warranty: "1 Bulan",
-    badge: "Terlaris",
-    badgeClass: "badge-bestseller",
+    stock: 0,
+    outOfStock: true,
+    warranty: "Habis / Stok Kosong",
+    badge: "Stok Kosong",
+    badgeClass: "badge-sealed",
     isFlashSale: false,
     oldPrice: 15000,
     currentPrice: 6000,
+    priceNote: "Habis / Stok Kosong",
     features: [
+      "Keterangan: Habis / Stok Kosong",
       "Durasi: 1 Bulan Penuh",
       "Garansi: 1 Bulan Penggantian",
       "Bebas Iklan di Semua Video & Musik",
       "Background Play & Download Offline",
-      "Bisa di Akun Pribadi Kamu Sendiri"
+      "Hubungi CS WhatsApp jika ingin PO Restock"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 6000, warranty: "1 Bulan", tag: "Populer" }
+      { id: "1m", name: "1 Bulan", price: 6000, warranty: "1 Bulan", tag: "Stok Kosong", outOfStock: true }
     ]
   },
   {
@@ -62,7 +65,7 @@ export const PRODUCTS = [
     badgeClass: "badge-bestseller",
     isFlashSale: false,
     oldPrice: 35000,
-    currentPrice: 21000,
+    currentPrice: 26000,
     features: [
       "Durasi: 1 Bulan Penuh",
       "Garansi: 1 Bulan Penggantian Penuh",
@@ -71,34 +74,35 @@ export const PRODUCTS = [
       "Bebas Watermark & Template VIP Lengkap"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 21000, warranty: "1 Bulan", tag: "VIP Pro" }
+      { id: "1m", name: "1 Bulan", price: 26000, warranty: "1 Bulan", tag: "VIP Pro" }
     ]
   },
   {
     id: "gemini-advanced",
-    name: "Gemini Advanced (Google AI)",
+    name: "Gemini Pro (Google AI)",
     category: "ai",
     icon: "fa-solid fa-wand-magic-sparkles",
     iconColor: "#38bdf8",
     image: "gemini.png",
     stock: 20,
-    warranty: "1 Bulan / 18 Bulan",
-    badge: "AI Canggih",
+    warranty: "1 Bulan / 1 Tahun",
+    badge: "1 Bln & 1 Thn",
     badgeClass: "badge-flash",
     isFlashSale: true,
-    oldPrice: 75000,
-    currentPrice: 6000,
-    priceNote: "Pilihan 1 Bln & 18 Bln",
+    oldPrice: 15000,
+    currentPrice: 5000,
+    priceNote: "1 Bln Rp 5.000 • 1 Thn Rp 35.000",
     features: [
-      "Pilihan: 1 Bulan & 18 Bulan (Privat)",
+      "Paket 1: 1 Bulan Rp 5.000",
+      "Paket 2: 1 Tahun Rp 35.000 (Privat)",
       "Garansi: Sesuai Pilihan Durasi Paket",
-      "Akses Model Gemini 1.5 Pro & Ultra",
+      "Akses Model Gemini 1.5 Pro & Canggih",
       "Penyimpanan Cloud Google One 2TB",
-      "Bisa untuk Riset, Dokumen & Koding Cepat"
+      "Bisa untuk Riset Dokumen, AI & Koding Cepat"
     ],
     durations: [
-      { id: "1m", name: "1 Bulan", price: 6000, warranty: "1 Bulan", tag: "Hemat" },
-      { id: "18m-priv", name: "18 Bulan (Privat)", price: 24000, warranty: "18 Bulan", tag: "Privat 2TB" }
+      { id: "1m", name: "1 Bulan (Paket 1)", price: 5000, warranty: "1 Bulan", tag: "Rp 5.000/bln" },
+      { id: "1y", name: "1 Tahun (Privat)", price: 35000, warranty: "1 Tahun", tag: "Rp 35.000/thn" }
     ]
   },
   {
@@ -140,7 +144,7 @@ export const PRODUCTS = [
     badgeClass: "badge-bestseller",
     isFlashSale: true,
     oldPrice: 45000,
-    currentPrice: 25000,
+    currentPrice: 30000,
     features: [
       "Durasi: 1 Bulan (Via Profil)",
       "Garansi: 1 Bulan Penuh Anti On-Hold",
@@ -149,58 +153,7 @@ export const PRODUCTS = [
       "Bisa Nonton di HP, Laptop, Tablet & TV"
     ],
     durations: [
-      { id: "1m-profile", name: "1 Bulan (Via Profil)", price: 25000, warranty: "1 Bulan", tag: "1 User 1 Profil" }
-    ]
-  },
-  {
-    id: "disney-hotstar",
-    name: "Disney+ Hotstar Premium",
-    category: "streaming",
-    icon: "fa-solid fa-film",
-    iconColor: "#38bdf8",
-    image: "disney.png",
-    stock: 10,
-    warranty: "1 Bulan",
-    badge: "Streaming 4K",
-    badgeClass: "badge-bestseller",
-    isFlashSale: true,
-    oldPrice: 35000,
-    currentPrice: 20000,
-    features: [
-      "Pilihan: Sharing 10 User & Sharing 6 User",
-      "Garansi: 1 Bulan Penuh Penggantian",
-      "Kualitas Streaming Ultra HD 4K & Dolby Audio",
-      "Film Marvel, Disney, Pixar & Star Wars Lengkap",
-      "Bisa Nonton di HP, Tablet, Laptop & Smart TV"
-    ],
-    durations: [
-      { id: "1m-share10", name: "1 Bulan (Sharing 10 User)", price: 20000, warranty: "1 Bulan", tag: "Sharing 10 User" },
-      { id: "1m-share6", name: "1 Bulan (Sharing 6 User)", price: 27000, warranty: "1 Bulan", tag: "Sharing 6 User" }
-    ]
-  },
-  {
-    id: "vidio-prem",
-    name: "Vidio Premier Platinum",
-    category: "streaming",
-    icon: "fa-solid fa-circle-play",
-    iconColor: "#ef4444",
-    image: "vidio.png",
-    stock: 10,
-    warranty: "1 Bulan",
-    badge: "Live Sport & Film",
-    badgeClass: "badge-guarantee",
-    isFlashSale: false,
-    oldPrice: 39000,
-    currentPrice: 27000,
-    features: [
-      "Durasi: 1 Bulan Penuh",
-      "Garansi: 1 Bulan Penuh Penggantian",
-      "Nonton Live Sports, BRI Liga 1, UCL, & Film",
-      "Bebas Iklan & Kualitas Jernih Full HD 1080p",
-      "Bisa Nonton di HP, Tablet, Laptop & Smart TV"
-    ],
-    durations: [
-      { id: "1m", name: "1 Bulan", price: 27000, warranty: "1 Bulan", tag: "Platinum" }
+      { id: "1m-profile", name: "1 Bulan (Via Profil)", price: 30000, warranty: "1 Bulan", tag: "1 User 1 Profil" }
     ]
   },
   {
@@ -229,31 +182,6 @@ export const PRODUCTS = [
     ]
   },
   {
-    id: "wibuku-prem",
-    name: "Wibuku Premium",
-    category: "streaming",
-    icon: "fa-solid fa-masks-theater",
-    iconColor: "#a855f7",
-    image: "wibuku.png",
-    stock: 10,
-    warranty: "1 Bulan",
-    badge: "Anime Fans",
-    badgeClass: "badge-bestseller",
-    isFlashSale: false,
-    oldPrice: 12000,
-    currentPrice: 6000,
-    features: [
-      "Durasi: 1 Bulan Penuh",
-      "Garansi: 1 Bulan Penggantian Penuh",
-      "Streaming Anime Tanpa Iklan Sepuasnya",
-      "Update Episode Terbaru Tiap Hari",
-      "Subtitle Indonesia Jernih & Server Cepat"
-    ],
-    durations: [
-      { id: "1m", name: "1 Bulan", price: 6000, warranty: "1 Bulan", tag: "Hemat" }
-    ]
-  },
-  {
     id: "bstation-prem",
     name: "Bstation (Bilibili Premium)",
     category: "streaming",
@@ -277,59 +205,6 @@ export const PRODUCTS = [
     durations: [
       { id: "1m-sharing", name: "1 Bulan Sharing", price: 7000, warranty: "1 Bulan", tag: "Sharing" },
       { id: "1m-privat", name: "1 Bulan Privat", price: 10000, warranty: "1 Bulan", tag: "Privat" }
-    ]
-  },
-  {
-    id: "wink-vip",
-    name: "Wink Video Retouch VIP",
-    category: "produktivitas",
-    icon: "fa-solid fa-camera-retro",
-    iconColor: "#ec4899",
-    image: "wink.png",
-    stock: 10,
-    warranty: "7 Hari",
-    badge: "iOS & Android",
-    badgeClass: "badge-flash",
-    isFlashSale: false,
-    oldPrice: 15000,
-    currentPrice: 5000,
-    features: [
-      "Tersedia untuk Perangkat Android & iOS",
-      "Garansi: 7 Hari Masa Aktif",
-      "AI Video Enhancement & 4K Quality Repair",
-      "Face & Body Retouch Video Otomatis",
-      "Semua Filter, Efek & Fitur VIP Terbuka"
-    ],
-    durations: [
-      { id: "android-7d", name: "Android - 7 Hari", price: 5000, warranty: "7 Hari", tag: "Android" },
-      { id: "ios-7d-share", name: "iOS - 7 Hari Sharing", price: 17000, warranty: "7 Hari", tag: "iOS Sharing" },
-      { id: "ios-7d-privat", name: "iOS - 7 Hari Privat", price: 27000, warranty: "7 Hari", tag: "iOS Privat" }
-    ]
-  },
-  {
-    id: "spotify-prem",
-    name: "Spotify Premium Music",
-    category: "musik",
-    icon: "fa-brands fa-spotify",
-    iconColor: "#10b981",
-    image: "spotify.png",
-    stock: 10,
-    warranty: "1 Bulan",
-    badge: "Terlaris",
-    badgeClass: "badge-guarantee",
-    isFlashSale: true,
-    oldPrice: 35000,
-    currentPrice: 22000,
-    features: [
-      "Pilihan: 1 Bln Famplan & 1 Bln Indplan",
-      "Garansi: 1 Bulan Sesuai Durasi Paket",
-      "Bebas Iklan & Download Musik Offline",
-      "Kualitas Audio Tertinggi (320kbps)",
-      "Bisa di Akun Pribadi Kamu Sendiri"
-    ],
-    durations: [
-      { id: "1m-famplan", name: "1 Bulan Famplan", price: 22000, warranty: "1 Bulan", tag: "Family Plan" },
-      { id: "1m-indplan", name: "1 Bulan Indplan", price: 28000, warranty: "1 Bulan", tag: "Individual Plan" }
     ]
   },
   {

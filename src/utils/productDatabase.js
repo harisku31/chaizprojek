@@ -20,19 +20,24 @@ export function initializeProductsDatabase() {
       if (Array.isArray(parsed) && parsed.length > 0) {
         // Merge with default PRODUCTS to ensure any new fields exist & prices stay updated
         const merged = PRODUCTS.map((prod) => {
-          const existing = parsed.find((p) => p.id === prod.id);
+          const existing = parsed.find((p) => p && p.id === prod.id);
           if (existing) {
             return {
               ...existing,
               ...prod,
-              stock: prod.id === 'viu-prem' && prod.stock === 2000
-                ? 2000
-                : (typeof existing.stock === 'number' ? existing.stock : prod.stock),
-              accounts: Array.isArray(existing.accounts) ? existing.accounts : []
+              stock: prod.id === 'youtube-prem'
+                ? 0
+                : (prod.id === 'viu-prem' && prod.stock === 2000
+                    ? 2000
+                    : (typeof existing.stock === 'number' ? existing.stock : prod.stock)),
+              accounts: prod.id === 'youtube-prem'
+                ? []
+                : (Array.isArray(existing.accounts) ? existing.accounts : [])
             };
           }
           return {
             ...prod,
+            stock: prod.id === 'youtube-prem' ? 0 : prod.stock,
             accounts: []
           };
         });
@@ -65,13 +70,7 @@ export function initializeProductsDatabase() {
         }
       );
     } else if (p.id === 'youtube-prem') {
-      accounts.push({
-        id: 'acc_yt_1',
-        email: 'yt.premium.chaiz@gmail.com',
-        password: 'MusicNoAds#2026',
-        note: 'YouTube Music & Video Bebas Iklan',
-        addedAt: new Date(Date.now() - 3600000 * 8).toISOString()
-      });
+      // YouTube Premium habis / stok kosong
     } else if (p.id === 'canva-pro') {
       accounts.push({
         id: 'acc_canva_1',
@@ -436,13 +435,21 @@ export function initProductDatabaseFirebaseSync() {
             return {
               ...cloudItem,
               ...prod,
-              stock: prod.id === 'viu-prem' && prod.stock === 2000
-                ? 2000
-                : (typeof cloudItem.stock === 'number' ? cloudItem.stock : prod.stock),
-              accounts: Array.isArray(cloudItem.accounts) ? cloudItem.accounts : []
+              stock: prod.id === 'youtube-prem'
+                ? 0
+                : (prod.id === 'viu-prem' && prod.stock === 2000
+                    ? 2000
+                    : (typeof cloudItem.stock === 'number' ? cloudItem.stock : prod.stock)),
+              accounts: prod.id === 'youtube-prem'
+                ? []
+                : (Array.isArray(cloudItem.accounts) ? cloudItem.accounts : [])
             };
           }
-          return prod;
+          return {
+            ...prod,
+            stock: prod.id === 'youtube-prem' ? 0 : prod.stock,
+            accounts: []
+          };
         });
 
         isCloudProductSyncing = true;
