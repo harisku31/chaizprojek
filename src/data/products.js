@@ -188,23 +188,26 @@ export const PRODUCTS = [
     icon: "fa-solid fa-tv",
     iconColor: "#0284c7",
     image: "bstation.png",
-    stock: 10,
-    warranty: "1 Bulan",
-    badge: "Anime 4K",
-    badgeClass: "badge-bestseller",
+    stock: 0,
+    outOfStock: true,
+    warranty: "Habis / Stok Kosong",
+    badge: "Stok Kosong",
+    badgeClass: "badge-sealed",
     isFlashSale: false,
     oldPrice: 15000,
     currentPrice: 7000,
+    priceNote: "Habis / Stok Kosong",
     features: [
+      "Keterangan: Habis / Stok Kosong",
       "Pilihan: 1 Bulan Sharing & 1 Bulan Privat",
       "Garansi: 1 Bulan Penggantian Penuh",
       "Nonton Anime Kualitas 1080p / 4K UHD",
       "Bebas Iklan & Download Video Offline",
-      "Bisa Login di HP, Tablet & Smart TV"
+      "Hubungi CS WhatsApp jika ingin PO Restock"
     ],
     durations: [
-      { id: "1m-sharing", name: "1 Bulan Sharing", price: 7000, warranty: "1 Bulan", tag: "Sharing" },
-      { id: "1m-privat", name: "1 Bulan Privat", price: 10000, warranty: "1 Bulan", tag: "Privat" }
+      { id: "1m-sharing", name: "1 Bulan Sharing", price: 7000, warranty: "1 Bulan", tag: "Stok Kosong", outOfStock: true },
+      { id: "1m-privat", name: "1 Bulan Privat", price: 10000, warranty: "1 Bulan", tag: "Stok Kosong", outOfStock: true }
     ]
   },
   {

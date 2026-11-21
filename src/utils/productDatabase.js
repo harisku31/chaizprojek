@@ -21,23 +21,24 @@ export function initializeProductsDatabase() {
         // Merge with default PRODUCTS to ensure any new fields exist & prices stay updated
         const merged = PRODUCTS.map((prod) => {
           const existing = parsed.find((p) => p && p.id === prod.id);
+          const isItemOutOfStock = prod.id === 'youtube-prem' || prod.id === 'bstation-prem';
           if (existing) {
             return {
               ...existing,
               ...prod,
-              stock: prod.id === 'youtube-prem'
+              stock: isItemOutOfStock
                 ? 0
                 : (prod.id === 'viu-prem' && prod.stock === 2000
                     ? 2000
                     : (typeof existing.stock === 'number' ? existing.stock : prod.stock)),
-              accounts: prod.id === 'youtube-prem'
+              accounts: isItemOutOfStock
                 ? []
                 : (Array.isArray(existing.accounts) ? existing.accounts : [])
             };
           }
           return {
             ...prod,
-            stock: prod.id === 'youtube-prem' ? 0 : prod.stock,
+            stock: isItemOutOfStock ? 0 : prod.stock,
             accounts: []
           };
         });
@@ -431,23 +432,24 @@ export function initProductDatabaseFirebaseSync() {
         // Merge cloud products dengan base PRODUCTS catalog agar harga, paket & durasi selalu sinkron
         const merged = PRODUCTS.map((prod) => {
           const cloudItem = parsedProducts.find((cp) => cp && cp.id === prod.id);
+          const isItemOutOfStock = prod.id === 'youtube-prem' || prod.id === 'bstation-prem';
           if (cloudItem) {
             return {
               ...cloudItem,
               ...prod,
-              stock: prod.id === 'youtube-prem'
+              stock: isItemOutOfStock
                 ? 0
                 : (prod.id === 'viu-prem' && prod.stock === 2000
                     ? 2000
                     : (typeof cloudItem.stock === 'number' ? cloudItem.stock : prod.stock)),
-              accounts: prod.id === 'youtube-prem'
+              accounts: isItemOutOfStock
                 ? []
                 : (Array.isArray(cloudItem.accounts) ? cloudItem.accounts : [])
             };
           }
           return {
             ...prod,
-            stock: prod.id === 'youtube-prem' ? 0 : prod.stock,
+            stock: isItemOutOfStock ? 0 : prod.stock,
             accounts: []
           };
         });
