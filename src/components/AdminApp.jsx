@@ -23,8 +23,6 @@ import {
   isUserBanned,
   sendNoticeToUser,
   respondToUserNotice,
-  getAdminCredentials,
-  updateAdminCredentials,
   getAdminSession,
   saveAdminSession,
   clearAdminSession,
@@ -62,7 +60,13 @@ import {
 import { compressImageFile, formatRupiah } from '../utils/format';
 import { playAdminOrderSound, playUserSuccessSound, isSoundEnabled, setSoundEnabled, unlockAudio, isAudioContextUnlocked } from '../utils/audioNotification';
 import { subscribeAdminSocket, isSocketConnected } from '../utils/socketClient';
-import { checkSqlBackendHealth } from '../utils/sqlApi';
+import {
+  checkSqlBackendHealth,
+  adminLoginViaSql,
+  verifyAdminSessionViaSql,
+  changeAdminPasswordViaSql,
+  adminLogoutViaSql
+} from '../utils/sqlApi';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -415,6 +419,16 @@ export default function AdminApp() {
     syncPermanentVisitsFromCloud().then((visits) => {
       if (visits && visits.length > 0) setPermanentVisits(visits);
     });
+
+    // 5. Validasi token sesi admin dengan server database SQL
+    if (adminSession && adminSession.token) {
+      verifyAdminSessionViaSql(adminSession.token).then((res) => {
+        if (!res.valid) {
+          clearAdminSession();
+          setAdminSession(null);
+        }
+      });
+    }
   }, []);
 
   // Real-time synchronization (Storage & BroadcastChannel & Polling)
@@ -1619,52 +1633,50 @@ export default function AdminApp() {
     }
   };
 
-  // Handle Admin Login
-  const handleLoginSubmit = (e) => {
+  // Handle Admin Login (Verified via Server Database SQLite & Cryptographic PBKDF2)
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
     setIsLoggingIn(true);
 
-    setTimeout(() => {
-      const creds = getAdminCredentials();
-      const enteredUser = loginUser.trim().toLowerCase();
-      const targetUser = creds.username.trim().toLowerCase();
-
-      if (enteredUser === targetUser && loginPass === creds.password) {
+    try {
+      const res = await adminLoginViaSql(loginUser, loginPass);
+      if (res.success && res.token) {
         const sessionInfo = {
-          username: creds.username,
-          adminName: creds.adminName || 'Owner ChaizStore'
+          token: res.token,
+          username: res.admin?.username || loginUser.trim(),
+          adminName: res.admin?.adminName || 'Owner ChaizStore'
         };
         saveAdminSession(sessionInfo, rememberMe);
         setAdminSession(sessionInfo);
         setIsLoggingIn(false);
-        showToast(`Selamat datang, ${sessionInfo.adminName}! Portal Admin siap digunakan.`, 'fa-shield-halved');
+        showToast(`Selamat datang, ${sessionInfo.adminName}! Portal Admin terproteksi SQL Database siap digunakan.`, 'fa-shield-halved');
       } else {
         setIsLoggingIn(false);
-        setLoginError('Nama akun atau password admin salah! Periksa kembali huruf besar/kecil.');
+        setLoginError(res.error || 'Nama akun atau password admin salah!');
       }
-    }, 300);
+    } catch (err) {
+      setIsLoggingIn(false);
+      setLoginError('Gagal terhubung ke database server: ' + (err.message || 'Error'));
+    }
   };
 
   // Handle Logout
   const handleLogout = () => {
+    if (adminSession?.token) {
+      adminLogoutViaSql(adminSession.token).catch(() => {});
+    }
     clearAdminSession();
     setAdminSession(null);
     setLoginPass('');
     showToast('Anda telah keluar dari Portal Admin.', 'fa-right-from-bracket', 'info');
   };
 
-  // Handle Change Credentials
-  const handleChangeCredsSubmit = (e) => {
+  // Handle Change Credentials (Stored securely hashed in SQLite on backend)
+  const handleChangeCredsSubmit = async (e) => {
     e.preventDefault();
     setCredsError('');
     setCredsSuccess('');
-
-    const creds = getAdminCredentials();
-    if (oldPass !== creds.password) {
-      setCredsError('Password lama tidak sesuai!');
-      return;
-    }
 
     if (newPass.length < 6) {
       setCredsError('Password baru minimal harus 6 karakter!');
@@ -1676,21 +1688,36 @@ export default function AdminApp() {
       return;
     }
 
-    const updatedUser = newUsername.trim() || creds.username;
-    updateAdminCredentials({
-      username: updatedUser,
-      password: newPass
-    });
+    try {
+      const res = await changeAdminPasswordViaSql(
+        adminSession?.token,
+        oldPass,
+        newUsername.trim() || adminSession?.username,
+        newPass
+      );
 
-    setCredsSuccess('Kredensial Admin berhasil diperbarui!');
-    showToast('Nama akun & password admin berhasil diubah!', 'fa-key');
-    setOldPass('');
-    setNewPass('');
-    setConfirmPass('');
-    setTimeout(() => {
-      setIsChangeCredsOpen(false);
-      setCredsSuccess('');
-    }, 1500);
+      if (res.success) {
+        const updatedSession = {
+          ...adminSession,
+          username: res.admin?.username || newUsername.trim() || adminSession.username
+        };
+        saveAdminSession(updatedSession, rememberMe);
+        setAdminSession(updatedSession);
+        setCredsSuccess('Kredensial Admin berhasil diperbarui dan disimpan terenkripsi di Database SQL!');
+        showToast('Nama akun & password admin berhasil diubah!', 'fa-key');
+        setOldPass('');
+        setNewPass('');
+        setConfirmPass('');
+        setTimeout(() => {
+          setIsChangeCredsOpen(false);
+          setCredsSuccess('');
+        }, 1500);
+      } else {
+        setCredsError(res.error || 'Password lama tidak sesuai atau sesi kedaluwarsa!');
+      }
+    } catch (err) {
+      setCredsError('Koneksi ke database server gagal: ' + err.message);
+    }
   };
 
   // Format Tanggal & Waktu Lengkap Bahasa Indonesia untuk Depo
@@ -2351,7 +2378,7 @@ export default function AdminApp() {
               type="button"
               className="admin-nav-btn btn-settings"
               onClick={() => {
-                setNewUsername(getAdminCredentials().username);
+                setNewUsername(adminSession?.username || 'chaiz');
                 setIsChangeCredsOpen(true);
               }}
               title="Ganti Nama Akun & Password Admin"

@@ -34,10 +34,10 @@ const BANNED_KEY = 'chaiz_admin_banned_users';
 const ADMIN_AUTH_KEY = 'chaiz_admin_credentials';
 const ADMIN_SESSION_KEY = 'chaiz_admin_session';
 
-// Default Admin Credentials
+// Kredensial admin diproteksi di sisi Server Database SQLite.
+// Tidak ada password yang disimpan di sisi browser/klien.
 export const DEFAULT_ADMIN_CREDENTIALS = {
   username: 'chaiz',
-  password: '34313431',
   adminName: 'Owner ChaizStore'
 };
 
@@ -1465,34 +1465,19 @@ export function clearAllUsersDirectory() {
 }
 
 // =========================================================================
-// 6. ADMIN AUTH CREDENTIALS & SESSION
+// 6. ADMIN AUTH SESSION (PROTECTED BY SQL DATABASE SERVER)
 // =========================================================================
 
 export function getAdminCredentials() {
   try {
-    const saved = localStorage.getItem(ADMIN_AUTH_KEY);
-    if (!saved) return DEFAULT_ADMIN_CREDENTIALS;
-    const parsed = JSON.parse(saved);
-    // Jika masih memakai kredensial default lama, otomatis migrasi ke kredensial baru
-    if (parsed.username === 'admin' && parsed.password === 'adminchaiz123') {
-      localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(DEFAULT_ADMIN_CREDENTIALS));
-      return DEFAULT_ADMIN_CREDENTIALS;
-    }
-    return parsed;
-  } catch {
-    return DEFAULT_ADMIN_CREDENTIALS;
-  }
+    localStorage.removeItem(ADMIN_AUTH_KEY); // Bersihkan jejak plain text lawas jika ada
+  } catch (_) {}
+  return DEFAULT_ADMIN_CREDENTIALS;
 }
 
 export function updateAdminCredentials(newCreds) {
-  try {
-    const merged = { ...getAdminCredentials(), ...newCreds };
-    localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(merged));
-    return true;
-  } catch (err) {
-    console.error('Failed to update admin creds:', err);
-    return false;
-  }
+  // Diserahkan ke changeAdminPasswordViaSql di backend
+  return true;
 }
 
 export function getAdminSession() {
@@ -1500,7 +1485,8 @@ export function getAdminSession() {
     const session = sessionStorage.getItem(ADMIN_SESSION_KEY) || localStorage.getItem(ADMIN_SESSION_KEY);
     if (!session) return null;
     const parsed = JSON.parse(session);
-    if (Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000) {
+    // Masa berlaku sesi maksimum 30 hari
+    if (Date.now() - parsed.timestamp > 30 * 24 * 60 * 60 * 1000) {
       clearAdminSession();
       return null;
     }
@@ -1512,21 +1498,27 @@ export function getAdminSession() {
 
 export function saveAdminSession(adminInfo, remember = true) {
   const sessionData = {
+    token: adminInfo.token || null,
     username: adminInfo.username,
-    adminName: adminInfo.adminName || 'Admin',
+    adminName: adminInfo.adminName || 'Owner ChaizStore',
     timestamp: Date.now()
   };
   const jsonStr = JSON.stringify(sessionData);
   if (remember) {
     localStorage.setItem(ADMIN_SESSION_KEY, jsonStr);
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
   } else {
     sessionStorage.setItem(ADMIN_SESSION_KEY, jsonStr);
+    localStorage.removeItem(ADMIN_SESSION_KEY);
   }
 }
 
 export function clearAdminSession() {
-  localStorage.removeItem(ADMIN_SESSION_KEY);
-  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  try {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    localStorage.removeItem(ADMIN_AUTH_KEY);
+  } catch (_) {}
 }
 
 // =========================================================================

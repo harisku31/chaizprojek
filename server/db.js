@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
+import crypto from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -153,7 +154,54 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_dep_userEmail ON deposits (userEmail);
   CREATE INDEX IF NOT EXISTS idx_dep_userId ON deposits (userId);
   CREATE INDEX IF NOT EXISTS idx_dep_status ON deposits (status);
+
+  CREATE TABLE IF NOT EXISTS admin_auth (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    passwordHash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    adminName TEXT DEFAULT 'Owner ChaizStore',
+    failedAttempts INTEGER DEFAULT 0,
+    lockedUntil INTEGER DEFAULT 0,
+    createdAt TEXT,
+    updatedAt TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    token TEXT PRIMARY KEY,
+    adminId TEXT NOT NULL,
+    username TEXT NOT NULL,
+    adminName TEXT,
+    expiresAt INTEGER NOT NULL,
+    createdAt TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_user ON admin_auth (username);
+  CREATE INDEX IF NOT EXISTS idx_admin_token ON admin_sessions (token);
 `);
+
+// Seed default admin securely in SQLite if admin_auth is empty
+try {
+  const existingAdmin = db.prepare('SELECT id FROM admin_auth LIMIT 1').get();
+  if (!existingAdmin) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.pbkdf2Sync('34313431', salt, 100000, 64, 'sha512').toString('hex');
+    db.prepare(`
+      INSERT INTO admin_auth (id, username, passwordHash, salt, adminName, failedAttempts, lockedUntil, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
+    `).run(
+      'admin_root',
+      'chaiz',
+      hash,
+      salt,
+      'Owner ChaizStore',
+      new Date().toISOString(),
+      new Date().toISOString()
+    );
+  }
+} catch (e) {
+  console.error('[SQLite Admin Auth Seed Error]:', e);
+}
 
 // Auto Migration: Ensure columns exist in existing SQLite database
 try {
@@ -694,4 +742,135 @@ export function deleteDeposit(id) {
 export function clearDeposits() {
   db.exec('DELETE FROM deposits');
   return true;
+}
+
+// ===================================================================
+// ADMIN SQL DATABASE AUTHENTICATION & SESSION MANAGEMENT
+// Cryptographic PBKDF2 Hashing (100k rounds, SHA-512) & Brute-Force Shield
+// ===================================================================
+
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(String(password), String(salt), 100000, 64, 'sha512').toString('hex');
+}
+
+export function verifyAdminLogin(username, password) {
+  const cleanUser = String(username || '').trim().toLowerCase();
+  const row = db.prepare('SELECT * FROM admin_auth WHERE LOWER(username) = ?').get(cleanUser);
+  if (!row) {
+    return { success: false, reason: 'Kredensial admin tidak valid!' };
+  }
+
+  const now = Date.now();
+  if (row.lockedUntil && row.lockedUntil > now) {
+    const remainingSecs = Math.ceil((row.lockedUntil - now) / 1000);
+    return {
+      success: false,
+      reason: `Akun admin terkunci sementara karena percobaan gagal berulang. Coba lagi dalam ${remainingSecs} detik.`
+    };
+  }
+
+  const testHash = hashPassword(password, row.salt);
+  let isMatch = false;
+  try {
+    isMatch = crypto.timingSafeEqual(Buffer.from(testHash, 'hex'), Buffer.from(row.passwordHash, 'hex'));
+  } catch (_) {
+    isMatch = false;
+  }
+
+  if (!isMatch) {
+    const newAttempts = (row.failedAttempts || 0) + 1;
+    let lockTime = 0;
+    if (newAttempts >= 5) {
+      lockTime = now + 5 * 60 * 1000; // 5 minute lock
+    }
+    db.prepare('UPDATE admin_auth SET failedAttempts = ?, lockedUntil = ? WHERE id = ?').run(newAttempts, lockTime, row.id);
+    return { success: false, reason: 'Username atau password admin salah! Periksa kembali huruf besar/kecil.' };
+  }
+
+  // Reset failed attempts on success
+  db.prepare('UPDATE admin_auth SET failedAttempts = 0, lockedUntil = 0 WHERE id = ?').run(row.id);
+
+  // Generate secure session token
+  const token = 'adm_sess_' + crypto.randomBytes(32).toString('hex');
+  const expiresAt = now + 30 * 24 * 3600 * 1000; // 30 hari
+  db.prepare(`
+    INSERT INTO admin_sessions (token, adminId, username, adminName, expiresAt, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(token, row.id, row.username, row.adminName || 'Owner ChaizStore', expiresAt, new Date().toISOString());
+
+  return {
+    success: true,
+    token,
+    admin: {
+      username: row.username,
+      adminName: row.adminName || 'Owner ChaizStore'
+    }
+  };
+}
+
+export function verifyAdminSessionToken(token) {
+  if (!token) return null;
+  const cleanToken = String(token).trim();
+  const now = Date.now();
+  const row = db.prepare('SELECT * FROM admin_sessions WHERE token = ? AND expiresAt > ?').get(cleanToken, now);
+  if (!row) return null;
+  return {
+    valid: true,
+    token: row.token,
+    username: row.username,
+    adminName: row.adminName
+  };
+}
+
+export function deleteAdminSession(token) {
+  if (!token) return;
+  db.prepare('DELETE FROM admin_sessions WHERE token = ?').run(String(token).trim());
+}
+
+export function updateAdminPasswordInDb(token, oldPassword, newUsername, newPassword) {
+  const session = verifyAdminSessionToken(token);
+  if (!session) {
+    return { success: false, reason: 'Sesi admin tidak valid atau sudah kedaluwarsa. Silakan login kembali.' };
+  }
+
+  const row = db.prepare('SELECT * FROM admin_auth WHERE LOWER(username) = ?').get(session.username.toLowerCase());
+  if (!row) {
+    return { success: false, reason: 'Data admin tidak ditemukan di database server!' };
+  }
+
+  const testHash = hashPassword(oldPassword, row.salt);
+  let isMatch = false;
+  try {
+    isMatch = crypto.timingSafeEqual(Buffer.from(testHash, 'hex'), Buffer.from(row.passwordHash, 'hex'));
+  } catch (_) {
+    isMatch = false;
+  }
+
+  if (!isMatch) {
+    return { success: false, reason: 'Password lama tidak sesuai!' };
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, reason: 'Password baru minimal harus 6 karakter!' };
+  }
+
+  const newSalt = crypto.randomBytes(16).toString('hex');
+  const newHash = hashPassword(newPassword, newSalt);
+  const finalUsername = (newUsername || row.username).trim();
+
+  db.prepare(`
+    UPDATE admin_auth
+    SET username = ?, passwordHash = ?, salt = ?, updatedAt = ?
+    WHERE id = ?
+  `).run(finalUsername, newHash, newSalt, new Date().toISOString(), row.id);
+
+  db.prepare('UPDATE admin_sessions SET username = ? WHERE adminId = ?').run(finalUsername, row.id);
+
+  return {
+    success: true,
+    admin: {
+      username: finalUsername,
+      adminName: row.adminName
+    }
+  };
 }

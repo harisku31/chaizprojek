@@ -495,3 +495,103 @@ export async function updateDepositInSql(id, patch) {
   }
   return null;
 }
+
+// ===================================================================
+// ADMIN AUTHENTICATION API (SQL DATABASE BACKED)
+// ===================================================================
+
+export async function adminLoginViaSql(username, password) {
+  const urls = getCandidateUrls();
+  let lastError = 'Server database tidak terjangkau. Pastikan server backend Node.js aktif.';
+
+  for (const baseUrl of urls) {
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        return { success: true, token: data.token, admin: data.admin };
+      }
+      return { success: false, error: data.error || 'Username atau password admin salah!' };
+    } catch (e) {
+      lastError = e.message;
+    }
+  }
+
+  return { success: false, error: `Gagal terhubung ke database server: ${lastError}` };
+}
+
+export async function verifyAdminSessionViaSql(token) {
+  if (!token) return { valid: false };
+  const urls = getCandidateUrls();
+
+  for (const baseUrl of urls) {
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.success && data.admin) {
+          return { valid: true, admin: data.admin };
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { valid: false };
+}
+
+export async function changeAdminPasswordViaSql(token, oldPassword, newUsername, newPassword) {
+  if (!token) return { success: false, error: 'Sesi admin tidak sah' };
+  const urls = getCandidateUrls();
+
+  for (const baseUrl of urls) {
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token, oldPassword, newUsername, newPassword })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        return { success: true, admin: data.admin };
+      }
+      return { success: false, error: data.error || 'Gagal mengubah password' };
+    } catch (e) {
+      return { success: false, error: `Koneksi ke database server gagal: ${e.message}` };
+    }
+  }
+
+  return { success: false, error: 'Server database tidak merespons' };
+}
+
+export async function adminLogoutViaSql(token) {
+  if (!token) return;
+  const urls = getCandidateUrls();
+
+  for (const baseUrl of urls) {
+    try {
+      await fetch(`${baseUrl}/api/admin/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
+      break;
+    } catch (_) {}
+  }
+}

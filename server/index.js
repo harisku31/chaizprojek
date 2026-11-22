@@ -38,7 +38,11 @@ import {
   saveDeposit,
   updateDeposit,
   deleteDeposit,
-  clearDeposits
+  clearDeposits,
+  verifyAdminLogin,
+  verifyAdminSessionToken,
+  deleteAdminSession,
+  updateAdminPasswordInDb
 } from './db.js';
 
 const PORT = process.env.PORT || 3005;
@@ -170,6 +174,86 @@ app.get('/health', (req, res) => {
     database: 'SQLite (Native WAL Mode)',
     timestamp: new Date().toISOString()
   });
+});
+
+// -------------------------------------------------------------------
+// SECURE ADMIN AUTHENTICATION ROUTES (NATIVE SQL & CRYPTO PBKDF2)
+// -------------------------------------------------------------------
+
+// Admin Login via SQLite Database
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'Username dan password admin wajib diisi!' });
+    }
+    const result = verifyAdminLogin(username, password);
+    if (result.success) {
+      res.json({
+        success: true,
+        token: result.token,
+        admin: result.admin
+      });
+    } else {
+      res.status(401).json({ success: false, error: result.reason || 'Kredensial tidak valid' });
+    }
+  } catch (err) {
+    console.error('[Admin Login Error]:', err);
+    res.status(500).json({ success: false, error: 'Terjadi kesalahan sistem pada database server' });
+  }
+});
+
+// Admin Session Verification
+app.post('/api/admin/verify', (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = req.body?.token || (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null);
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'Token sesi tidak ditemukan' });
+    }
+    const session = verifyAdminSessionToken(token);
+    if (session) {
+      res.json({ success: true, admin: session });
+    } else {
+      res.status(401).json({ success: false, error: 'Sesi kedaluwarsa atau tidak valid' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Gagal memverifikasi sesi admin' });
+  }
+});
+
+// Admin Change Password & Username in SQLite Database
+app.post('/api/admin/change-password', (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = req.body?.token || (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null);
+    const { oldPassword, newUsername, newPassword } = req.body || {};
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'Sesi admin tidak sah' });
+    }
+    const result = updateAdminPasswordInDb(token, oldPassword, newUsername, newPassword);
+    if (result.success) {
+      res.json({ success: true, admin: result.admin });
+    } else {
+      res.status(400).json({ success: false, error: result.reason });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Gagal memperbarui kredensial di database server' });
+  }
+});
+
+// Admin Logout
+app.post('/api/admin/logout', (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = req.body?.token || (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null);
+    if (token) {
+      deleteAdminSession(token);
+    }
+    res.json({ success: true });
+  } catch (_) {
+    res.json({ success: true });
+  }
 });
 
 // -------------------------------------------------------------------
