@@ -292,6 +292,7 @@ export default function AdminApp() {
   const knownDepositIdsRef = React.useRef(new Set());
   const isInitialDepositsLoadRef = React.useRef(true);
   const [selectedOrderProof, setSelectedOrderProof] = useState(null); // Modal Bukti Kiriman Foto Pembeli
+  const [selectedOrderVoucher, setSelectedOrderVoucher] = useState(null); // Modal Rincian Voucher Terpakai
   const [proofImgError, setProofImgError] = useState(false);
   const [isFulfilling, setIsFulfilling] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
@@ -1747,6 +1748,52 @@ export default function AdminApp() {
     } catch {
       return { dateFormatted: '-', timeFormatted: '-', full: '-' };
     }
+  };
+
+  // Helper: Deteksi & Ekstrak Rincian Voucher dari Pesanan
+  const parseOrderVoucherInfo = (order) => {
+    if (!order) return { hasVoucher: false };
+    const pm = String(order.paymentMethod || '');
+    const hasVoucher = Boolean(
+      order.voucherCode ||
+      pm.toLowerCase().includes('voucher') ||
+      pm.toLowerCase().includes('freedem') ||
+      pm.toLowerCase().includes('bebas biaya') ||
+      pm.toLowerCase().includes('full gratis')
+    );
+
+    if (!hasVoucher) return { hasVoucher: false };
+
+    // 1. Kode Voucher
+    let code = order.voucherCode;
+    if (!code) {
+      const match = pm.match(/-\s*([A-Za-z0-9_-]+)\s*\)/);
+      if (match) code = match[1];
+      else if (pm.toLowerCase().includes('freedem')) code = 'FREEDEM321';
+      else code = 'PROMO';
+    }
+
+    // 2. Potongan Diskon
+    let discount = order.voucherDiscount;
+    if (!discount || Number(discount) === 0) {
+      if (pm.toLowerCase().includes('freedem') || pm.toLowerCase().includes('bebas biaya') || pm.toLowerCase().includes('full gratis')) {
+        discount = 30000;
+      } else {
+        discount = 30000;
+      }
+    }
+
+    // 3. Nama & Keterangan Voucher
+    const name = order.voucherName || 'Voucher Promo Bebas Biaya';
+    const description = order.voucherDescription || (pm.includes('(') ? pm : 'Voucher Promo Bebas Biaya (100% Full Gratis)');
+
+    return {
+      hasVoucher: true,
+      code: String(code).toUpperCase().trim(),
+      name,
+      discountAmount: Number(discount) || 30000,
+      description
+    };
   };
 
   // Format Relative Time
@@ -4114,12 +4161,42 @@ export default function AdminApp() {
 
                             {/* Total & Payment */}
                             <td className="cell-payment">
-                              <strong className="order-total-price">
-                                Rp {Number(order.total || order.price).toLocaleString('id-ID')}
-                              </strong>
-                              <span className="order-pay-method">
-                                <i className="fa-solid fa-wallet"></i> {order.paymentMethod || 'QRIS Instant'}
-                              </span>
+                              {(() => {
+                                const vInfo = parseOrderVoucherInfo(order);
+                                const displayPrice = (vInfo.hasVoucher && (Number(order.total) === 0 || Number(order.price) === 35000))
+                                  ? 30000
+                                  : Number(order.total || order.price || 0);
+
+                                return (
+                                  <>
+                                    <strong className="order-total-price">
+                                      Rp {displayPrice.toLocaleString('id-ID')}
+                                    </strong>
+                                    {vInfo.hasVoucher ? (
+                                      <div className="order-voucher-tag-wrap">
+                                        <button
+                                          type="button"
+                                          className="btn-order-voucher-pill"
+                                          onClick={() => setSelectedOrderVoucher(order)}
+                                          title="Klik untuk melihat rincian voucher yang digunakan"
+                                        >
+                                          <i className="fa-solid fa-ticket"></i>
+                                          <span>Voucher</span>
+                                        </button>
+                                        <span className="order-pay-method-sub" title={order.paymentMethod}>
+                                          {order.paymentMethod && order.paymentMethod.length > 20
+                                            ? order.paymentMethod.substring(0, 20) + '...'
+                                            : (order.paymentMethod || 'Voucher Promo')}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="order-pay-method">
+                                        <i className="fa-solid fa-wallet"></i> {order.paymentMethod || 'QRIS Instant'}
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                               {order.qty > 1 && (
                                 <small className="text-muted">Jumlah: {order.qty} pcs</small>
                               )}
@@ -6239,7 +6316,19 @@ export default function AdminApp() {
                   </div>
                   <div className="strip-item">
                     <span className="strip-label">Metode Bayar</span>
-                    <strong className="strip-val">{selectedOrderForFulfill.paymentMethod || 'QRIS Instant'}</strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <strong className="strip-val">{selectedOrderForFulfill.paymentMethod || 'QRIS Instant'}</strong>
+                      {parseOrderVoucherInfo(selectedOrderForFulfill).hasVoucher && (
+                        <button
+                          type="button"
+                          className="btn-order-voucher-pill"
+                          onClick={() => setSelectedOrderVoucher(selectedOrderForFulfill)}
+                          title="Lihat Rincian Voucher"
+                        >
+                          <i className="fa-solid fa-ticket"></i> Voucher
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -7588,6 +7677,94 @@ export default function AdminApp() {
           </div>
         </div>
       )}
+
+      {/* ===================================================================
+          MODAL: DETAIL RINCIAN VOUCHER PESANAN (MENU 4)
+          =================================================================== */}
+      {selectedOrderVoucher && (() => {
+        const vInfo = parseOrderVoucherInfo(selectedOrderVoucher);
+        const displayTotal = (vInfo.hasVoucher && (Number(selectedOrderVoucher.total) === 0 || Number(selectedOrderVoucher.price) === 35000))
+          ? 30000
+          : Number(selectedOrderVoucher.total || selectedOrderVoucher.price || 0);
+
+        return (
+          <div className="admin-modal-backdrop" onClick={() => setSelectedOrderVoucher(null)}>
+            <div className="admin-modal-box modal-voucher-card-box" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-modal-header">
+                <div className="modal-title-wrap">
+                  <i className="fa-solid fa-ticket text-cyan"></i>
+                  <h3>Rincian Voucher Digunakan</h3>
+                </div>
+                <button
+                  type="button"
+                  className="admin-modal-close"
+                  onClick={() => setSelectedOrderVoucher(null)}
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+
+              <div className="admin-modal-body">
+                <div className="voucher-display-banner">
+                  <div className="voucher-display-icon">
+                    <i className="fa-solid fa-gift"></i>
+                  </div>
+                  <div className="voucher-display-info">
+                    <span className="voucher-display-tag">Voucher Promo Terpakai</span>
+                    <h3 className="voucher-display-code">{vInfo.code}</h3>
+                    <p className="voucher-display-name">{vInfo.name}</p>
+                  </div>
+                </div>
+
+                <div className="modal-detail-rows mt-3">
+                  <div className="detail-row">
+                    <span><i className="fa-solid fa-barcode text-cyan"></i> Kode Voucher</span>
+                    <strong className="text-cyan font-mono" style={{ fontSize: '1.05rem', letterSpacing: '1px' }}>
+                      {vInfo.code}
+                    </strong>
+                  </div>
+                  <div className="detail-row">
+                    <span><i className="fa-solid fa-tags text-emerald"></i> Potongan Harga Diskon</span>
+                    <strong className="text-emerald" style={{ fontSize: '1.05rem' }}>
+                      Rp {Number(vInfo.discountAmount).toLocaleString('id-ID')}
+                    </strong>
+                  </div>
+                  <div className="detail-row">
+                    <span><i className="fa-solid fa-circle-info text-warning"></i> Keterangan Voucher</span>
+                    <span className="text-light" style={{ lineHeight: '1.4' }}>
+                      {vInfo.description}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span><i className="fa-solid fa-box text-cyan"></i> Produk Pesanan</span>
+                    <strong>{selectedOrderVoucher.productName} ({selectedOrderVoucher.productDuration || 'Reguler'})</strong>
+                  </div>
+                  <div className="detail-row">
+                    <span><i className="fa-solid fa-user text-muted"></i> Pembeli</span>
+                    <span>{selectedOrderVoucher.customerName || selectedOrderVoucher.customerEmail || 'Pelanggan'}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span><i className="fa-solid fa-receipt text-warning"></i> Total Tagihan Pesanan</span>
+                    <strong className="text-warning" style={{ fontSize: '1.1rem' }}>
+                      Rp {displayTotal.toLocaleString('id-ID')}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  onClick={() => setSelectedOrderVoucher(null)}
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast Notification Container */}
       <div className="admin-toast-container">

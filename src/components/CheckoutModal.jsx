@@ -320,6 +320,10 @@ export default function CheckoutModal({
           customerEmail: finalEmail || email,
           customerPhone: wa,
           paymentMethod: methodTitle,
+          voucherCode: appliedVoucher ? appliedVoucher.code : null,
+          voucherDiscount: appliedVoucher ? (discountAmount || (finalTotal === 0 ? item.total || item.price : 0)) : 0,
+          voucherName: appliedVoucher ? appliedVoucher.name : null,
+          voucherDescription: appliedVoucher ? (appliedVoucher.description || appliedVoucher.badge) : null,
           proofUrl: null,
           proofFileName: null,
           proofSize: null,
@@ -402,15 +406,6 @@ export default function CheckoutModal({
                   <i className="fa-solid fa-ticket text-cyan"></i>
                   <span>Punya Kode Voucher / Diskon?</span>
                 </label>
-                {!appliedVoucher && (
-                  <span
-                    className="voucher-hint-badge"
-                    onClick={() => handleApplyVoucher('freedem321')}
-                    title="Klik untuk langsung menggunakan kode ini"
-                  >
-                    Klaim: <strong>freedem321</strong>
-                  </span>
-                )}
               </div>
 
               {!appliedVoucher ? (
@@ -421,7 +416,7 @@ export default function CheckoutModal({
                       type="text"
                       id="checkoutVoucherInput"
                       className="clean-field-control checkout-voucher-input"
-                      placeholder="Ketik kode voucher (contoh: freedem321)..."
+                      placeholder="Masukkan kode voucher..."
                       value={voucherCodeInput}
                       onChange={(e) => setVoucherCodeInput(e.target.value)}
                       onKeyDown={(e) => {
