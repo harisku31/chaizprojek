@@ -180,27 +180,32 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_admin_token ON admin_sessions (token);
 `);
 
-// Seed default admin securely in SQLite if admin_auth is empty
+// Inisialisasi kredensial admin dari environment variables server privat (.env)
+// Password dan username TIDAK PERNAH ditulis dalam kode program.
 try {
   const existingAdmin = db.prepare('SELECT id FROM admin_auth LIMIT 1').get();
-  if (!existingAdmin) {
+  const envUser = process.env.ADMIN_USERNAME || process.env.ADMIN_INITIAL_USERNAME;
+  const envPass = process.env.ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD;
+
+  if (!existingAdmin && envUser && envPass) {
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.pbkdf2Sync('34313431', salt, 100000, 64, 'sha512').toString('hex');
+    const hash = crypto.pbkdf2Sync(String(envPass).trim(), salt, 100000, 64, 'sha512').toString('hex');
     db.prepare(`
       INSERT INTO admin_auth (id, username, passwordHash, salt, adminName, failedAttempts, lockedUntil, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
     `).run(
       'admin_root',
-      'chaiz',
+      String(envUser).trim(),
       hash,
       salt,
-      'Owner ChaizStore',
+      process.env.ADMIN_NAME || 'Owner ChaizStore',
       new Date().toISOString(),
       new Date().toISOString()
     );
+    console.log('🔒 [Database Auth]: Admin credentials initialized securely from private server environment.');
   }
 } catch (e) {
-  console.error('[SQLite Admin Auth Seed Error]:', e);
+  console.error('[SQLite Admin Auth Init Error]:', e);
 }
 
 // Auto Migration: Ensure columns exist in existing SQLite database

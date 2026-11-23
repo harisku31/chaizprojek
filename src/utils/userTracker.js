@@ -34,13 +34,6 @@ const BANNED_KEY = 'chaiz_admin_banned_users';
 const ADMIN_AUTH_KEY = 'chaiz_admin_credentials';
 const ADMIN_SESSION_KEY = 'chaiz_admin_session';
 
-// Kredensial admin diproteksi di sisi Server Database SQLite.
-// Tidak ada password yang disimpan di sisi browser/klien.
-export const DEFAULT_ADMIN_CREDENTIALS = {
-  username: 'chaiz',
-  adminName: 'Owner ChaizStore'
-};
-
 /**
  * Check if current hostname is localhost or local IP
  */
@@ -1467,18 +1460,6 @@ export function clearAllUsersDirectory() {
 // =========================================================================
 // 6. ADMIN AUTH SESSION (PROTECTED BY SQL DATABASE SERVER)
 // =========================================================================
-
-export function getAdminCredentials() {
-  try {
-    localStorage.removeItem(ADMIN_AUTH_KEY); // Bersihkan jejak plain text lawas jika ada
-  } catch (_) {}
-  return DEFAULT_ADMIN_CREDENTIALS;
-}
-
-export function updateAdminCredentials(newCreds) {
-  // Diserahkan ke changeAdminPasswordViaSql di backend
-  return true;
-}
 
 export function getAdminSession() {
   try {
