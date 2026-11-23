@@ -67,6 +67,14 @@ import {
   changeAdminPasswordViaSql,
   adminLogoutViaSql
 } from '../utils/sqlApi';
+import {
+  getStoredVouchers,
+  saveStoredVouchers,
+  addStoredVoucher,
+  deleteStoredVoucher,
+  toggleStoredVoucherActive,
+  clearUsedVouchers
+} from '../data/vouchers';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -307,6 +315,17 @@ export default function AdminApp() {
   const [selectedDepositForReject, setSelectedDepositForReject] = useState(null);
   const [depositRejectReason, setDepositRejectReason] = useState('Bukti pembayaran tidak valid / dana belum masuk ke mutasi');
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
+
+  // Gudang Voucher State (Menu 6)
+  const [vouchersList, setVouchersList] = useState(() => getStoredVouchers());
+  const [voucherFilter, setVoucherFilter] = useState('all'); // 'all' | 'active' | 'used'
+  const [voucherSearch, setVoucherSearch] = useState('');
+  const [voucherNameInput, setVoucherNameInput] = useState('');
+  const [voucherCodeInput, setVoucherCodeInput] = useState('');
+  const [voucherDiscountInput, setVoucherDiscountInput] = useState('');
+  const [hasMinPurchase, setHasMinPurchase] = useState(true);
+  const [minPurchaseInput, setMinPurchaseInput] = useState('20000');
+  const [voucherDescInput, setVoucherDescInput] = useState('');
 
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -1796,6 +1815,75 @@ export default function AdminApp() {
     };
   };
 
+  // Handlers Gudang Voucher (Menu 6)
+  const handleAddVoucherSubmit = (e) => {
+    e.preventDefault();
+    const cleanCode = voucherCodeInput.trim().toUpperCase().replace(/\s+/g, '');
+    if (!cleanCode) {
+      showToast('Kode voucher wajib diisi!', 'fa-triangle-exclamation', 'warning');
+      return;
+    }
+    const discount = Number(voucherDiscountInput);
+    if (!discount || discount <= 0) {
+      showToast('Jumlah potongan harga harus lebih dari Rp 0!', 'fa-triangle-exclamation', 'warning');
+      return;
+    }
+    if (hasMinPurchase && (Number(minPurchaseInput) <= 0 || isNaN(Number(minPurchaseInput)))) {
+      showToast('Nominal minimal belanja harus valid!', 'fa-triangle-exclamation', 'warning');
+      return;
+    }
+
+    const minAmount = hasMinPurchase ? (Number(minPurchaseInput) || 20000) : 0;
+
+    addStoredVoucher({
+      code: cleanCode,
+      name: voucherNameInput.trim() || `Potongan Diskon Rp ${discount.toLocaleString('id-ID')}`,
+      description: voucherDescInput.trim() || (hasMinPurchase ? `Diskon Rp ${discount.toLocaleString('id-ID')} dengan minimal belanja Rp ${minAmount.toLocaleString('id-ID')}` : `Diskon Rp ${discount.toLocaleString('id-ID')} tanpa minimal belanja`),
+      discountAmount: discount,
+      hasMinPurchase,
+      minPurchaseAmount: minAmount,
+      type: 'discount',
+      isSingleUse: true,
+      isUsed: false,
+      isActive: true
+    });
+
+    setVouchersList(getStoredVouchers());
+    setVoucherNameInput('');
+    setVoucherCodeInput('');
+    setVoucherDiscountInput('');
+    setMinPurchaseInput('20000');
+    setVoucherDescInput('');
+    showToast(`🎉 Kode voucher "${cleanCode}" berhasil diterbitkan ke Gudang Voucher!`, 'fa-circle-check', 'success');
+  };
+
+  const handleDeleteVoucher = (vchId, vchCode) => {
+    if (window.confirm(`Yakin ingin menghapus kode voucher "${vchCode}" dari Gudang Voucher?`)) {
+      deleteStoredVoucher(vchId);
+      setVouchersList(getStoredVouchers());
+      showToast(`Voucher "${vchCode}" telah dihapus!`, 'fa-trash-can', 'info');
+    }
+  };
+
+  const handleClearUsedVouchers = () => {
+    const usedCount = vouchersList.filter((v) => v.isUsed).length;
+    if (usedCount === 0) {
+      showToast('Tidak ada voucher yang sudah digunakan (hangus) saat ini.', 'fa-circle-info', 'info');
+      return;
+    }
+    if (window.confirm(`Hapus semua ${usedCount} voucher yang sudah digunakan (hangus)?`)) {
+      clearUsedVouchers();
+      setVouchersList(getStoredVouchers());
+      showToast(`Seluruh ${usedCount} voucher hangus berhasil dibersihkan!`, 'fa-trash-can', 'success');
+    }
+  };
+
+  const handleToggleVoucher = (vchId, vchCode, currentStatus) => {
+    toggleStoredVoucherActive(vchId);
+    setVouchersList(getStoredVouchers());
+    showToast(`Voucher "${vchCode}" sekarang ${currentStatus ? 'Dinonaktifkan' : 'Diaktifkan'}`, 'fa-toggle-on', 'info');
+  };
+
   // Format Relative Time
   const formatTimeAgo = (isoString) => {
     if (!isoString) return '-';
@@ -2413,6 +2501,29 @@ export default function AdminApp() {
 
             <button
               type="button"
+              className={`admin-nav-btn btn-voucher-quick ${activeAdminTab === 'vouchers' ? 'active-quick-voucher' : ''}`}
+              onClick={() => setActiveAdminTab('vouchers')}
+              title="Buka Gudang Voucher (Kelola Voucher & Diskon Toko)"
+              style={{
+                background: activeAdminTab === 'vouchers' ? 'linear-gradient(135deg, #8b5cf6, #6366f1)' : 'rgba(139, 92, 246, 0.15)',
+                border: '1px solid rgba(139, 92, 246, 0.4)',
+                color: activeAdminTab === 'vouchers' ? '#ffffff' : '#c084fc',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <i className="fa-solid fa-ticket"></i>
+              <span>Gudang Voucher</span>
+              {vouchersList.filter((v) => !v.isUsed && v.isActive !== false).length > 0 && (
+                <span className="badge-depo-alert" style={{ background: '#8b5cf6', color: '#fff' }}>
+                  {vouchersList.filter((v) => !v.isUsed && v.isActive !== false).length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               className="admin-nav-btn btn-store"
               onClick={() => window.open('/', '_blank')}
               title="Buka Website Toko Utama di Tab Baru"
@@ -2534,6 +2645,25 @@ export default function AdminApp() {
               </div>
               <span className={`nav-tab-counter ${pendingDepositsCount > 0 ? 'badge-alert-pulse' : ''}`} style={pendingDepositsCount > 0 ? { background: '#06b6d4', color: '#fff' } : {}}>
                 {pendingDepositsCount > 0 ? `${pendingDepositsCount} Baru` : depositsList.length}
+              </span>
+            </button>
+
+            {/* Menu 6: GUDANG VOUCHER */}
+            <button
+              type="button"
+              className={`admin-nav-tab ${activeAdminTab === 'vouchers' ? 'active' : ''}`}
+              onClick={() => setActiveAdminTab('vouchers')}
+              style={activeAdminTab === 'vouchers' ? { borderColor: '#8b5cf6', boxShadow: '0 0 15px rgba(139, 92, 246, 0.35)' } : {}}
+            >
+              <div className="nav-tab-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#c084fc' }}>
+                <i className="fa-solid fa-ticket"></i>
+              </div>
+              <div className="nav-tab-text">
+                <strong>6. Gudang Voucher</strong>
+                <span>Tambah Voucher, Aturan Min. Belanja & Hapus Voucher Hangus</span>
+              </div>
+              <span className="nav-tab-counter" style={vouchersList.filter((v) => !v.isUsed && v.isActive !== false).length > 0 ? { background: '#8b5cf6', color: '#fff' } : {}}>
+                {vouchersList.length}
               </span>
             </button>
           </div>
@@ -4815,6 +4945,454 @@ export default function AdminApp() {
                 </div>
               )}
             </section>
+          </div>
+        )}
+
+        {/* ===================================================================
+            MENU 6: GUDANG VOUCHER (KELOLA VOUCHER & DISKON MINIMAL BELANJA)
+            =================================================================== */}
+        {activeAdminTab === 'vouchers' && (
+          <div className="tab-pane-content">
+            {/* Header & Stats Banner */}
+            <section className="admin-welcome-bar">
+              <div className="welcome-text">
+                <h2>🎟️ Gudang Voucher & Promo Toko</h2>
+                <p>
+                  Kelola kode voucher diskon untuk pembeli. Anda dapat mengatur <strong>nominal potongan harga</strong>, menetapkan aturan <strong>minimal pembelian</strong> (misal belanja minimal Rp 20.000 baru bisa menggunakan voucher), serta memantau voucher yang <strong>sudah digunakan (1x pakai langsung hangus)</strong>.
+                </p>
+              </div>
+
+              <div className="admin-quick-actions">
+                <button
+                  type="button"
+                  className="admin-action-btn action-refresh-orders"
+                  onClick={() => {
+                    setVouchersList(getStoredVouchers());
+                    showToast('Data Gudang Voucher dimuat ulang!', 'fa-arrows-rotate', 'info');
+                  }}
+                  title="Muat ulang daftar voucher"
+                >
+                  <i className="fa-solid fa-arrows-rotate"></i>
+                  <span>Refresh Gudang</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Voucher Stats Cards */}
+            <section className="admin-stats-grid">
+              <div
+                className={`admin-stat-card ${voucherFilter === 'all' ? 'active-filter' : ''}`}
+                onClick={() => setVoucherFilter('all')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#c084fc' }}>
+                  <i className="fa-solid fa-ticket"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Total Semua Voucher</span>
+                  <strong className="stat-value">{vouchersList.length}</strong>
+                </div>
+              </div>
+
+              <div
+                className={`admin-stat-card ${voucherFilter === 'active' ? 'active-filter' : ''}`}
+                onClick={() => setVoucherFilter('active')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
+                  <i className="fa-solid fa-circle-check"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Voucher Aktif (Siap Pakai)</span>
+                  <strong className="stat-value text-success">
+                    {vouchersList.filter((v) => !v.isUsed && v.isActive !== false).length}
+                  </strong>
+                </div>
+              </div>
+
+              <div
+                className={`admin-stat-card ${voucherFilter === 'used' ? 'active-filter' : ''}`}
+                onClick={() => setVoucherFilter('used')}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="stat-icon-wrap" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
+                  <i className="fa-solid fa-fire"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Sudah Digunakan (Hangus)</span>
+                  <strong className="stat-value text-danger">
+                    {vouchersList.filter((v) => v.isUsed).length}
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            {/* Main Gudang Voucher Grid (Form Tambah Kiri, List Voucher Kanan) */}
+            <div className="gudang-voucher-layout">
+              {/* Form Tambah Voucher */}
+              <div className="voucher-form-card">
+                <div className="voucher-form-header">
+                  <i className="fa-solid fa-circle-plus text-cyan"></i>
+                  <div>
+                    <h3>Tambah Kode Voucher Baru</h3>
+                    <span>Terbitkan voucher diskon baru untuk pelanggan</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddVoucherSubmit} className="voucher-create-form">
+                  <div className="admin-form-group">
+                    <label htmlFor="vchName">
+                      <i className="fa-solid fa-tag text-purple"></i> Nama / Keterangan Voucher <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="vchName"
+                      className="clean-field-control"
+                      placeholder="contoh: Promo Gajian Spesial atau Diskon Kilat"
+                      value={voucherNameInput}
+                      onChange={(e) => setVoucherNameInput(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label htmlFor="vchCode">
+                      <i className="fa-solid fa-barcode text-cyan"></i> Kode Voucher (Kupon) <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="vchCode"
+                      className="clean-field-control font-mono font-bold"
+                      placeholder="contoh: CHAIZ20K, HEMAT5K, DISKON10"
+                      value={voucherCodeInput}
+                      onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
+                      required
+                    />
+                    <small className="form-hint-text">Kode otomatis dibuat huruf besar tanpa spasi.</small>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label htmlFor="vchDiscount">
+                      <i className="fa-solid fa-money-bill text-emerald"></i> Jumlah Potongan Harga Diskon (Rp) <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      id="vchDiscount"
+                      className="clean-field-control"
+                      placeholder="contoh: 20000 (Potongan Rp 20.000)"
+                      value={voucherDiscountInput}
+                      onChange={(e) => setVoucherDiscountInput(e.target.value)}
+                      min="500"
+                      step="500"
+                      required
+                    />
+                  </div>
+
+                  {/* Pengaturan Syarat Minimal Pembelian (2 Tombol Sesuai Permintaan) */}
+                  <div className="admin-form-group min-purchase-settings-box">
+                    <label>
+                      <i className="fa-solid fa-cart-shopping text-warning"></i> Aturan Minimal Pembelian Pelanggan <span className="text-danger">*</span>
+                    </label>
+                    <span className="min-purchase-desc">
+                      Pilih apakah pelanggan harus berbelanja dengan total tertentu untuk bisa menggunakan voucher ini:
+                    </span>
+
+                    <div className="min-purchase-toggle-row">
+                      <button
+                        type="button"
+                        className={`btn-min-toggle ${hasMinPurchase ? 'active-enabled' : ''}`}
+                        onClick={() => setHasMinPurchase(true)}
+                      >
+                        <i className="fa-solid fa-shield-halved"></i>
+                        <span>Aktifkan Minimal</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`btn-min-toggle ${!hasMinPurchase ? 'active-disabled' : ''}`}
+                        onClick={() => setHasMinPurchase(false)}
+                      >
+                        <i className="fa-solid fa-circle-xmark"></i>
+                        <span>Nonaktifkan Minimal</span>
+                      </button>
+                    </div>
+
+                    {/* Jika Aktif: Input Jumlah Minimal Pembelian */}
+                    {hasMinPurchase ? (
+                      <div className="min-purchase-input-reveal">
+                        <label htmlFor="minPurchaseAmount">
+                          Minimal Belanja Berapa (Rp):
+                        </label>
+                        <div className="clean-input-wrapper">
+                          <span className="input-currency-prefix">Rp</span>
+                          <input
+                            type="number"
+                            id="minPurchaseAmount"
+                            className="clean-field-control"
+                            placeholder="20000"
+                            value={minPurchaseInput}
+                            onChange={(e) => setMinPurchaseInput(e.target.value)}
+                            min="1000"
+                            step="1000"
+                            required
+                          />
+                        </div>
+
+                        <div className="min-purchase-presets">
+                          {[10000, 20000, 30000, 50000, 100000].map((amt) => (
+                            <button
+                              key={amt}
+                              type="button"
+                              className={`preset-pill-btn ${Number(minPurchaseInput) === amt ? 'active' : ''}`}
+                              onClick={() => setMinPurchaseInput(String(amt))}
+                            >
+                              Rp {amt.toLocaleString('id-ID')}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="min-purchase-explainer active-explainer">
+                          <i className="fa-solid fa-circle-info text-warning"></i>
+                          <span>
+                            Pelanggan <strong>hanya bisa</strong> memakai voucher jika total belanja <strong>di atas atau sama dengan Rp {Number(minPurchaseInput || 0).toLocaleString('id-ID')}</strong>.
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-purchase-explainer no-min-explainer">
+                        <i className="fa-solid fa-circle-check text-emerald"></i>
+                        <span>
+                          Voucher bebas digunakan untuk belanja nominal berapa saja <strong>tanpa syarat minimal</strong>.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label htmlFor="vchDesc">
+                      <i className="fa-solid fa-file-lines text-muted"></i> Catatan Tambahan (Opsional)
+                    </label>
+                    <textarea
+                      id="vchDesc"
+                      className="clean-field-control"
+                      rows="2"
+                      placeholder="Keterangan singkat voucher..."
+                      value={voucherDescInput}
+                      onChange={(e) => setVoucherDescInput(e.target.value)}
+                    ></textarea>
+                  </div>
+
+                  <div className="voucher-submit-wrap">
+                    <button type="submit" className="btn-save-voucher">
+                      <i className="fa-solid fa-ticket"></i>
+                      <span>Terbitkan Voucher ke Toko</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Daftar Voucher di Gudang */}
+              <div className="voucher-list-card">
+                <div className="voucher-list-header">
+                  <div>
+                    <h3>Daftar Voucher Toko ({vouchersList.length})</h3>
+                    <span>Voucher aktif & riwayat voucher 1x pakai yang telah digunakan</span>
+                  </div>
+
+                  {vouchersList.filter((v) => v.isUsed).length > 0 && (
+                    <button
+                      type="button"
+                      className="btn-clear-used-vouchers"
+                      onClick={handleClearUsedVouchers}
+                      title="Hapus semua voucher yang sudah digunakan (hangus)"
+                    >
+                      <i className="fa-solid fa-trash-can"></i>
+                      <span>Hapus Semua Voucher Hangus ({vouchersList.filter((v) => v.isUsed).length})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="voucher-search-bar">
+                  <div className="clean-input-wrapper search-wrap">
+                    <i className="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input
+                      type="text"
+                      className="clean-field-control"
+                      placeholder="Cari voucher berdasarkan kode atau nama..."
+                      value={voucherSearch}
+                      onChange={(e) => setVoucherSearch(e.target.value)}
+                    />
+                    {voucherSearch && (
+                      <button type="button" className="clear-search-btn" onClick={() => setVoucherSearch('')}>
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="filter-pill-group">
+                    <button
+                      type="button"
+                      className={`filter-pill ${voucherFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setVoucherFilter('all')}
+                    >
+                      Semua ({vouchersList.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${voucherFilter === 'active' ? 'active' : ''}`}
+                      onClick={() => setVoucherFilter('active')}
+                    >
+                      Aktif ({vouchersList.filter((v) => !v.isUsed && v.isActive !== false).length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${voucherFilter === 'used' ? 'active' : ''}`}
+                      onClick={() => setVoucherFilter('used')}
+                    >
+                      Sudah Digunakan ({vouchersList.filter((v) => v.isUsed).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cards List */}
+                <div className="voucher-items-container">
+                  {vouchersList
+                    .filter((v) => {
+                      if (voucherFilter === 'active') return !v.isUsed && v.isActive !== false;
+                      if (voucherFilter === 'used') return v.isUsed;
+                      return true;
+                    })
+                    .filter((v) => {
+                      if (!voucherSearch.trim()) return true;
+                      const q = voucherSearch.toLowerCase().trim();
+                      return (
+                        (v.code && v.code.toLowerCase().includes(q)) ||
+                        (v.name && v.name.toLowerCase().includes(q)) ||
+                        (v.description && v.description.toLowerCase().includes(q))
+                      );
+                    }).length === 0 ? (
+                    <div className="empty-vouchers-notice">
+                      <i className="fa-solid fa-ticket-simple text-purple"></i>
+                      <h4>Belum Ada Voucher Ditemukan</h4>
+                      <p>
+                        {voucherSearch
+                          ? `Tidak ada voucher yang cocok dengan pencarian "${voucherSearch}".`
+                          : voucherFilter === 'used'
+                          ? 'Belum ada voucher yang sudah digunakan (hangus) oleh pembeli.'
+                          : 'Gudang voucher masih kosong. Terbitkan voucher baru menggunakan formulir di sebelah kiri!'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="vouchers-cards-grid">
+                      {vouchersList
+                        .filter((v) => {
+                          if (voucherFilter === 'active') return !v.isUsed && v.isActive !== false;
+                          if (voucherFilter === 'used') return v.isUsed;
+                          return true;
+                        })
+                        .filter((v) => {
+                          if (!voucherSearch.trim()) return true;
+                          const q = voucherSearch.toLowerCase().trim();
+                          return (
+                            (v.code && v.code.toLowerCase().includes(q)) ||
+                            (v.name && v.name.toLowerCase().includes(q)) ||
+                            (v.description && v.description.toLowerCase().includes(q))
+                          );
+                        })
+                        .map((vch) => {
+                          return (
+                            <div
+                              key={vch.id || vch.code}
+                              className={`voucher-item-card ${vch.isUsed ? 'card-used-hangus' : !vch.isActive ? 'card-inactive' : 'card-active'}`}
+                            >
+                              <div className="voucher-card-top">
+                                <div className="voucher-code-badge">
+                                  <i className="fa-solid fa-ticket"></i>
+                                  <code>{vch.code}</code>
+                                </div>
+
+                                <div className="voucher-status-wrap">
+                                  {vch.isUsed ? (
+                                    <span className="vch-badge badge-hangus">
+                                      <i className="fa-solid fa-fire"></i> Sudah Digunakan (Hangus)
+                                    </span>
+                                  ) : vch.isActive ? (
+                                    <span className="vch-badge badge-active">
+                                      <i className="fa-solid fa-circle-check"></i> Aktif (Siap Pakai)
+                                    </span>
+                                  ) : (
+                                    <span className="vch-badge badge-disabled">
+                                      <i className="fa-solid fa-pause"></i> Dinonaktifkan
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="voucher-card-body">
+                                <h4 className="voucher-item-name">{vch.name}</h4>
+                                <div className="voucher-item-discount">
+                                  <span>Potongan Diskon:</span>
+                                  <strong>Rp {Number(vch.discountAmount || 0).toLocaleString('id-ID')}</strong>
+                                </div>
+
+                                <div className="voucher-item-rule">
+                                  <i className={`fa-solid ${vch.hasMinPurchase ? 'fa-cart-shopping text-warning' : 'fa-check text-emerald'}`}></i>
+                                  <span>
+                                    {vch.hasMinPurchase
+                                      ? `Min. Belanja: Rp ${Number(vch.minPurchaseAmount || 20000).toLocaleString('id-ID')}`
+                                      : 'Bebas (Tanpa Minimal Belanja)'}
+                                  </span>
+                                </div>
+
+                                {vch.description && (
+                                  <p className="voucher-item-desc">{vch.description}</p>
+                                )}
+
+                                {vch.isUsed && (
+                                  <div className="voucher-used-metadata">
+                                    <small>
+                                      <i className="fa-solid fa-user-check"></i> Dipakai oleh: <strong>{vch.usedBy || 'Pelanggan'}</strong>
+                                    </small>
+                                    {vch.usedAt && (
+                                      <small>
+                                        <i className="fa-regular fa-clock"></i> {formatDepositFullDateTime(vch.usedAt).full}
+                                      </small>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="voucher-card-footer">
+                                {!vch.isUsed && (
+                                  <button
+                                    type="button"
+                                    className={`btn-toggle-vch ${vch.isActive ? 'btn-toggle-disable' : 'btn-toggle-enable'}`}
+                                    onClick={() => handleToggleVoucher(vch.id, vch.code, vch.isActive)}
+                                    title={vch.isActive ? 'Nonaktifkan sementara voucher ini' : 'Aktifkan kembali voucher ini'}
+                                  >
+                                    <i className={`fa-solid ${vch.isActive ? 'fa-pause' : 'fa-play'}`}></i>
+                                    <span>{vch.isActive ? 'Nonaktifkan' : 'Aktifkan'}</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  className="btn-delete-vch"
+                                  onClick={() => handleDeleteVoucher(vch.id, vch.code)}
+                                  title="Hapus voucher ini dari gudang"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i>
+                                  <span>Hapus</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </main>

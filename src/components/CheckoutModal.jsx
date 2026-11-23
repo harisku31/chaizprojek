@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findVoucher } from '../data/vouchers';
+import { findVoucher, markVoucherAsUsed } from '../data/vouchers';
 import { formatRupiah, copyToClipboard } from '../utils/format';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
@@ -157,9 +157,30 @@ export default function CheckoutModal({
     }
     const found = findVoucher(raw);
     if (!found) {
-      onShowToast('Kode redeem tidak valid atau sudah kedaluwarsa', 'fa-circle-xmark');
+      onShowToast('Kode voucher tidak valid atau tidak ditemukan!', 'fa-circle-xmark', 'error');
       return;
     }
+
+    if (found.isUsed) {
+      onShowToast(`Kode voucher "${found.code}" sudah pernah digunakan (1x pakai) dan telah hangus!`, 'fa-ban', 'error');
+      return;
+    }
+
+    if (found.isActive === false) {
+      onShowToast(`Kode voucher "${found.code}" sedang dinonaktifkan oleh Admin toko!`, 'fa-circle-xmark', 'warning');
+      return;
+    }
+
+    // Periksa aturan syarat minimal belanja
+    if (found.hasMinPurchase && totalAmount < (Number(found.minPurchaseAmount) || 0)) {
+      onShowToast(
+        `Voucher ${found.code} hanya berlaku untuk minimal belanja ${formatRupiah(found.minPurchaseAmount)}! (Belanja Anda saat ini: ${formatRupiah(totalAmount)})`,
+        'fa-triangle-exclamation',
+        'warning'
+      );
+      return;
+    }
+
     setAppliedVoucher(found);
     setVoucherCodeInput(found.code);
 
@@ -330,6 +351,11 @@ export default function CheckoutModal({
           warrantyPeriod: `Garansi Full ${item.duration || 'Aktif'}`
         });
       });
+
+      // Jika pesanan menggunakan voucher, hanguskan voucher (1x Pakai)
+      if (appliedVoucher && appliedVoucher.code) {
+        markVoucherAsUsed(appliedVoucher.code, finalEmail || email || name, `ORD-${Date.now().toString().slice(-6)}`);
+      }
     } catch (err) {}
 
     setIsSubmitting(false);
