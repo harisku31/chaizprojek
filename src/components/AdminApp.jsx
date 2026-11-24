@@ -1857,6 +1857,25 @@ export default function AdminApp() {
     showToast(`🎉 Kode voucher "${cleanCode}" berhasil diterbitkan ke Gudang Voucher!`, 'fa-circle-check', 'success');
   };
 
+  const generateRandomVoucherCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'CHAIZ-';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setVoucherCodeInput(code);
+    showToast(`Kode kupon acak dibuat: ${code}`, 'fa-dice', 'info');
+  };
+
+  const handleCopyVoucherCode = (code) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(code);
+      showToast(`Kode "${code}" berhasil disalin!`, 'fa-copy', 'success');
+    } else {
+      showToast(`Kode voucher: ${code}`, 'fa-ticket', 'info');
+    }
+  };
+
   const handleDeleteVoucher = (vchId, vchCode) => {
     if (window.confirm(`Yakin ingin menghapus kode voucher "${vchCode}" dari Gudang Voucher?`)) {
       deleteStoredVoucher(vchId);
@@ -5032,77 +5051,118 @@ export default function AdminApp() {
               {/* Form Tambah Voucher */}
               <div className="voucher-form-card">
                 <div className="voucher-form-header">
-                  <i className="fa-solid fa-circle-plus text-cyan"></i>
+                  <div className="voucher-header-badge">
+                    <i className="fa-solid fa-ticket"></i>
+                  </div>
                   <div>
-                    <h3>Tambah Kode Voucher Baru</h3>
-                    <span>Terbitkan voucher diskon baru untuk pelanggan</span>
+                    <h3>Terbitkan Voucher Baru</h3>
+                    <span>Buat kode promo baru untuk pembeli</span>
                   </div>
                 </div>
 
                 <form onSubmit={handleAddVoucherSubmit} className="voucher-create-form">
-                  <div className="admin-form-group">
-                    <label htmlFor="vchName">
-                      <i className="fa-solid fa-tag text-purple"></i> Nama / Keterangan Voucher <span className="text-danger">*</span>
+                  {/* Nama Voucher */}
+                  <div className="vch-form-group">
+                    <label className="vch-form-label" htmlFor="vchName">
+                      <i className="fa-solid fa-tag text-purple"></i> Nama / Keterangan Promo <span className="text-danger">*</span>
                     </label>
-                    <input
-                      type="text"
-                      id="vchName"
-                      className="clean-field-control"
-                      placeholder="contoh: Promo Gajian Spesial atau Diskon Kilat"
-                      value={voucherNameInput}
-                      onChange={(e) => setVoucherNameInput(e.target.value)}
-                    />
+                    <div className="vch-input-box">
+                      <input
+                        type="text"
+                        id="vchName"
+                        className="admin-vch-input"
+                        placeholder="contoh: Promo Bebas Biaya atau Gajian Spesial"
+                        value={voucherNameInput}
+                        onChange={(e) => setVoucherNameInput(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
                   </div>
 
-                  <div className="admin-form-group">
-                    <label htmlFor="vchCode">
-                      <i className="fa-solid fa-barcode text-cyan"></i> Kode Voucher (Kupon) <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="vchCode"
-                      className="clean-field-control font-mono font-bold"
-                      placeholder="contoh: CHAIZ20K, HEMAT5K, DISKON10"
-                      value={voucherCodeInput}
-                      onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
-                      required
-                    />
-                    <small className="form-hint-text">Kode otomatis dibuat huruf besar tanpa spasi.</small>
+                  {/* Kode Voucher */}
+                  <div className="vch-form-group">
+                    <div className="vch-label-row">
+                      <label className="vch-form-label" htmlFor="vchCode">
+                        <i className="fa-solid fa-barcode text-cyan"></i> Kode Voucher (Kupon) <span className="text-danger">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="btn-random-code"
+                        onClick={generateRandomVoucherCode}
+                        title="Buat kode kupon acak otomatis"
+                      >
+                        <i className="fa-solid fa-dice"></i> Acak Kode
+                      </button>
+                    </div>
+                    <div className="vch-input-box">
+                      <input
+                        type="text"
+                        id="vchCode"
+                        className="admin-vch-input vch-code-field"
+                        placeholder="contoh: CHAIZ20K, FREEDEM32"
+                        value={voucherCodeInput}
+                        onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                        required
+                        autoComplete="off"
+                      />
+                    </div>
+                    <small className="vch-hint-text">
+                      <i className="fa-solid fa-circle-info"></i> Huruf otomatis kapital tanpa spasi.
+                    </small>
                   </div>
 
-                  <div className="admin-form-group">
-                    <label htmlFor="vchDiscount">
-                      <i className="fa-solid fa-money-bill text-emerald"></i> Jumlah Potongan Harga Diskon (Rp) <span className="text-danger">*</span>
+                  {/* Potongan Diskon */}
+                  <div className="vch-form-group">
+                    <label className="vch-form-label" htmlFor="vchDiscount">
+                      <i className="fa-solid fa-money-bill-wave text-emerald"></i> Jumlah Potongan Diskon (Rp) <span className="text-danger">*</span>
                     </label>
-                    <input
-                      type="number"
-                      id="vchDiscount"
-                      className="clean-field-control"
-                      placeholder="contoh: 20000 (Potongan Rp 20.000)"
-                      value={voucherDiscountInput}
-                      onChange={(e) => setVoucherDiscountInput(e.target.value)}
-                      min="500"
-                      step="500"
-                      required
-                    />
+                    <div className="vch-currency-input-wrap">
+                      <span className="vch-currency-prefix">Rp</span>
+                      <input
+                        type="number"
+                        id="vchDiscount"
+                        className="admin-vch-input vch-currency-field"
+                        placeholder="20000"
+                        value={voucherDiscountInput}
+                        onChange={(e) => setVoucherDiscountInput(e.target.value)}
+                        min="500"
+                        step="500"
+                        required
+                      />
+                    </div>
+                    {/* Preset Nominal Diskon */}
+                    <div className="vch-quick-presets">
+                      <span className="preset-label">Pilihan Cepat:</span>
+                      {[5000, 10000, 20000, 30000, 35000, 50000].map((amt) => (
+                        <button
+                          key={`preset-disc-${amt}`}
+                          type="button"
+                          className={`vch-preset-chip ${Number(voucherDiscountInput) === amt ? 'active' : ''}`}
+                          onClick={() => setVoucherDiscountInput(String(amt))}
+                        >
+                          Rp {amt.toLocaleString('id-ID')}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Pengaturan Syarat Minimal Pembelian (2 Tombol Sesuai Permintaan) */}
-                  <div className="admin-form-group min-purchase-settings-box">
-                    <label>
+                  <div className="vch-form-group min-purchase-settings-box">
+                    <label className="vch-form-label">
                       <i className="fa-solid fa-cart-shopping text-warning"></i> Aturan Minimal Pembelian Pelanggan <span className="text-danger">*</span>
                     </label>
                     <span className="min-purchase-desc">
                       Pilih apakah pelanggan harus berbelanja dengan total tertentu untuk bisa menggunakan voucher ini:
                     </span>
 
+                    {/* 2 Tombol Pilihan Minimal */}
                     <div className="min-purchase-toggle-row">
                       <button
                         type="button"
                         className={`btn-min-toggle ${hasMinPurchase ? 'active-enabled' : ''}`}
                         onClick={() => setHasMinPurchase(true)}
                       >
-                        <i className="fa-solid fa-shield-halved"></i>
+                        <i className={`fa-solid ${hasMinPurchase ? 'fa-circle-check' : 'fa-shield-halved'}`}></i>
                         <span>Aktifkan Minimal</span>
                       </button>
 
@@ -5111,7 +5171,7 @@ export default function AdminApp() {
                         className={`btn-min-toggle ${!hasMinPurchase ? 'active-disabled' : ''}`}
                         onClick={() => setHasMinPurchase(false)}
                       >
-                        <i className="fa-solid fa-circle-xmark"></i>
+                        <i className={`fa-solid ${!hasMinPurchase ? 'fa-circle-check' : 'fa-ban'}`}></i>
                         <span>Nonaktifkan Minimal</span>
                       </button>
                     </div>
@@ -5119,15 +5179,15 @@ export default function AdminApp() {
                     {/* Jika Aktif: Input Jumlah Minimal Pembelian */}
                     {hasMinPurchase ? (
                       <div className="min-purchase-input-reveal">
-                        <label htmlFor="minPurchaseAmount">
+                        <label className="vch-sub-label" htmlFor="minPurchaseAmount">
                           Minimal Belanja Berapa (Rp):
                         </label>
-                        <div className="clean-input-wrapper">
-                          <span className="input-currency-prefix">Rp</span>
+                        <div className="vch-currency-input-wrap">
+                          <span className="vch-currency-prefix gold-prefix">Rp</span>
                           <input
                             type="number"
                             id="minPurchaseAmount"
-                            className="clean-field-control"
+                            className="admin-vch-input vch-currency-field"
                             placeholder="20000"
                             value={minPurchaseInput}
                             onChange={(e) => setMinPurchaseInput(e.target.value)}
@@ -5137,12 +5197,14 @@ export default function AdminApp() {
                           />
                         </div>
 
-                        <div className="min-purchase-presets">
+                        {/* Presets Minimal Belanja */}
+                        <div className="vch-quick-presets mt-8">
+                          <span className="preset-label">Preset Min:</span>
                           {[10000, 20000, 30000, 50000, 100000].map((amt) => (
                             <button
-                              key={amt}
+                              key={`preset-min-${amt}`}
                               type="button"
-                              className={`preset-pill-btn ${Number(minPurchaseInput) === amt ? 'active' : ''}`}
+                              className={`vch-preset-chip gold-chip ${Number(minPurchaseInput) === amt ? 'active' : ''}`}
                               onClick={() => setMinPurchaseInput(String(amt))}
                             >
                               Rp {amt.toLocaleString('id-ID')}
@@ -5151,9 +5213,9 @@ export default function AdminApp() {
                         </div>
 
                         <div className="min-purchase-explainer active-explainer">
-                          <i className="fa-solid fa-circle-info text-warning"></i>
+                          <i className="fa-solid fa-circle-exclamation text-warning"></i>
                           <span>
-                            Pelanggan <strong>hanya bisa</strong> memakai voucher jika total belanja <strong>di atas atau sama dengan Rp {Number(minPurchaseInput || 0).toLocaleString('id-ID')}</strong>.
+                            Pelanggan <strong>hanya bisa</strong> memakai voucher jika total belanja di keranjang <strong>di atas atau sama dengan Rp {Number(minPurchaseInput || 0).toLocaleString('id-ID')}</strong>.
                           </span>
                         </div>
                       </div>
@@ -5161,19 +5223,20 @@ export default function AdminApp() {
                       <div className="min-purchase-explainer no-min-explainer">
                         <i className="fa-solid fa-circle-check text-emerald"></i>
                         <span>
-                          Voucher bebas digunakan untuk belanja nominal berapa saja <strong>tanpa syarat minimal</strong>.
+                          <strong>Bebas Belanja:</strong> Pelanggan dapat memakai voucher ini untuk nominal pembelian berapa pun <strong>tanpa syarat minimal</strong>.
                         </span>
                       </div>
                     )}
                   </div>
 
-                  <div className="admin-form-group">
-                    <label htmlFor="vchDesc">
+                  {/* Catatan Tambahan */}
+                  <div className="vch-form-group">
+                    <label className="vch-form-label" htmlFor="vchDesc">
                       <i className="fa-solid fa-file-lines text-muted"></i> Catatan Tambahan (Opsional)
                     </label>
                     <textarea
                       id="vchDesc"
-                      className="clean-field-control"
+                      className="admin-vch-textarea"
                       rows="2"
                       placeholder="Keterangan singkat voucher..."
                       value={voucherDescInput}
@@ -5183,7 +5246,7 @@ export default function AdminApp() {
 
                   <div className="voucher-submit-wrap">
                     <button type="submit" className="btn-save-voucher">
-                      <i className="fa-solid fa-ticket"></i>
+                      <i className="fa-solid fa-paper-plane"></i>
                       <span>Terbitkan Voucher ke Toko</span>
                     </button>
                   </div>
@@ -5212,12 +5275,12 @@ export default function AdminApp() {
                 </div>
 
                 {/* Filter & Search Bar */}
-                <div className="voucher-search-bar">
-                  <div className="clean-input-wrapper search-wrap">
+                <div className="vch-controls-bar">
+                  <div className="admin-search-wrapper vch-search-wrapper">
                     <i className="fa-solid fa-magnifying-glass search-icon"></i>
                     <input
                       type="text"
-                      className="clean-field-control"
+                      className="admin-search-input"
                       placeholder="Cari voucher berdasarkan kode atau nama..."
                       value={voucherSearch}
                       onChange={(e) => setVoucherSearch(e.target.value)}
@@ -5246,10 +5309,11 @@ export default function AdminApp() {
                     </button>
                     <button
                       type="button"
-                      className={`filter-pill ${voucherFilter === 'used' ? 'active' : ''}`}
+                      className={`filter-pill filter-pill-hangus ${voucherFilter === 'used' ? 'active' : ''}`}
                       onClick={() => setVoucherFilter('used')}
                     >
-                      Sudah Digunakan ({vouchersList.filter((v) => v.isUsed).length})
+                      <i className="fa-solid fa-fire"></i>
+                      Hangus ({vouchersList.filter((v) => v.isUsed).length})
                     </button>
                   </div>
                 </div>
@@ -5306,19 +5370,24 @@ export default function AdminApp() {
                               className={`voucher-item-card ${vch.isUsed ? 'card-used-hangus' : !vch.isActive ? 'card-inactive' : 'card-active'}`}
                             >
                               <div className="voucher-card-top">
-                                <div className="voucher-code-badge">
+                                <div
+                                  className="voucher-code-badge"
+                                  onClick={() => handleCopyVoucherCode(vch.code)}
+                                  title="Klik untuk menyalin kode voucher"
+                                >
                                   <i className="fa-solid fa-ticket"></i>
                                   <code>{vch.code}</code>
+                                  <i className="fa-regular fa-copy copy-icon"></i>
                                 </div>
 
                                 <div className="voucher-status-wrap">
                                   {vch.isUsed ? (
                                     <span className="vch-badge badge-hangus">
-                                      <i className="fa-solid fa-fire"></i> Sudah Digunakan (Hangus)
+                                      <i className="fa-solid fa-fire"></i> 1x Pakai Hangus
                                     </span>
                                   ) : vch.isActive ? (
                                     <span className="vch-badge badge-active">
-                                      <i className="fa-solid fa-circle-check"></i> Aktif (Siap Pakai)
+                                      <i className="fa-solid fa-circle-check"></i> Aktif Siap Pakai
                                     </span>
                                   ) : (
                                     <span className="vch-badge badge-disabled">
@@ -5331,12 +5400,12 @@ export default function AdminApp() {
                               <div className="voucher-card-body">
                                 <h4 className="voucher-item-name">{vch.name}</h4>
                                 <div className="voucher-item-discount">
-                                  <span>Potongan Diskon:</span>
-                                  <strong>Rp {Number(vch.discountAmount || 0).toLocaleString('id-ID')}</strong>
+                                  <span className="discount-lbl">Potongan Diskon:</span>
+                                  <strong className="discount-val">Rp {Number(vch.discountAmount || 0).toLocaleString('id-ID')}</strong>
                                 </div>
 
                                 <div className="voucher-item-rule">
-                                  <i className={`fa-solid ${vch.hasMinPurchase ? 'fa-cart-shopping text-warning' : 'fa-check text-emerald'}`}></i>
+                                  <i className={`fa-solid ${vch.hasMinPurchase ? 'fa-cart-shopping text-warning' : 'fa-circle-check text-emerald'}`}></i>
                                   <span>
                                     {vch.hasMinPurchase
                                       ? `Min. Belanja: Rp ${Number(vch.minPurchaseAmount || 20000).toLocaleString('id-ID')}`
@@ -5350,13 +5419,15 @@ export default function AdminApp() {
 
                                 {vch.isUsed && (
                                   <div className="voucher-used-metadata">
-                                    <small>
-                                      <i className="fa-solid fa-user-check"></i> Dipakai oleh: <strong>{vch.usedBy || 'Pelanggan'}</strong>
-                                    </small>
+                                    <div className="used-meta-row">
+                                      <i className="fa-solid fa-user-check text-danger"></i>
+                                      <span>Dipakai oleh: <strong>{vch.usedBy || 'Pelanggan'}</strong></span>
+                                    </div>
                                     {vch.usedAt && (
-                                      <small>
-                                        <i className="fa-regular fa-clock"></i> {formatDepositFullDateTime(vch.usedAt).full}
-                                      </small>
+                                      <div className="used-meta-row">
+                                        <i className="fa-regular fa-clock text-muted"></i>
+                                        <span>{formatDepositFullDateTime(vch.usedAt).full}</span>
+                                      </div>
                                     )}
                                   </div>
                                 )}
@@ -5377,12 +5448,12 @@ export default function AdminApp() {
 
                                 <button
                                   type="button"
-                                  className="btn-delete-vch"
+                                  className={`btn-delete-vch ${vch.isUsed ? 'btn-delete-hangus' : ''}`}
                                   onClick={() => handleDeleteVoucher(vch.id, vch.code)}
-                                  title="Hapus voucher ini dari gudang"
+                                  title={vch.isUsed ? 'Hapus voucher yang sudah hangus ini' : 'Hapus voucher ini dari gudang'}
                                 >
                                   <i className="fa-solid fa-trash-can"></i>
-                                  <span>Hapus</span>
+                                  <span>{vch.isUsed ? 'Hapus Voucher Hangus' : 'Hapus'}</span>
                                 </button>
                               </div>
                             </div>
