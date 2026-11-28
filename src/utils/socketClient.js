@@ -60,7 +60,10 @@ export function subscribeAdminSocket({
   onPresenceUpdated,
   onBanChanged,
   onIncomingDeposit,
-  onDepositUpdated
+  onDepositUpdated,
+  onVoucherUsed,
+  onVoucherUpdated,
+  onVouchersSynced
 }) {
   const socket = getSocket();
   if (!socket) return () => {};
@@ -116,6 +119,24 @@ export function subscribeAdminSocket({
     }
   };
 
+  const voucherUsedHandler = (voucher) => {
+    if (typeof onVoucherUsed === 'function') {
+      onVoucherUsed(voucher);
+    }
+  };
+
+  const voucherUpdatedHandler = (voucher) => {
+    if (typeof onVoucherUpdated === 'function') {
+      onVoucherUpdated(voucher);
+    }
+  };
+
+  const vouchersSyncedHandler = (vouchers) => {
+    if (typeof onVouchersSynced === 'function') {
+      onVouchersSynced(vouchers);
+    }
+  };
+
   socket.on('order:incoming', incomingHandler);
   socket.on('order:updated', updateHandler);
   socket.on('orders:cleared', clearHandler);
@@ -123,6 +144,9 @@ export function subscribeAdminSocket({
   socket.on('user:banned_changed', banHandler);
   socket.on('deposit:incoming', depositIncomingHandler);
   socket.on('deposit:updated', depositUpdateHandler);
+  socket.on('voucher:used', voucherUsedHandler);
+  socket.on('voucher:updated', voucherUpdatedHandler);
+  socket.on('vouchers:updated', vouchersSyncedHandler);
 
   return () => {
     socket.off('order:incoming', incomingHandler);
@@ -132,6 +156,38 @@ export function subscribeAdminSocket({
     socket.off('user:banned_changed', banHandler);
     socket.off('deposit:incoming', depositIncomingHandler);
     socket.off('deposit:updated', depositUpdateHandler);
+    socket.off('voucher:used', voucherUsedHandler);
+    socket.off('voucher:updated', voucherUpdatedHandler);
+    socket.off('vouchers:updated', vouchersSyncedHandler);
+  };
+}
+
+/**
+ * Langganan realtime update voucher untuk storefront pembeli
+ */
+export function subscribeVouchersSocket({ onVouchersSynced, onVoucherUpdated } = {}) {
+  const socket = getSocket();
+  if (!socket) return () => {};
+
+  const syncedHandler = (vouchers) => {
+    if (typeof onVouchersSynced === 'function' && Array.isArray(vouchers)) {
+      onVouchersSynced(vouchers);
+    }
+  };
+  const updatedHandler = (voucher) => {
+    if (typeof onVoucherUpdated === 'function' && voucher) {
+      onVoucherUpdated(voucher);
+    }
+  };
+
+  socket.on('vouchers:updated', syncedHandler);
+  socket.on('voucher:updated', updatedHandler);
+  socket.on('voucher:used', updatedHandler);
+
+  return () => {
+    socket.off('vouchers:updated', syncedHandler);
+    socket.off('voucher:updated', updatedHandler);
+    socket.off('voucher:used', updatedHandler);
   };
 }
 

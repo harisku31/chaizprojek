@@ -42,7 +42,19 @@ import {
   verifyAdminLogin,
   verifyAdminSessionToken,
   deleteAdminSession,
-  updateAdminPasswordInDb
+  updateAdminPasswordInDb,
+  getAllVouchers,
+  getVoucherByIdOrCode,
+  saveVoucher,
+  redeemVoucherAtomic,
+  toggleVoucherActiveInDb,
+  deleteVoucherInDb,
+  clearUsedVouchersInDb,
+  getAllBackupsMeta,
+  getBackupSnapshotById,
+  saveBackupSnapshot,
+  deleteBackupSnapshotById,
+  restoreDataIntoDb
 } from './db.js';
 
 const PORT = process.env.PORT || 3005;
@@ -808,6 +820,220 @@ app.post('/api/activities', (req, res) => {
 });
 
 // -------------------------------------------------------------------
+// 3B. GUDANG VOUCHER (1X PAKAI LANGSUNG HANGUS DI ADMIN & CHECKOUT)
+// -------------------------------------------------------------------
+
+app.get('/api/vouchers', (req, res) => {
+  try {
+    const list = getAllVouchers();
+    res.json({ success: true, count: list.length, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/vouchers/check/:code', (req, res) => {
+  try {
+    const voucher = getVoucherByIdOrCode(req.params.code);
+    if (!voucher) {
+      return res.status(404).json({ success: false, reason: 'NOT_FOUND' });
+    }
+    res.json({ success: true, data: voucher });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/vouchers', (req, res) => {
+  try {
+    const vData = req.body;
+    if (!vData || !vData.code) {
+      return res.status(400).json({ success: false, error: 'Kode voucher wajib diisi' });
+    }
+    const saved = saveVoucher(vData);
+    io.to('admin-room').emit('voucher:updated', saved);
+    io.emit('vouchers:updated', getAllVouchers());
+    res.status(201).json({ success: true, data: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+const handleUseVoucherRoute = (req, res) => {
+  try {
+    const codeOrId = req.params.id || req.body?.code || req.body?.id;
+    const usedBy = req.body?.usedBy || req.body?.userEmail || 'Pelanggan';
+    const usedOrder = req.body?.usedOrder || req.body?.orderId || '';
+
+    if (!codeOrId) {
+      return res.status(400).json({ success: false, error: 'Kode atau ID voucher wajib diisi' });
+    }
+
+    const result = redeemVoucherAtomic(codeOrId, usedBy, usedOrder);
+    if (!result.success) {
+      const status = result.reason === 'NOT_FOUND' ? 404 : 409;
+      return res.status(status).json({
+        success: false,
+        reason: result.reason,
+        data: result.voucher || null
+      });
+    }
+
+    io.to('admin-room').emit('voucher:used', result.voucher);
+    io.to('admin-room').emit('voucher:updated', result.voucher);
+    io.emit('vouchers:updated', getAllVouchers());
+
+    console.log(`🔥 [Voucher Hangus]: Voucher ${result.voucher.code} dipakai oleh ${usedBy} (Order: ${usedOrder || '-'})`);
+    res.json({ success: true, data: result.voucher });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+app.post('/api/vouchers/use', handleUseVoucherRoute);
+app.post('/api/vouchers/:id/use', handleUseVoucherRoute);
+
+app.patch('/api/vouchers/:id/toggle', (req, res) => {
+  try {
+    const updated = toggleVoucherActiveInDb(req.params.id);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Voucher not found' });
+    }
+    io.to('admin-room').emit('voucher:updated', updated);
+    io.emit('vouchers:updated', getAllVouchers());
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.patch('/api/vouchers/:id', (req, res) => {
+  try {
+    if (req.body?.isUsed === true) {
+      return handleUseVoucherRoute(req, res);
+    }
+    const existing = getVoucherByIdOrCode(req.params.id);
+    const saved = saveVoucher({ ...(existing || {}), ...(req.body || {}), id: existing?.id || req.params.id });
+    if (!saved) {
+      return res.status(404).json({ success: false, error: 'Voucher not found' });
+    }
+    io.to('admin-room').emit('voucher:updated', saved);
+    io.emit('vouchers:updated', getAllVouchers());
+    res.json({ success: true, data: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/vouchers/used/clear', (req, res) => {
+  try {
+    const clearedCount = clearUsedVouchersInDb();
+    io.emit('vouchers:updated', getAllVouchers());
+    res.json({ success: true, clearedCount });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/vouchers/:id', (req, res) => {
+  try {
+    deleteVoucherInDb(req.params.id);
+    io.emit('vouchers:updated', getAllVouchers());
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------------
+// 3C. BACKUP & RESTORE DATA SNAPSHOTS (ANTI-HAPUS SAAT RESET)
+// -------------------------------------------------------------------
+
+app.get('/api/backups', (req, res) => {
+  try {
+    const list = getAllBackupsMeta();
+    res.json({ success: true, count: list.length, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/backups/:id', (req, res) => {
+  try {
+    const snap = getBackupSnapshotById(req.params.id);
+    if (!snap) {
+      return res.status(404).json({ success: false, error: 'Backup snapshot tidak ditemukan' });
+    }
+    res.json({ success: true, data: snap });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/backups', (req, res) => {
+  try {
+    const body = req.body || {};
+    const saved = saveBackupSnapshot({
+      id: body.id,
+      label: body.label || 'Backup Data ChaizStore',
+      reason: body.reason || 'manual',
+      createdBy: body.createdBy || 'Admin ChaizStore',
+      stats: body.stats || {},
+      data: body.data || {},
+      createdAt: body.createdAt
+    });
+
+    // Simpan juga salinan fisik JSON di folder backup_data/snapshots agar tetap aman walau DB direset
+    try {
+      const snapDir = join(__dirname, '..', 'backup_data', 'snapshots');
+      if (!fs.existsSync(snapDir)) fs.mkdirSync(snapDir, { recursive: true });
+      fs.writeFileSync(join(snapDir, `${saved.id}.json`), JSON.stringify(saved, null, 2), 'utf8');
+    } catch (_) {}
+
+    io.to('admin-room').emit('backup:created', {
+      id: saved.id,
+      label: saved.label,
+      reason: saved.reason,
+      createdBy: saved.createdBy,
+      stats: saved.stats,
+      createdAt: saved.createdAt
+    });
+    res.status(201).json({ success: true, data: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/backups/restore', (req, res) => {
+  try {
+    const body = req.body || {};
+    let payload = body.data || body;
+    if (body.backupId) {
+      const snap = getBackupSnapshotById(body.backupId);
+      if (!snap) {
+        return res.status(404).json({ success: false, error: 'Snapshot backup tidak ditemukan' });
+      }
+      payload = snap.data;
+    }
+    const counts = restoreDataIntoDb(payload);
+    io.to('admin-room').emit('backup:restored', { counts });
+    io.emit('vouchers:updated', getAllVouchers());
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/backups/:id', (req, res) => {
+  try {
+    deleteBackupSnapshotById(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------------
 // 4. ONE-CLICK AUTO SYNC FROM FIREBASE RTDB
 // -------------------------------------------------------------------
 
@@ -815,11 +1041,12 @@ export async function syncFromFirebase() {
   const FIREBASE_DB_URL = 'https://chaizstore-default-rtdb.asia-southeast1.firebasedatabase.app';
   try {
     console.log('🔄 [Auto-Sync]: Checking & seeding database from Cloud Firebase...');
-    const [trxRes, usersRes, visitsRes, actsRes] = await Promise.all([
+    const [trxRes, usersRes, visitsRes, actsRes, vouchersRes] = await Promise.all([
       fetch(`${FIREBASE_DB_URL}/transactions.json`).catch(() => null),
       fetch(`${FIREBASE_DB_URL}/registered_users.json`).catch(() => null),
       fetch(`${FIREBASE_DB_URL}/permanent_visits.json`).catch(() => null),
-      fetch(`${FIREBASE_DB_URL}/activity_logs.json`).catch(() => null)
+      fetch(`${FIREBASE_DB_URL}/activity_logs.json`).catch(() => null),
+      fetch(`${FIREBASE_DB_URL}/vouchers.json`).catch(() => null)
     ]);
 
     if (trxRes && trxRes.ok) {
@@ -858,6 +1085,16 @@ export async function syncFromFirebase() {
       }
     }
 
+    if (vouchersRes && vouchersRes.ok) {
+      const data = await vouchersRes.json();
+      if (data && typeof data === 'object') {
+        const list = Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean);
+        list.forEach((v) => {
+          if (v && v.code) saveVoucher({ ...v, preserveExisting: true });
+        });
+      }
+    }
+
     console.log('✅ [Auto-Sync]: Database fully seeded and synchronized from Cloud Firebase!');
     return true;
   } catch (err) {
@@ -881,7 +1118,7 @@ server.listen(PORT, '0.0.0.0', async () => {
   console.log(`======================================================\n`);
 
   // Seeding check on start
-  if (getAllTransactions().length === 0 || getAllUsers().length === 0) {
+  if (getAllTransactions().length === 0 || getAllUsers().length === 0 || getAllVouchers().length === 0) {
     await syncFromFirebase();
   }
 });

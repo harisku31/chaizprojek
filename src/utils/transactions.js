@@ -540,7 +540,11 @@ export function createTransaction({
   proofUrl = null,
   proofFileName = null,
   proofSize = null,
-  warrantyPeriod = 'Garansi Penuh'
+  warrantyPeriod = 'Garansi Penuh',
+  voucherCode = null,
+  voucherDiscount = 0,
+  voucherName = null,
+  voucherDescription = null
 }) {
   const cleanEmail = (userEmail || (customerEmail && customerEmail !== '-' ? customerEmail : null) || '').toLowerCase().trim() || null;
   const computedUserKey =
@@ -572,8 +576,12 @@ export function createTransaction({
     productCategory,
     price,
     qty,
-    total: total || price * qty,
+    total: total !== undefined && total !== null ? total : price * qty,
     paymentMethod,
+    voucherCode: voucherCode ? String(voucherCode).trim().toUpperCase() : null,
+    voucherDiscount: Number(voucherDiscount) || 0,
+    voucherName: voucherName || null,
+    voucherDescription: voucherDescription || null,
     paymentStatus: paymentStatus || (proofUrl === 'GATEWAY_SUCCESS' ? 'Lunas' : 'Pending'),
     isGatewayPaid: isGatewayPaid || proofUrl === 'GATEWAY_SUCCESS' || paymentMethod.includes('Gateway'),
     gatewayKey: gatewayKey || (proofUrl === 'GATEWAY_SUCCESS' ? 'js_c2ae56533ce1a2da9470e1e5916bd8cc67c732718d7b9c43' : null),

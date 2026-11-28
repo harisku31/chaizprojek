@@ -67,7 +67,8 @@ import {
 } from './utils/transactions';
 import { listenToFirebase } from './utils/firebase';
 import { syncUserToSql } from './utils/sqlApi';
-import { subscribeUserSocket } from './utils/socketClient';
+import { subscribeUserSocket, subscribeVouchersSocket } from './utils/socketClient';
+import { syncVouchersFromCloud, listenToVouchers, saveStoredVouchers } from './data/vouchers';
 import { formatRupiah } from './utils/format';
 import {
   playUserSuccessSound,
@@ -87,6 +88,24 @@ export default function App() {
       setProducts(updatedProducts);
     });
     return unsubscribe;
+  }, []);
+
+  // Realtime sync Gudang Voucher dari Admin (Firebase + SQLite + Socket.io)
+  useEffect(() => {
+    syncVouchersFromCloud().catch(() => {});
+    const unsubListen = listenToVouchers(() => {});
+    const unsubSocket = subscribeVouchersSocket({
+      onVouchersSynced: (list) => {
+        if (Array.isArray(list)) saveStoredVouchers(list, { broadcast: true });
+      },
+      onVoucherUpdated: () => {
+        syncVouchersFromCloud().catch(() => {});
+      }
+    });
+    return () => {
+      unsubListen?.();
+      unsubSocket?.();
+    };
   }, []);
 
   // Auth state

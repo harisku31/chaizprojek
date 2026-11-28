@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
+    "backup": "node scripts/backup_database.js",
+    "test": "node --check server/db.js && node --check server/index.js && node --check api/vouchers.js && node --check api/backups.js",
     "start": "node server/index.js"
   },
   "dependencies": {

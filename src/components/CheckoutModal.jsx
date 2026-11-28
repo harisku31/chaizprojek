@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findVoucher, markVoucherAsUsed } from '../data/vouchers';
+import { findVoucher, findVoucherFresh, markVoucherAsUsed, syncVouchersFromCloud } from '../data/vouchers';
 import { formatRupiah, copyToClipboard } from '../utils/format';
 import { createTransaction, getUserKey } from '../utils/transactions';
 import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
@@ -30,16 +30,19 @@ export default function CheckoutModal({
 
   const [selectedMethod, setSelectedMethod] = useState('qris'); // 'qris' | 'gopay' | 'ewallet' | 'bank'
 
-  // Reset voucher on modal open/close or pre-fill from initialVoucher
+  // Reset voucher on modal open/close or pre-fill from initialVoucher + tarik voucher terbaru dari Cloud
   useEffect(() => {
     if (!isOpen) {
       setVoucherCodeInput('');
       setAppliedVoucher(null);
       setSelectedBonusItem('Canva Pro (1 Bulan)');
       setSelectedMethod('qris');
-    } else if (initialVoucher) {
-      setAppliedVoucher(initialVoucher);
-      setVoucherCodeInput(initialVoucher.code);
+    } else {
+      syncVouchersFromCloud().catch(() => {});
+      if (initialVoucher) {
+        setAppliedVoucher(initialVoucher);
+        setVoucherCodeInput(initialVoucher.code);
+      }
     }
   }, [isOpen, initialVoucher]);
 
@@ -63,6 +66,7 @@ export default function CheckoutModal({
   }, [isOpen, authUser]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
   const [dynamicQrisUrl, setDynamicQrisUrl] = useState(null);
   const [isGeneratingQris, setIsGeneratingQris] = useState(false);
   const [qrisTimerSeconds, setQrisTimerSeconds] = useState(900);
@@ -149,13 +153,21 @@ export default function CheckoutModal({
     onShowToast(`Foto QRIS Dinamis (${formatRupiah(finalTotal)}) berhasil di-download!`, 'fa-circle-check');
   };
 
-  const handleApplyVoucher = (codeOverride) => {
+  const handleApplyVoucher = async (codeOverride) => {
     const raw = codeOverride || voucherCodeInput;
     if (!raw || !raw.trim()) {
       onShowToast('Silakan masukkan kode voucher / redeem code terlebih dahulu!', 'fa-triangle-exclamation');
       return;
     }
-    const found = findVoucher(raw);
+
+    setIsCheckingVoucher(true);
+    let found = null;
+    try {
+      found = (await findVoucherFresh(raw)) || findVoucher(raw);
+    } finally {
+      setIsCheckingVoucher(false);
+    }
+
     if (!found) {
       onShowToast('Kode voucher tidak valid atau tidak ditemukan!', 'fa-circle-xmark', 'error');
       return;
@@ -240,6 +252,24 @@ export default function CheckoutModal({
       return;
     }
 
+    setIsSubmitting(true);
+
+    // Validasi ulang status voucher secara realtime sebelum pesanan diproses (cegah double-use)
+    if (appliedVoucher && appliedVoucher.code) {
+      const latestVoucher = await findVoucherFresh(appliedVoucher.code).catch(() => findVoucher(appliedVoucher.code));
+      if (!latestVoucher || latestVoucher.isUsed || latestVoucher.isActive === false) {
+        setIsSubmitting(false);
+        setAppliedVoucher(null);
+        setVoucherCodeInput('');
+        onShowToast(
+          `⚠️ Kode voucher "${appliedVoucher.code}" sudah hangus atau tidak lagi aktif! Silakan cek kembali tagihan Anda.`,
+          'fa-ban',
+          'error'
+        );
+        return;
+      }
+    }
+
     const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
     const finalUserId =
       authUser?.id ||
@@ -256,6 +286,7 @@ export default function CheckoutModal({
         id: orderId,
         amount: finalTotal,
         total: finalTotal,
+        originalTotal: totalAmount,
         items,
         customerName: name || authUser?.name || 'Pelanggan ChaizStore',
         customerPhone: wa,
@@ -263,9 +294,14 @@ export default function CheckoutModal({
         customerUsername: username || authUser?.username || '',
         paymentMethod: selectedMethod === 'gopay' ? 'GoPay Instant Otomatis' : 'QRIS Payment Gateway Otomatis',
         subMethod: selectedMethod,
-        source: source
+        source: source,
+        voucherCode: appliedVoucher ? appliedVoucher.code : null,
+        voucherDiscount: appliedVoucher ? discountAmount : 0,
+        voucherName: appliedVoucher ? appliedVoucher.name : null,
+        voucherDescription: appliedVoucher ? (appliedVoucher.description || appliedVoucher.badge) : null
       };
 
+      setIsSubmitting(false);
       if (typeof onProceedToPayment === 'function') {
         onProceedToPayment(orderPayload);
       } else {
@@ -277,8 +313,6 @@ export default function CheckoutModal({
       }
       return;
     }
-
-    setIsSubmitting(true);
 
     let methodTitle = 'QRIS Payment Gateway Otomatis';
     if (finalTotal === 0) {
@@ -317,23 +351,18 @@ export default function CheckoutModal({
 
     let capcutAccountLine = '';
 
-    // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal
+    // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal & cloud
     try {
-      const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
-      const finalUserId =
-        authUser?.id ||
-        getUserKey(authUser) ||
-        (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
-
+      const createdOrderIds = [];
       items.forEach((item) => {
-        createTransaction({
+        const created = createTransaction({
           productId: item.productId || null,
           productName: item.name,
           productDuration: item.duration || 'Reguler',
           productCategory: 'Akun Premium',
           price: item.price || 0,
           qty: item.qty || 1,
-          total: item.total || item.price || 0,
+          total: items.length === 1 ? finalTotal : (item.total || item.price || 0),
           userId: finalUserId,
           userEmail: finalEmail !== '-' ? finalEmail : null,
           customerUsername: username || authUser?.username || '',
@@ -341,6 +370,7 @@ export default function CheckoutModal({
           customerEmail: finalEmail || email,
           customerPhone: wa,
           paymentMethod: methodTitle,
+          paymentStatus: finalTotal === 0 ? 'Lunas (Voucher)' : 'Pending',
           voucherCode: appliedVoucher ? appliedVoucher.code : null,
           voucherDiscount: appliedVoucher ? (discountAmount || (finalTotal === 0 ? item.total || item.price : 0)) : 0,
           voucherName: appliedVoucher ? appliedVoucher.name : null,
@@ -350,11 +380,16 @@ export default function CheckoutModal({
           proofSize: null,
           warrantyPeriod: `Garansi Full ${item.duration || 'Aktif'}`
         });
+        if (created?.id) createdOrderIds.push(created.id);
       });
 
-      // Jika pesanan menggunakan voucher, hanguskan voucher (1x Pakai)
+      // Jika pesanan menggunakan voucher, hanguskan voucher (1x Pakai) di lokal, Cloud Firebase & SQLite Admin
       if (appliedVoucher && appliedVoucher.code) {
-        markVoucherAsUsed(appliedVoucher.code, finalEmail || email || name, `ORD-${Date.now().toString().slice(-6)}`);
+        await markVoucherAsUsed(
+          appliedVoucher.code,
+          (finalEmail && finalEmail !== '-' ? finalEmail : name) || 'Pelanggan',
+          createdOrderIds[0] || `ORD-${Date.now().toString().slice(-6)}`
+        );
       }
     } catch (err) {}
 
@@ -456,9 +491,11 @@ export default function CheckoutModal({
                   <button
                     type="button"
                     className="btn-apply-voucher"
+                    disabled={isCheckingVoucher}
                     onClick={() => handleApplyVoucher()}
                   >
-                    <i className="fa-solid fa-check"></i> Gunakan
+                    <i className={`fa-solid ${isCheckingVoucher ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>{' '}
+                    {isCheckingVoucher ? 'Cek...' : 'Gunakan'}
                   </button>
                 </div>
               ) : (

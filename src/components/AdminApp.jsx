@@ -71,10 +71,28 @@ import {
   getStoredVouchers,
   saveStoredVouchers,
   addStoredVoucher,
+  markVoucherAsUsed,
   deleteStoredVoucher,
   toggleStoredVoucherActive,
-  clearUsedVouchers
+  clearUsedVouchers,
+  syncVouchersFromCloud,
+  listenToVouchers
 } from '../data/vouchers';
+import {
+  getLocalBackups,
+  createAndSaveBackupSnapshot,
+  syncBackupsFromCloud,
+  resolveFullBackupSnapshot,
+  restoreFromBackupPayload,
+  deleteBackupSnapshot,
+  downloadBackupJson,
+  downloadBackupExcelCsv,
+  downloadBackupSql,
+  openPrintablePdfReport,
+  parseUploadedBackupJson
+} from '../utils/backupManager';
+import AdminAnalyticsTab from './AdminAnalyticsTab';
+import AdminBackupTab from './AdminBackupTab';
 
 // Helper: Bersihkan nomor HP untuk format WhatsApp internasional (62xxxx)
 const cleanPhoneNumber = (phone) => {
@@ -318,6 +336,9 @@ export default function AdminApp() {
 
   // Gudang Voucher State (Menu 6)
   const [vouchersList, setVouchersList] = useState(() => getStoredVouchers());
+  const knownUsedVoucherIdsRef = React.useRef(
+    new Set((getStoredVouchers() || []).filter((v) => v && v.isUsed).map((v) => v.id))
+  );
   const [voucherFilter, setVoucherFilter] = useState('all'); // 'all' | 'active' | 'used'
   const [voucherSearch, setVoucherSearch] = useState('');
   const [voucherNameInput, setVoucherNameInput] = useState('');
@@ -326,6 +347,11 @@ export default function AdminApp() {
   const [hasMinPurchase, setHasMinPurchase] = useState(true);
   const [minPurchaseInput, setMinPurchaseInput] = useState('20000');
   const [voucherDescInput, setVoucherDescInput] = useState('');
+
+  // Backup Data State (Menu 8)
+  const [backupsList, setBackupsList] = useState(() => getLocalBackups());
+  const [isSyncingBackups, setIsSyncingBackups] = useState(false);
+  const [isWorkingBackup, setIsWorkingBackup] = useState(false);
 
   // Filter & Search State
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -378,16 +404,20 @@ export default function AdminApp() {
   const handleForceCloudSync = async () => {
     setIsRefreshingOrders(true);
     try {
-      const [freshOrders, freshUsers, freshVisits, freshActs] = await Promise.all([
+      const [freshOrders, freshUsers, freshVisits, freshActs, freshVouchers, freshBackups] = await Promise.all([
         syncTransactionsFromCloud(),
         syncRegisteredUsersFromCloud(),
         syncPermanentVisitsFromCloud(),
-        syncActivityLogsFromCloud()
+        syncActivityLogsFromCloud(),
+        syncVouchersFromCloud(),
+        syncBackupsFromCloud()
       ]);
       if (freshOrders && freshOrders.length > 0) setOrdersList(freshOrders);
       if (freshUsers && freshUsers.length > 0) setRegisteredUsers(freshUsers);
       if (freshVisits && freshVisits.length > 0) setPermanentVisits(freshVisits);
       if (freshActs && freshActs.length > 0) setActivityLogs(freshActs);
+      if (Array.isArray(freshVouchers)) setVouchersList(freshVouchers);
+      if (Array.isArray(freshBackups)) setBackupsList(freshBackups);
       showToast('Seluruh data berhasil disinkronkan dari Cloud Database!', 'fa-cloud-arrow-down text-success', 'success');
     } catch {
       showToast('Gagal menyinkronkan data dari cloud', 'fa-circle-xmark', 'error');
@@ -401,6 +431,7 @@ export default function AdminApp() {
     setActivityLogs(getActivityLogs());
     setPermanentVisits(getPermanentVisits());
     setOrdersList(getTransactions());
+    setVouchersList(getStoredVouchers());
     handleForceCloudSync();
   };
 
@@ -486,6 +517,24 @@ export default function AdminApp() {
       }
     };
 
+    // Handler update Gudang Voucher realtime + notifikasi saat ada voucher hangus dipakai
+    const handleLiveVouchersUpdate = (freshVouchers, { notifyNewlyUsed = true } = {}) => {
+      if (!Array.isArray(freshVouchers)) return;
+      setVouchersList(freshVouchers);
+      freshVouchers.forEach((v) => {
+        if (v && v.isUsed && !knownUsedVoucherIdsRef.current.has(v.id)) {
+          knownUsedVoucherIdsRef.current.add(v.id);
+          if (notifyNewlyUsed) {
+            showToast(
+              `🔥 Voucher "${v.code}" baru saja dipakai oleh ${v.usedBy || 'Pelanggan'} — Status: Telah Hangus Dipakai!`,
+              'fa-fire text-danger',
+              'warning'
+            );
+          }
+        }
+      });
+    };
+
     const handleStorageChange = (e) => {
       if (!e) return;
       if (e.key === 'chaiz_transactions') {
@@ -501,6 +550,8 @@ export default function AdminApp() {
           }
           fresh.forEach((o) => knownOrderIdsRef.current.add(o.id));
         } catch {}
+      } else if (e.key === 'chaiz_store_vouchers') {
+        handleLiveVouchersUpdate(getStoredVouchers());
       } else if (e.key === 'chaiz_admin_registered_users') {
         setRegisteredUsers(getRegisteredUsers());
       } else if (e.key === 'chaiz_permanent_visit_history') {
@@ -594,6 +645,8 @@ export default function AdminApp() {
           } else if (type === 'DEPOSITS_UPDATED') {
             setDepositsList(getDeposits());
             setRegisteredUsers(getRegisteredUsers());
+          } else if (type === 'VOUCHERS_UPDATED') {
+            handleLiveVouchersUpdate(ev.data?.vouchers || getStoredVouchers());
           }
         };
       } catch (e) {
@@ -719,7 +772,17 @@ export default function AdminApp() {
           setDepositsList(fresh);
         }
       });
+      syncVouchersFromCloud().then((freshVouchers) => {
+        if (Array.isArray(freshVouchers)) {
+          handleLiveVouchersUpdate(freshVouchers);
+        }
+      });
     }, 25000);
+
+    // Realtime streaming Gudang Voucher dari Firebase + BroadcastChannel + CustomEvent
+    const unsubscribeVouchers = listenToVouchers((liveVouchers) => {
+      handleLiveVouchersUpdate(liveVouchers);
+    });
 
     // Realtime streaming pesanan deposit dari Firebase RTDB
     const unsubscribeDeposits = listenToDeposits((liveDeps) => {
@@ -820,6 +883,27 @@ export default function AdminApp() {
       onDepositUpdated: (updatedDep) => {
         if (!updatedDep || !updatedDep.id) return;
         setDepositsList((prev) => prev.map((d) => (d.id === updatedDep.id ? { ...d, ...updatedDep } : d)));
+      },
+      onVoucherUsed: (usedVoucher) => {
+        if (!usedVoucher) return;
+        syncVouchersFromCloud().then((freshVouchers) => {
+          if (Array.isArray(freshVouchers)) {
+            handleLiveVouchersUpdate(freshVouchers);
+          }
+        });
+      },
+      onVoucherUpdated: () => {
+        syncVouchersFromCloud().then((freshVouchers) => {
+          if (Array.isArray(freshVouchers)) {
+            handleLiveVouchersUpdate(freshVouchers);
+          }
+        });
+      },
+      onVouchersSynced: (list) => {
+        if (Array.isArray(list)) {
+          saveStoredVouchers(list, { broadcast: false });
+          handleLiveVouchersUpdate(list);
+        }
       }
     });
 
@@ -830,6 +914,7 @@ export default function AdminApp() {
       if (unsubscribeUsers) unsubscribeUsers();
       if (unsubscribeActivities) unsubscribeActivities();
       if (unsubscribeVisits) unsubscribeVisits();
+      if (unsubscribeVouchers) unsubscribeVouchers();
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chaiz_trx_updated', handleCustomTrx);
       window.removeEventListener('chaiz_admin_deposits_updated', handleDepositUpdatedEvent);
@@ -838,6 +923,67 @@ export default function AdminApp() {
       clearInterval(interval);
       clearInterval(cloudPollInterval);
     };
+  }, []);
+
+  // Auto-reconcile: jika ada pesanan masuk yang memakai voucher tetapi voucher di gudang belum bertanda hangus, otomatis hanguskan
+  useEffect(() => {
+    if (!Array.isArray(ordersList) || ordersList.length === 0) return;
+    const currentVouchers = getStoredVouchers();
+    if (!currentVouchers.length) return;
+
+    const toBurn = [];
+    for (const order of ordersList) {
+      if (!order || order.status === 'rejected') continue;
+      const vInfo = parseOrderVoucherInfo(order);
+      if (!vInfo.hasVoucher || !vInfo.code) continue;
+
+      const match = currentVouchers.find((v) => v.code === vInfo.code && !v.isUsed);
+      if (!match) continue;
+
+      const orderTs = new Date(order.createdAt || 0).getTime();
+      const voucherTs = new Date(match.createdAt || 0).getTime();
+      if (!orderTs || !voucherTs || orderTs >= voucherTs - 5000) {
+        toBurn.push({
+          code: match.code,
+          usedBy: order.customerEmail && order.customerEmail !== '-' ? order.customerEmail : (order.customerName || 'Pelanggan'),
+          usedOrder: order.id || ''
+        });
+      }
+    }
+
+    if (toBurn.length > 0) {
+      Promise.all(toBurn.map((b) => markVoucherAsUsed(b.code, b.usedBy, b.usedOrder)))
+        .then(() => {
+          setVouchersList(getStoredVouchers());
+        })
+        .catch(() => {});
+    }
+  }, [ordersList]);
+
+  // Sinkronkan voucher atau backup terbaru saat tab dibuka
+  useEffect(() => {
+    if (activeAdminTab === 'vouchers') {
+      syncVouchersFromCloud()
+        .then((fresh) => {
+          if (Array.isArray(fresh)) setVouchersList(fresh);
+        })
+        .catch(() => {});
+    } else if (activeAdminTab === 'backup') {
+      syncBackupsFromCloud()
+        .then((fresh) => {
+          if (Array.isArray(fresh)) setBackupsList(fresh);
+        })
+        .catch(() => {});
+    }
+  }, [activeAdminTab]);
+
+  // Sinkronkan daftar backup saat awal dimuat
+  useEffect(() => {
+    syncBackupsFromCloud()
+      .then((fresh) => {
+        if (Array.isArray(fresh)) setBackupsList(fresh);
+      })
+      .catch(() => {});
   }, []);
 
   // Subscribe to real-time product database & stock changes
@@ -1607,20 +1753,152 @@ export default function AdminApp() {
     }
   };
 
-  // Bersihkan Seluruh Riwayat Pesanan & Foto Bukti oleh Admin
-  const handleClearOrdersHistory = () => {
+  // =========================================================================
+  // HANDLERS: FITUR BACKUP DATA & PEMULIHAN (ANTI-HILANG SAAT RESET)
+  // =========================================================================
+  const getCurrentSnapshotPayload = () => ({
+    registered_users: registeredUsers,
+    activity_logs: activityLogs,
+    permanent_visits: permanentVisits,
+    transactions: ordersList,
+    deposits: depositsList,
+    vouchers: vouchersList,
+    products: productsList
+  });
+
+  const handleRefreshBackups = async () => {
+    setIsSyncingBackups(true);
+    try {
+      const fresh = await syncBackupsFromCloud();
+      setBackupsList(Array.isArray(fresh) ? fresh : getLocalBackups());
+      showToast('Daftar backup snapshot berhasil dimuat ulang!', 'fa-arrows-rotate', 'info');
+    } catch {
+      showToast('Gagal memuat ulang snapshot backup', 'fa-triangle-exclamation', 'warning');
+    } finally {
+      setIsSyncingBackups(false);
+    }
+  };
+
+  const handleCreateBackupSnapshot = async (
+    label = 'Backup Manual Lengkap',
+    reason = 'manual',
+    silent = false
+  ) => {
+    setIsWorkingBackup(true);
+    try {
+      const snap = await createAndSaveBackupSnapshot({
+        label,
+        reason,
+        createdBy: adminSession?.adminName || adminSession?.username || 'Admin ChaizStore',
+        overrideData: getCurrentSnapshotPayload()
+      });
+      setBackupsList(getLocalBackups());
+      if (!silent) {
+        showToast(`🛡️ Backup snapshot "${snap.label}" berhasil disimpan!`, 'fa-shield-halved', 'success');
+      }
+      return snap;
+    } catch (err) {
+      if (!silent) {
+        showToast('Gagal menyimpan backup snapshot: ' + err.message, 'fa-circle-xmark', 'error');
+      }
+      return null;
+    } finally {
+      setIsWorkingBackup(false);
+    }
+  };
+
+  const applyRestoredState = (counts) => {
+    setRegisteredUsers(getRegisteredUsers());
+    setActivityLogs(getActivityLogs());
+    setPermanentVisits(getPermanentVisits());
+    setOrdersList(getTransactions());
+    setDepositsList(getDeposits());
+    setVouchersList(getStoredVouchers());
+    setProductsList(getDatabaseProducts());
+    showToast(
+      `✅ Data dipulihkan! (${counts.users} user, ${counts.transactions} pesanan, ${counts.activities} aktivitas, ${counts.vouchers} voucher)`,
+      'fa-rotate-left',
+      'success'
+    );
+  };
+
+  const handleRestoreBackupSnapshot = async (snapshot) => {
+    if (!snapshot) return;
+    if (
+      !window.confirm(
+        `Pulihkan data dari snapshot "${snapshot.label}"?\n\nData pengguna, aktivitas, pesanan, deposit, dan voucher pada snapshot ini akan dikembalikan ke dashboard admin & cloud.`
+      )
+    ) {
+      return;
+    }
+    setIsWorkingBackup(true);
+    try {
+      const full = await resolveFullBackupSnapshot(snapshot);
+      if (!full?.data) {
+        showToast('Isi data snapshot tidak ditemukan.', 'fa-circle-xmark', 'error');
+        return;
+      }
+      const counts = await restoreFromBackupPayload(full.data);
+      applyRestoredState(counts);
+    } catch (err) {
+      showToast('Gagal memulihkan snapshot: ' + err.message, 'fa-circle-xmark', 'error');
+    } finally {
+      setIsWorkingBackup(false);
+    }
+  };
+
+  const handleRestoreFromFile = async (file) => {
+    setIsWorkingBackup(true);
+    try {
+      const parsedData = await parseUploadedBackupJson(file);
+      if (
+        !window.confirm(
+          `Pulihkan data dari file "${file.name}"?\n\nSeluruh data di file backup akan dikembalikan ke database toko.`
+        )
+      ) {
+        return;
+      }
+      const counts = await restoreFromBackupPayload(parsedData);
+      await handleCreateBackupSnapshot(`Restore dari File: ${file.name}`, 'manual_import', true);
+      applyRestoredState(counts);
+    } catch (err) {
+      showToast(err.message || 'Gagal membaca file backup', 'fa-circle-xmark', 'error');
+    } finally {
+      setIsWorkingBackup(false);
+    }
+  };
+
+  const handleDeleteBackupSnapshot = async (id, label) => {
+    if (!window.confirm(`Hapus snapshot backup "${label || id}"?`)) return;
+    setIsWorkingBackup(true);
+    try {
+      await deleteBackupSnapshot(id);
+      setBackupsList(getLocalBackups());
+      showToast('Snapshot backup dihapus.', 'fa-trash-can', 'info');
+    } finally {
+      setIsWorkingBackup(false);
+    }
+  };
+
+  // Bersihkan Seluruh Riwayat Pesanan & Foto Bukti oleh Admin (Auto-Backup Sebelum Reset)
+  const handleClearOrdersHistory = async () => {
     if (ordersList.length === 0) {
       showToast('Riwayat pesanan sudah dalam keadaan bersih kosong.', 'fa-circle-info', 'info');
       return;
     }
 
     const confirmed = window.confirm(
-      '⚠️ PERINGATAN BERSIHKAN RIWAYAT PESANAN:\n\nApakah Anda yakin ingin membersihkan dan menghapus SEMUA riwayat pesanan serta foto bukti kiriman di sistem?\n\nSetelah dibersihkan, seluruh data riwayat pesanan dan kiriman foto bukti transfer akan terhapus bersih.'
+      '⚠️ PERINGATAN BERSIHKAN RIWAYAT PESANAN:\n\nSistem akan OTOMATIS membuat Backup Snapshot terlebih dahulu sebelum membersihkan SEMUA riwayat pesanan & foto bukti.\n\nLanjutkan reset riwayat pesanan?'
     );
 
     if (!confirmed) return;
 
     try {
+      await handleCreateBackupSnapshot(
+        `Auto-Backup Sebelum Reset Pesanan (${ordersList.length} order)`,
+        'auto_reset_orders',
+        true
+      );
       clearAllTransactions();
       setOrdersList([]);
       setSelectedOrderForFulfill(null);
@@ -1629,10 +1907,10 @@ export default function AdminApp() {
       recordUserActivity(
         adminSession || { name: 'Admin ChaizStore', email: 'admin@chaizstore.local' },
         'CLEAR_ORDERS_HISTORY',
-        'Admin membersihkan seluruh riwayat pesanan dan foto bukti transfer dari sistem.'
+        'Admin membersihkan seluruh riwayat pesanan (auto-backup tersimpan di Fitur Backup Data).'
       );
 
-      showToast('Seluruh riwayat pesanan dan foto kiriman berhasil dibersihkan total!', 'fa-trash-can', 'success');
+      showToast('Riwayat pesanan di-reset! Cadangan aman tersimpan di Fitur Backup Data.', 'fa-shield-halved', 'success');
     } catch (err) {
       showToast('Gagal membersihkan riwayat pesanan: ' + err.message, 'fa-circle-xmark', 'error');
     }
@@ -1884,16 +2162,21 @@ export default function AdminApp() {
     }
   };
 
-  const handleClearUsedVouchers = () => {
+  const handleClearUsedVouchers = async () => {
     const usedCount = vouchersList.filter((v) => v.isUsed).length;
     if (usedCount === 0) {
       showToast('Tidak ada voucher yang sudah digunakan (hangus) saat ini.', 'fa-circle-info', 'info');
       return;
     }
-    if (window.confirm(`Hapus semua ${usedCount} voucher yang sudah digunakan (hangus)?`)) {
+    if (window.confirm(`Hapus semua ${usedCount} voucher yang sudah digunakan (hangus)?\n\nSistem akan membuat Auto-Backup Snapshot terlebih dahulu sebelum membersihkan.`)) {
+      await handleCreateBackupSnapshot(
+        `Auto-Backup Sebelum Hapus Voucher Hangus (${usedCount} voucher)`,
+        'auto_reset_vouchers',
+        true
+      );
       clearUsedVouchers();
       setVouchersList(getStoredVouchers());
-      showToast(`Seluruh ${usedCount} voucher hangus berhasil dibersihkan!`, 'fa-trash-can', 'success');
+      showToast(`Seluruh ${usedCount} voucher hangus dibersihkan (Auto-Backup tersimpan)!`, 'fa-trash-can', 'success');
     }
   };
 
@@ -2202,21 +2485,31 @@ export default function AdminApp() {
     }
   };
 
-  // Reset Users
-  const handleResetUsers = () => {
-    if (window.confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SEMUA data pengguna?')) {
+  // Reset Users (Auto-Backup Sebelum Reset)
+  const handleResetUsers = async () => {
+    if (window.confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SEMUA data pengguna?\n\nSistem akan OTOMATIS membuat Backup Snapshot terlebih dahulu agar data tetap dapat dipulihkan di Fitur Backup Data.')) {
+      await handleCreateBackupSnapshot(
+        `Auto-Backup Sebelum Reset Pengguna (${registeredUsers.length} user)`,
+        'auto_reset_users',
+        true
+      );
       clearAllUsersDirectory();
       setRegisteredUsers([]);
-      showToast('Daftar pengguna berhasil dikosongkan.', 'fa-broom');
+      showToast('Daftar pengguna di-reset! Cadangan aman tersimpan di Fitur Backup Data.', 'fa-shield-halved', 'success');
     }
   };
 
-  // Reset Activities
-  const handleResetActivities = () => {
-    if (window.confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA riwayat aktivitas?')) {
+  // Reset Activities (Auto-Backup Sebelum Reset)
+  const handleResetActivities = async () => {
+    if (window.confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA riwayat aktivitas?\n\nSistem akan OTOMATIS membuat Backup Snapshot terlebih dahulu agar data tetap dapat dipulihkan di Fitur Backup Data.')) {
+      await handleCreateBackupSnapshot(
+        `Auto-Backup Sebelum Reset Aktivitas (${activityLogs.length} log)`,
+        'auto_reset_activities',
+        true
+      );
       clearAllActivityLogs();
       setActivityLogs([]);
-      showToast('Semua riwayat aktivitas berhasil dibersihkan.', 'fa-broom');
+      showToast('Riwayat aktivitas di-reset! Cadangan aman tersimpan di Fitur Backup Data.', 'fa-shield-halved', 'success');
     }
   };
 
@@ -2543,6 +2836,31 @@ export default function AdminApp() {
 
             <button
               type="button"
+              className={`admin-nav-btn btn-analytics-quick ${activeAdminTab === 'analytics' ? 'active-quick-analytics' : ''}`}
+              onClick={() => setActiveAdminTab('analytics')}
+              title="Buka Grafik Penghasilan, Pengguna & Aktivitas"
+            >
+              <i className="fa-solid fa-chart-line"></i>
+              <span>Penghasilan & Grafik</span>
+            </button>
+
+            <button
+              type="button"
+              className={`admin-nav-btn btn-backup-quick ${activeAdminTab === 'backup' ? 'active-quick-backup' : ''}`}
+              onClick={() => setActiveAdminTab('backup')}
+              title="Buka Fitur Backup Data & Pulihkan Data"
+            >
+              <i className="fa-solid fa-database"></i>
+              <span>Fitur Backup Data</span>
+              {backupsList.length > 0 && (
+                <span className="badge-depo-alert" style={{ background: '#10b981', color: '#fff' }}>
+                  {backupsList.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               className="admin-nav-btn btn-store"
               onClick={() => window.open('/', '_blank')}
               title="Buka Website Toko Utama di Tab Baru"
@@ -2685,6 +3003,44 @@ export default function AdminApp() {
                 {vouchersList.length}
               </span>
             </button>
+
+            {/* Menu 7: PENGHASILAN & GRAFIK */}
+            <button
+              type="button"
+              className={`admin-nav-tab ${activeAdminTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveAdminTab('analytics')}
+              style={activeAdminTab === 'analytics' ? { borderColor: '#10b981', boxShadow: '0 0 15px rgba(16, 185, 129, 0.35)' } : {}}
+            >
+              <div className="nav-tab-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
+                <i className="fa-solid fa-chart-line"></i>
+              </div>
+              <div className="nav-tab-text">
+                <strong>7. Penghasilan & Grafik</strong>
+                <span>Grafik Omset, Jumlah Pengguna, Aktivitas & Produk Terlaris</span>
+              </div>
+              <span className="nav-tab-counter" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }}>
+                Live
+              </span>
+            </button>
+
+            {/* Menu 8: FITUR BACKUP DATA */}
+            <button
+              type="button"
+              className={`admin-nav-tab ${activeAdminTab === 'backup' ? 'active' : ''}`}
+              onClick={() => setActiveAdminTab('backup')}
+              style={activeAdminTab === 'backup' ? { borderColor: '#f59e0b', boxShadow: '0 0 15px rgba(245, 158, 11, 0.35)' } : {}}
+            >
+              <div className="nav-tab-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}>
+                <i className="fa-solid fa-database"></i>
+              </div>
+              <div className="nav-tab-text">
+                <strong>8. Fitur Backup Data</strong>
+                <span>Auto-Backup Sebelum Reset, Download .JSON/.CSV/.SQL/.PDF & Restore</span>
+              </div>
+              <span className="nav-tab-counter" style={backupsList.length > 0 ? { background: '#f59e0b', color: '#0f172a' } : {}}>
+                {backupsList.length}
+              </span>
+            </button>
           </div>
         </section>
 
@@ -2736,12 +3092,22 @@ export default function AdminApp() {
                   <span>Simulasi User Aktif</span>
                 </button>
 
+                <button
+                  type="button"
+                  className="admin-action-btn action-backup-data"
+                  onClick={() => setActiveAdminTab('backup')}
+                  title="Buka Fitur Backup Data sebelum atau sesudah reset pengguna"
+                >
+                  <i className="fa-solid fa-database"></i>
+                  <span>Fitur Backup Data</span>
+                </button>
+
                 {registeredUsers.length > 0 && (
                   <button
                     type="button"
                     className="admin-action-btn action-clear"
                     onClick={handleResetUsers}
-                    title="Kosongkan daftar pengguna"
+                    title="Kosongkan daftar pengguna (otomatis dibuatkan backup terlebih dahulu)"
                   >
                     <i className="fa-solid fa-trash-can"></i>
                     <span>Reset Pengguna</span>
@@ -3522,12 +3888,22 @@ export default function AdminApp() {
                   <span>Refresh</span>
                 </button>
 
+                <button
+                  type="button"
+                  className="admin-action-btn action-backup-data"
+                  onClick={() => setActiveAdminTab('backup')}
+                  title="Buka Fitur Backup Data sebelum atau sesudah reset aktivitas"
+                >
+                  <i className="fa-solid fa-database"></i>
+                  <span>Fitur Backup Data</span>
+                </button>
+
                 {activityLogs.length > 0 && (
                   <button
                     type="button"
                     className="admin-action-btn action-clear"
                     onClick={handleResetActivities}
-                    title="Kosongkan seluruh riwayat aktivitas"
+                    title="Kosongkan seluruh riwayat aktivitas (otomatis dibuatkan backup terlebih dahulu)"
                   >
                     <i className="fa-solid fa-trash-can"></i>
                     <span>Reset Aktivitas</span>
@@ -4062,10 +4438,20 @@ export default function AdminApp() {
 
                 <button
                   type="button"
+                  className="admin-action-btn action-backup-data"
+                  onClick={() => setActiveAdminTab('backup')}
+                  title="Buka Fitur Backup Data (data tetap tersimpan meski riwayat dibersihkan)"
+                >
+                  <i className="fa-solid fa-database"></i>
+                  <span>Fitur Backup Data</span>
+                </button>
+
+                <button
+                  type="button"
                   className="admin-action-btn action-clear-orders"
                   onClick={handleClearOrdersHistory}
                   disabled={ordersList.length === 0}
-                  title={ordersList.length === 0 ? 'Riwayat pesanan sudah kosong' : 'Bersihkan semua riwayat pesanan & foto bukti kiriman'}
+                  title={ordersList.length === 0 ? 'Riwayat pesanan sudah kosong' : 'Bersihkan semua riwayat pesanan (otomatis dibuatkan backup terlebih dahulu)'}
                 >
                   <i className="fa-solid fa-trash-can"></i>
                   <span>Bersihkan Riwayat</span>
@@ -4312,9 +4698,9 @@ export default function AdminApp() {
                             <td className="cell-payment">
                               {(() => {
                                 const vInfo = parseOrderVoucherInfo(order);
-                                const displayPrice = (vInfo.hasVoucher && (Number(order.total) === 0 || Number(order.price) === 35000))
+                                const displayPrice = (vInfo.hasVoucher && !order.voucherCode && (Number(order.total) === 0 || Number(order.price) === 35000))
                                   ? 30000
-                                  : Number(order.total || order.price || 0);
+                                  : Number(order.total !== undefined && order.total !== null ? order.total : (order.price || 0));
 
                                 return (
                                   <>
@@ -4985,11 +5371,12 @@ export default function AdminApp() {
                 <button
                   type="button"
                   className="admin-action-btn action-refresh-orders"
-                  onClick={() => {
-                    setVouchersList(getStoredVouchers());
-                    showToast('Data Gudang Voucher dimuat ulang!', 'fa-arrows-rotate', 'info');
+                  onClick={async () => {
+                    const fresh = await syncVouchersFromCloud();
+                    setVouchersList(Array.isArray(fresh) ? fresh : getStoredVouchers());
+                    showToast('Data Gudang Voucher disinkronkan dari Cloud!', 'fa-arrows-rotate', 'info');
                   }}
-                  title="Muat ulang daftar voucher"
+                  title="Muat ulang daftar voucher dari Cloud"
                 >
                   <i className="fa-solid fa-arrows-rotate"></i>
                   <span>Refresh Gudang</span>
@@ -5038,7 +5425,7 @@ export default function AdminApp() {
                   <i className="fa-solid fa-fire"></i>
                 </div>
                 <div className="stat-info">
-                  <span className="stat-label">Sudah Digunakan (Hangus)</span>
+                  <span className="stat-label">Telah Hangus Dipakai</span>
                   <strong className="stat-value text-danger">
                     {vouchersList.filter((v) => v.isUsed).length}
                   </strong>
@@ -5261,17 +5648,29 @@ export default function AdminApp() {
                     <span>Voucher aktif & riwayat voucher 1x pakai yang telah digunakan</span>
                   </div>
 
-                  {vouchersList.filter((v) => v.isUsed).length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button
                       type="button"
-                      className="btn-clear-used-vouchers"
-                      onClick={handleClearUsedVouchers}
-                      title="Hapus semua voucher yang sudah digunakan (hangus)"
+                      className="admin-action-btn action-backup-data"
+                      onClick={() => setActiveAdminTab('backup')}
+                      title="Buka Fitur Backup Data (voucher & data tetap aman walau dihapus)"
                     >
-                      <i className="fa-solid fa-trash-can"></i>
-                      <span>Hapus Semua Voucher Hangus ({vouchersList.filter((v) => v.isUsed).length})</span>
+                      <i className="fa-solid fa-database"></i>
+                      <span>Fitur Backup Data</span>
                     </button>
-                  )}
+
+                    {vouchersList.filter((v) => v.isUsed).length > 0 && (
+                      <button
+                        type="button"
+                        className="btn-clear-used-vouchers"
+                        onClick={handleClearUsedVouchers}
+                        title="Hapus semua voucher yang telah hangus dipakai (otomatis dibuatkan backup)"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                        <span>Hapus Semua Voucher Telah Hangus ({vouchersList.filter((v) => v.isUsed).length})</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Filter & Search Bar */}
@@ -5313,7 +5712,7 @@ export default function AdminApp() {
                       onClick={() => setVoucherFilter('used')}
                     >
                       <i className="fa-solid fa-fire"></i>
-                      Hangus ({vouchersList.filter((v) => v.isUsed).length})
+                      Telah Hangus Dipakai ({vouchersList.filter((v) => v.isUsed).length})
                     </button>
                   </div>
                 </div>
@@ -5342,7 +5741,7 @@ export default function AdminApp() {
                         {voucherSearch
                           ? `Tidak ada voucher yang cocok dengan pencarian "${voucherSearch}".`
                           : voucherFilter === 'used'
-                          ? 'Belum ada voucher yang sudah digunakan (hangus) oleh pembeli.'
+                          ? 'Belum ada voucher yang telah hangus dipakai oleh pelanggan.'
                           : 'Gudang voucher masih kosong. Terbitkan voucher baru menggunakan formulir di sebelah kiri!'}
                       </p>
                     </div>
@@ -5369,21 +5768,33 @@ export default function AdminApp() {
                               key={vch.id || vch.code}
                               className={`voucher-item-card ${vch.isUsed ? 'card-used-hangus' : !vch.isActive ? 'card-inactive' : 'card-active'}`}
                             >
+                              {/* Pita / Ribbon Telah Hangus Dipakai jika sudah digunakan */}
+                              {vch.isUsed && (
+                                <div className="vch-hangus-ribbon-bar">
+                                  <i className="fa-solid fa-fire"></i>
+                                  <span>TELAH HANGUS DIPAKAI</span>
+                                </div>
+                              )}
+
                               <div className="voucher-card-top">
                                 <div
-                                  className="voucher-code-badge"
+                                  className={`voucher-code-badge ${vch.isUsed ? 'code-used-hangus' : ''}`}
                                   onClick={() => handleCopyVoucherCode(vch.code)}
-                                  title="Klik untuk menyalin kode voucher"
+                                  title={vch.isUsed ? 'Kode voucher telah hangus dipakai (klik untuk salin)' : 'Klik untuk menyalin kode voucher'}
                                 >
-                                  <i className="fa-solid fa-ticket"></i>
-                                  <code>{vch.code}</code>
-                                  <i className="fa-regular fa-copy copy-icon"></i>
+                                  <i className={`fa-solid ${vch.isUsed ? 'fa-fire text-danger' : 'fa-ticket'}`}></i>
+                                  <code className={vch.isUsed ? 'text-strikethrough' : ''}>{vch.code}</code>
+                                  {vch.isUsed ? (
+                                    <span className="code-hangus-tag">Telah Hangus</span>
+                                  ) : (
+                                    <i className="fa-regular fa-copy copy-icon"></i>
+                                  )}
                                 </div>
 
                                 <div className="voucher-status-wrap">
                                   {vch.isUsed ? (
                                     <span className="vch-badge badge-hangus">
-                                      <i className="fa-solid fa-fire"></i> 1x Pakai Hangus
+                                      <i className="fa-solid fa-ban"></i> Telah Hangus Dipakai
                                     </span>
                                   ) : vch.isActive ? (
                                     <span className="vch-badge badge-active">
@@ -5419,6 +5830,10 @@ export default function AdminApp() {
 
                                 {vch.isUsed && (
                                   <div className="voucher-used-metadata">
+                                    <div className="hangus-alert-header">
+                                      <i className="fa-solid fa-triangle-exclamation text-danger"></i>
+                                      <strong>Telah Hangus Dipakai (1x Pakai)</strong>
+                                    </div>
                                     <div className="used-meta-row">
                                       <i className="fa-solid fa-user-check text-danger"></i>
                                       <span>Dipakai oleh: <strong>{vch.usedBy || 'Pelanggan'}</strong></span>
@@ -5426,7 +5841,13 @@ export default function AdminApp() {
                                     {vch.usedAt && (
                                       <div className="used-meta-row">
                                         <i className="fa-regular fa-clock text-muted"></i>
-                                        <span>{formatDepositFullDateTime(vch.usedAt).full}</span>
+                                        <span>Waktu: {formatDepositFullDateTime(vch.usedAt).full}</span>
+                                      </div>
+                                    )}
+                                    {vch.usedOrder && (
+                                      <div className="used-meta-row">
+                                        <i className="fa-solid fa-receipt text-cyan"></i>
+                                        <span>No. Pesanan: <code>{vch.usedOrder}</code></span>
                                       </div>
                                     )}
                                   </div>
@@ -5450,10 +5871,10 @@ export default function AdminApp() {
                                   type="button"
                                   className={`btn-delete-vch ${vch.isUsed ? 'btn-delete-hangus' : ''}`}
                                   onClick={() => handleDeleteVoucher(vch.id, vch.code)}
-                                  title={vch.isUsed ? 'Hapus voucher yang sudah hangus ini' : 'Hapus voucher ini dari gudang'}
+                                  title={vch.isUsed ? 'Hapus voucher yang telah hangus ini' : 'Hapus voucher ini dari gudang'}
                                 >
                                   <i className="fa-solid fa-trash-can"></i>
-                                  <span>{vch.isUsed ? 'Hapus Voucher Hangus' : 'Hapus'}</span>
+                                  <span>{vch.isUsed ? 'Hapus Voucher yang Telah Hangus' : 'Hapus'}</span>
                                 </button>
                               </div>
                             </div>
@@ -5465,6 +5886,68 @@ export default function AdminApp() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ===================================================================
+            MENU 7: PENGHASILAN & GRAFIK (OMSET, PENGGUNA, AKTIVITAS, PRODUK)
+            =================================================================== */}
+        {activeAdminTab === 'analytics' && (
+          <AdminAnalyticsTab
+            ordersList={ordersList}
+            depositsList={depositsList}
+            registeredUsers={registeredUsers}
+            activityLogs={activityLogs}
+            permanentVisits={permanentVisits}
+            vouchersList={vouchersList}
+            productsList={productsList}
+            isUserOnline={isUserOnline}
+            onOpenBackup={() => setActiveAdminTab('backup')}
+            onPrintPdf={() => openPrintablePdfReport(getCurrentSnapshotPayload())}
+            onRefresh={handleForceCloudSync}
+          />
+        )}
+
+        {/* ===================================================================
+            MENU 8: FITUR BACKUP DATA & PEMULIHAN (ANTI-HAPUS SAAT RESET)
+            =================================================================== */}
+        {activeAdminTab === 'backup' && (
+          <AdminBackupTab
+            backupsList={backupsList}
+            isSyncingBackups={isSyncingBackups}
+            isWorkingBackup={isWorkingBackup}
+            currentCounts={{
+              users: registeredUsers.length,
+              visits: permanentVisits.length,
+              activities: activityLogs.length,
+              orders: ordersList.length,
+              deposits: depositsList.length,
+              vouchers: vouchersList.length
+            }}
+            onCreateSnapshot={(lbl, rsn) => handleCreateBackupSnapshot(lbl, rsn, false)}
+            onRestoreSnapshot={handleRestoreBackupSnapshot}
+            onRestoreFromFile={handleRestoreFromFile}
+            onDeleteSnapshot={handleDeleteBackupSnapshot}
+            onDownloadJson={(snap) => {
+              downloadBackupJson(snap || getCurrentSnapshotPayload());
+              showToast('File backup .JSON berhasil diunduh!', 'fa-file-code', 'success');
+            }}
+            onDownloadCsv={() => {
+              downloadBackupExcelCsv(getCurrentSnapshotPayload());
+              showToast('File Excel (.CSV) berhasil diunduh!', 'fa-file-excel', 'success');
+            }}
+            onDownloadSql={() => {
+              downloadBackupSql(getCurrentSnapshotPayload());
+              showToast('File dump .SQL berhasil diunduh!', 'fa-database', 'success');
+            }}
+            onPrintPdf={() => {
+              const ok = openPrintablePdfReport(getCurrentSnapshotPayload());
+              if (!ok) {
+                showToast('Izinkan pop-up browser untuk mencetak laporan PDF.', 'fa-triangle-exclamation', 'warning');
+              }
+            }}
+            onRefreshBackups={handleRefreshBackups}
+            onOpenAnalytics={() => setActiveAdminTab('analytics')}
+          />
         )}
       </main>
 
@@ -8332,9 +8815,9 @@ export default function AdminApp() {
           =================================================================== */}
       {selectedOrderVoucher && (() => {
         const vInfo = parseOrderVoucherInfo(selectedOrderVoucher);
-        const displayTotal = (vInfo.hasVoucher && (Number(selectedOrderVoucher.total) === 0 || Number(selectedOrderVoucher.price) === 35000))
+        const displayTotal = (vInfo.hasVoucher && !selectedOrderVoucher.voucherCode && (Number(selectedOrderVoucher.total) === 0 || Number(selectedOrderVoucher.price) === 35000))
           ? 30000
-          : Number(selectedOrderVoucher.total || selectedOrderVoucher.price || 0);
+          : Number(selectedOrderVoucher.total !== undefined && selectedOrderVoucher.total !== null ? selectedOrderVoucher.total : (selectedOrderVoucher.price || 0));
 
         return (
           <div className="admin-modal-backdrop" onClick={() => setSelectedOrderVoucher(null)}>

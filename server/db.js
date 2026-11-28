@@ -65,6 +65,10 @@ db.exec(`
     processedAt TEXT,
     rating INTEGER,
     isRead INTEGER DEFAULT 0,
+    voucherCode TEXT,
+    voucherDiscount REAL DEFAULT 0,
+    voucherName TEXT,
+    voucherDescription TEXT,
     createdAt TEXT,
     updatedAt TEXT
   );
@@ -178,7 +182,53 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_admin_user ON admin_auth (username);
   CREATE INDEX IF NOT EXISTS idx_admin_token ON admin_sessions (token);
+
+  CREATE TABLE IF NOT EXISTS vouchers (
+    id TEXT PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    discountAmount REAL NOT NULL DEFAULT 0,
+    hasMinPurchase INTEGER DEFAULT 0,
+    minPurchaseAmount REAL DEFAULT 0,
+    type TEXT DEFAULT 'discount',
+    isSingleUse INTEGER DEFAULT 1,
+    isUsed INTEGER DEFAULT 0,
+    usedAt TEXT,
+    usedBy TEXT,
+    usedOrder TEXT,
+    isActive INTEGER DEFAULT 1,
+    badge TEXT,
+    createdAt TEXT,
+    updatedAt TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vouchers_code ON vouchers (code);
+
+  CREATE TABLE IF NOT EXISTS data_backups (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    reason TEXT DEFAULT 'manual',
+    createdBy TEXT DEFAULT 'Admin ChaizStore',
+    statsJson TEXT,
+    payloadJson TEXT NOT NULL,
+    createdAt TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_backups_createdAt ON data_backups (createdAt);
 `);
+
+// Migrasi aman kolom voucher pada database SQLite yang sudah ada sebelumnya
+for (const colDef of [
+  'voucherCode TEXT',
+  'voucherDiscount REAL DEFAULT 0',
+  'voucherName TEXT',
+  'voucherDescription TEXT'
+]) {
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN ${colDef};`);
+  } catch (_) {}
+}
 
 // Inisialisasi kredensial admin dari environment variables server privat (.env)
 // Password dan username TIDAK PERNAH ditulis dalam kode program.
@@ -273,6 +323,7 @@ export function saveTransaction(trx) {
       proofUrl, proofFileName, proofSize, proofUploadedAt, proofExpiresAt, proofExpired, proofDeletedReason,
       warrantyPeriod, status, credentials, adminNote, rejectReason, rejectedAt,
       deliveryMethod, customerNote, processedAt, rating, isRead,
+      voucherCode, voucherDiscount, voucherName, voucherDescription,
       createdAt, updatedAt
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
@@ -281,6 +332,7 @@ export function saveTransaction(trx) {
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
+      ?, ?, ?, ?,
       ?, ?
     )
     ON CONFLICT(id) DO UPDATE SET
@@ -318,6 +370,10 @@ export function saveTransaction(trx) {
       processedAt = COALESCE(excluded.processedAt, transactions.processedAt),
       rating = COALESCE(excluded.rating, transactions.rating),
       isRead = COALESCE(excluded.isRead, transactions.isRead),
+      voucherCode = COALESCE(excluded.voucherCode, transactions.voucherCode),
+      voucherDiscount = COALESCE(excluded.voucherDiscount, transactions.voucherDiscount),
+      voucherName = COALESCE(excluded.voucherName, transactions.voucherName),
+      voucherDescription = COALESCE(excluded.voucherDescription, transactions.voucherDescription),
       updatedAt = excluded.updatedAt
   `);
 
@@ -336,7 +392,7 @@ export function saveTransaction(trx) {
     trx.productCategory || 'Akun Premium',
     trx.price || 0,
     trx.qty || 1,
-    trx.total || (trx.price ? trx.price * (trx.qty || 1) : 0),
+    trx.total !== undefined && trx.total !== null ? trx.total : (trx.price ? trx.price * (trx.qty || 1) : 0),
     trx.paymentMethod || 'QRIS Instant',
     trx.paymentStatus || (trx.status === 'completed' ? 'Lunas' : 'Pending'),
     trx.isGatewayPaid ? 1 : 0,
@@ -359,6 +415,10 @@ export function saveTransaction(trx) {
     trx.processedAt || null,
     trx.rating || null,
     trx.isRead ? 1 : 0,
+    trx.voucherCode || null,
+    Number(trx.voucherDiscount) || 0,
+    trx.voucherName || null,
+    trx.voucherDescription || null,
     trx.createdAt || now,
     now
   );
@@ -406,7 +466,11 @@ function formatTrxRow(row) {
     rejectReason: row.rejectReason || null,
     rejectedAt: row.rejectedAt || null,
     deliveryMethod: row.deliveryMethod || 'web',
-    customerNote: row.customerNote || ''
+    customerNote: row.customerNote || '',
+    voucherCode: row.voucherCode || null,
+    voucherDiscount: Number(row.voucherDiscount) || 0,
+    voucherName: row.voucherName || null,
+    voucherDescription: row.voucherDescription || null
   };
 }
 
@@ -878,4 +942,294 @@ export function updateAdminPasswordInDb(token, oldPassword, newUsername, newPass
       adminName: row.adminName
     }
   };
+}
+
+// ===================================================================
+// VOUCHERS REPOSITORY (GUDANG VOUCHER 1X PAKAI LANGSUNG HANGUS)
+// ===================================================================
+
+function formatVoucherRow(row) {
+  if (!row) return null;
+  const isUsed = Boolean(row.isUsed);
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description || '',
+    discountAmount: Number(row.discountAmount) || 0,
+    hasMinPurchase: Boolean(row.hasMinPurchase),
+    minPurchaseAmount: Number(row.minPurchaseAmount) || 0,
+    type: row.type || 'discount',
+    isSingleUse: row.isSingleUse !== 0,
+    isUsed,
+    usedAt: row.usedAt || null,
+    usedBy: row.usedBy || null,
+    usedOrder: row.usedOrder || null,
+    isActive: isUsed ? false : Boolean(row.isActive),
+    badge: row.badge || `Diskon Rp ${(Number(row.discountAmount) || 0).toLocaleString('id-ID')}`,
+    createdAt: row.createdAt || null,
+    updatedAt: row.updatedAt || null
+  };
+}
+
+export function getAllVouchers() {
+  const rows = db.prepare('SELECT * FROM vouchers ORDER BY createdAt DESC').all();
+  return rows.map(formatVoucherRow);
+}
+
+export function getVoucherByIdOrCode(idOrCode) {
+  if (!idOrCode) return null;
+  const raw = String(idOrCode).trim();
+  const cleanCode = raw.toUpperCase().replace(/\s+/g, '');
+  const row = db.prepare('SELECT * FROM vouchers WHERE id = ? OR UPPER(code) = ? LIMIT 1').get(raw, cleanCode);
+  return formatVoucherRow(row);
+}
+
+export function saveVoucher(v) {
+  if (!v || !v.code) return null;
+  const cleanCode = String(v.code).trim().toUpperCase().replace(/\s+/g, '');
+  if (!cleanCode) return null;
+
+  const now = new Date().toISOString();
+  const existingByCode = db.prepare('SELECT * FROM vouchers WHERE UPPER(code) = ? LIMIT 1').get(cleanCode);
+  const existingById = v.id ? db.prepare('SELECT * FROM vouchers WHERE id = ? LIMIT 1').get(v.id) : null;
+  const existing = existingById || existingByCode;
+
+  // Replace stale code record if Admin explicitly re-issued the same code with a new ID
+  if (existingByCode && v.id && existingByCode.id !== v.id && !v.preserveExisting) {
+    db.prepare('DELETE FROM vouchers WHERE id = ?').run(existingByCode.id);
+  }
+
+  const id = v.id || existing?.id || `vch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const isUsed = v.isUsed !== undefined ? Boolean(v.isUsed) : Boolean(existing?.isUsed);
+  const isActive = isUsed ? false : (v.isActive !== undefined ? Boolean(v.isActive) : (existing ? Boolean(existing.isActive) : true));
+  const discountAmount = Number(v.discountAmount ?? existing?.discountAmount) || 0;
+  const hasMinPurchase = v.hasMinPurchase !== undefined ? Boolean(v.hasMinPurchase) : Boolean(existing?.hasMinPurchase);
+  const minPurchaseAmount = hasMinPurchase ? (Number(v.minPurchaseAmount ?? existing?.minPurchaseAmount) || 20000) : 0;
+
+  db.prepare(`
+    INSERT INTO vouchers (
+      id, code, name, description, discountAmount, hasMinPurchase, minPurchaseAmount,
+      type, isSingleUse, isUsed, usedAt, usedBy, usedOrder, isActive, badge, createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      code = excluded.code,
+      name = excluded.name,
+      description = excluded.description,
+      discountAmount = excluded.discountAmount,
+      hasMinPurchase = excluded.hasMinPurchase,
+      minPurchaseAmount = excluded.minPurchaseAmount,
+      type = excluded.type,
+      isSingleUse = excluded.isSingleUse,
+      isUsed = CASE WHEN vouchers.isUsed = 1 AND excluded.isUsed = 0 AND excluded.createdAt = vouchers.createdAt THEN 1 ELSE excluded.isUsed END,
+      usedAt = COALESCE(excluded.usedAt, vouchers.usedAt),
+      usedBy = COALESCE(excluded.usedBy, vouchers.usedBy),
+      usedOrder = COALESCE(excluded.usedOrder, vouchers.usedOrder),
+      isActive = CASE WHEN vouchers.isUsed = 1 AND excluded.isUsed = 0 AND excluded.createdAt = vouchers.createdAt THEN 0 ELSE excluded.isActive END,
+      badge = excluded.badge,
+      updatedAt = excluded.updatedAt
+  `).run(
+    id,
+    cleanCode,
+    String(v.name || existing?.name || `Diskon Rp ${discountAmount.toLocaleString('id-ID')}`).trim(),
+    String(v.description ?? existing?.description ?? '').trim(),
+    discountAmount,
+    hasMinPurchase ? 1 : 0,
+    minPurchaseAmount,
+    v.type || existing?.type || 'discount',
+    v.isSingleUse === false ? 0 : 1,
+    isUsed ? 1 : 0,
+    v.usedAt || existing?.usedAt || null,
+    v.usedBy || existing?.usedBy || null,
+    v.usedOrder || existing?.usedOrder || null,
+    isActive ? 1 : 0,
+    v.badge || existing?.badge || `Diskon Rp ${discountAmount.toLocaleString('id-ID')}`,
+    v.createdAt || existing?.createdAt || now,
+    now
+  );
+
+  return getVoucherByIdOrCode(id);
+}
+
+export function redeemVoucherAtomic(idOrCode, userEmail = 'Pelanggan', orderId = '') {
+  if (!idOrCode) return { success: false, reason: 'INVALID_CODE' };
+  const existing = getVoucherByIdOrCode(idOrCode);
+  if (!existing) {
+    return { success: false, reason: 'NOT_FOUND' };
+  }
+  if (existing.isUsed) {
+    return { success: false, reason: 'ALREADY_USED', voucher: existing };
+  }
+  if (existing.isActive === false) {
+    return { success: false, reason: 'INACTIVE', voucher: existing };
+  }
+
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE vouchers
+    SET isUsed = 1, isActive = 0, usedAt = ?, usedBy = ?, usedOrder = ?, updatedAt = ?
+    WHERE id = ?
+  `).run(now, userEmail || 'Pelanggan', orderId || '', now, existing.id);
+
+  return {
+    success: true,
+    voucher: getVoucherByIdOrCode(existing.id)
+  };
+}
+
+export function toggleVoucherActiveInDb(idOrCode) {
+  const existing = getVoucherByIdOrCode(idOrCode);
+  if (!existing) return null;
+  if (existing.isUsed) return existing; // 1x pakai hangus tidak bisa diaktifkan lagi
+
+  const now = new Date().toISOString();
+  const nextActive = existing.isActive ? 0 : 1;
+  db.prepare('UPDATE vouchers SET isActive = ?, updatedAt = ? WHERE id = ?').run(nextActive, now, existing.id);
+  return getVoucherByIdOrCode(existing.id);
+}
+
+export function deleteVoucherInDb(idOrCode) {
+  if (!idOrCode) return false;
+  const raw = String(idOrCode).trim();
+  const cleanCode = raw.toUpperCase().replace(/\s+/g, '');
+  const info = db.prepare('DELETE FROM vouchers WHERE id = ? OR UPPER(code) = ?').run(raw, cleanCode);
+  return info.changes > 0;
+}
+
+export function clearUsedVouchersInDb() {
+  const info = db.prepare('DELETE FROM vouchers WHERE isUsed = 1').run();
+  return info.changes;
+}
+
+// ===================================================================
+// DATA BACKUPS & RESTORE REPOSITORY (ANTI-HILANG SAAT RESET DATA)
+// ===================================================================
+
+function formatBackupMeta(row) {
+  if (!row) return null;
+  let stats = {};
+  try {
+    stats = row.statsJson ? JSON.parse(row.statsJson) : {};
+  } catch {
+    stats = {};
+  }
+  return {
+    id: row.id,
+    label: row.label,
+    reason: row.reason || 'manual',
+    createdBy: row.createdBy || 'Admin ChaizStore',
+    stats,
+    createdAt: row.createdAt
+  };
+}
+
+export function getAllBackupsMeta() {
+  const rows = db.prepare('SELECT id, label, reason, createdBy, statsJson, createdAt FROM data_backups ORDER BY createdAt DESC LIMIT 50').all();
+  return rows.map(formatBackupMeta);
+}
+
+export function getBackupSnapshotById(id) {
+  if (!id) return null;
+  const row = db.prepare('SELECT * FROM data_backups WHERE id = ?').get(String(id));
+  if (!row) return null;
+  let data = {};
+  try {
+    data = row.payloadJson ? JSON.parse(row.payloadJson) : {};
+  } catch {
+    data = {};
+  }
+  return {
+    ...formatBackupMeta(row),
+    data
+  };
+}
+
+export function saveBackupSnapshot({ id, label, reason = 'manual', createdBy = 'Admin ChaizStore', stats = {}, data = {}, createdAt }) {
+  const finalId = id || `BKP-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const finalCreatedAt = createdAt || new Date().toISOString();
+  const payloadStr = JSON.stringify(data || {});
+  const statsStr = JSON.stringify(stats || {});
+
+  db.prepare(`
+    INSERT INTO data_backups (id, label, reason, createdBy, statsJson, payloadJson, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      label = excluded.label,
+      reason = excluded.reason,
+      createdBy = excluded.createdBy,
+      statsJson = excluded.statsJson,
+      payloadJson = excluded.payloadJson,
+      createdAt = excluded.createdAt
+  `).run(finalId, String(label || 'Backup Data ChaizStore'), String(reason), String(createdBy), statsStr, payloadStr, finalCreatedAt);
+
+  return getBackupSnapshotById(finalId);
+}
+
+export function deleteBackupSnapshotById(id) {
+  if (!id) return false;
+  const info = db.prepare('DELETE FROM data_backups WHERE id = ?').run(String(id));
+  return info.changes > 0;
+}
+
+export function restoreDataIntoDb(payload = {}) {
+  const data = payload?.data || payload || {};
+  const counts = {
+    users: 0,
+    transactions: 0,
+    deposits: 0,
+    vouchers: 0,
+    activities: 0,
+    visits: 0
+  };
+
+  if (Array.isArray(data.registered_users)) {
+    data.registered_users.forEach((u) => {
+      if (u && (u.id || u.userId)) {
+        saveUser(u);
+        counts.users++;
+      }
+    });
+  }
+  if (Array.isArray(data.transactions)) {
+    data.transactions.forEach((t) => {
+      if (t && t.id) {
+        saveTransaction(t);
+        counts.transactions++;
+      }
+    });
+  }
+  if (Array.isArray(data.deposits)) {
+    data.deposits.forEach((d) => {
+      if (d && d.id) {
+        saveDeposit(d);
+        counts.deposits++;
+      }
+    });
+  }
+  if (Array.isArray(data.vouchers)) {
+    data.vouchers.forEach((v) => {
+      if (v && v.code) {
+        saveVoucher({ ...v, preserveExisting: true });
+        counts.vouchers++;
+      }
+    });
+  }
+  if (Array.isArray(data.activity_logs)) {
+    data.activity_logs.forEach((a) => {
+      if (a && a.id) {
+        saveActivity(a);
+        counts.activities++;
+      }
+    });
+  }
+  if (Array.isArray(data.permanent_visits)) {
+    data.permanent_visits.forEach((v) => {
+      if (v && (v.id || v.userId)) {
+        saveVisit(v);
+        counts.visits++;
+      }
+    });
+  }
+
+  return counts;
 }

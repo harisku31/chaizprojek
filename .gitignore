@@ -9,4 +9,5 @@ dist-ssr/
 server/data/*.db*
 .vscode/
 scratch/
+backup_data/
 backroundabstrak.png

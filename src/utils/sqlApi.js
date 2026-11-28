@@ -497,6 +497,244 @@ export async function updateDepositInSql(id, patch) {
 }
 
 // ===================================================================
+// VOUCHER REPOSITORY CALLS (GUDANG VOUCHER & 1X PAKAI HANGUS)
+// ===================================================================
+
+export async function fetchAllVouchersFromSql() {
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`${baseUrl}/api/vouchers`, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+    }
+  } catch (err) {}
+  return null;
+}
+
+export async function checkVoucherInSql(code) {
+  if (!code) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  const clean = encodeURIComponent(String(code).trim().toUpperCase().replace(/\s+/g, ''));
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`${baseUrl}/api/vouchers/check/${clean}`, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (err) {}
+  return null;
+}
+
+export async function saveVoucherInSql(voucher) {
+  if (!voucher) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/vouchers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(voucher)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (err) {}
+  return null;
+}
+
+export async function useVoucherInSql(codeOrId, usedBy = 'Pelanggan', usedOrder = '') {
+  if (!codeOrId) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/vouchers/use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ code: codeOrId, id: codeOrId, usedBy, usedOrder })
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success) {
+      return { success: true, data: data.data };
+    }
+    if (res.status === 409 && data) {
+      return { success: false, reason: data.reason, data: data.data };
+    }
+  } catch (err) {}
+  return null;
+}
+
+export async function toggleVoucherInSql(idOrCode) {
+  if (!idOrCode) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/vouchers/${encodeURIComponent(idOrCode)}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (err) {}
+  return null;
+}
+
+export async function deleteVoucherInSql(idOrCode) {
+  if (!idOrCode) return false;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return false;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/vouchers/${encodeURIComponent(idOrCode)}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+export async function clearUsedVouchersInSql() {
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return false;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/vouchers/used/clear`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+// ===================================================================
+// DATA BACKUPS & RESTORE API CALLS (SQLITE SERVER)
+// ===================================================================
+
+export async function fetchAllBackupsFromSql() {
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/backups`, { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+export async function fetchBackupDetailFromSql(id) {
+  if (!id) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/backups/${encodeURIComponent(id)}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (_) {}
+  return null;
+}
+
+export async function createBackupInSql(snapshot) {
+  if (!snapshot) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/backups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(snapshot)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data || null;
+    }
+  } catch (_) {}
+  return null;
+}
+
+export async function restoreBackupInSql(payload) {
+  if (!payload) return null;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return null;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/backups/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ data: payload })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.counts || null;
+    }
+  } catch (_) {}
+  return null;
+}
+
+export async function deleteBackupFromSql(id) {
+  if (!id) return false;
+  const isHealthy = await checkSqlBackendHealth();
+  if (!isHealthy) return false;
+
+  const baseUrl = getSqlApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/backups/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (_) {
+    return false;
+  }
+}
+
+// ===================================================================
 // ADMIN AUTHENTICATION API (SQL DATABASE BACKED)
 // ===================================================================
 

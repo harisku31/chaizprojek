@@ -7,6 +7,7 @@ import {
   MERCHANT_NMID
 } from '../utils/qrisGateway';
 import { createTransaction } from '../utils/transactions';
+import { markVoucherAsUsed } from '../data/vouchers';
 import { playUserNoticeSound } from '../utils/audioNotification';
 import { QrisLogo, GopayLogo } from './PaymentLogos';
 
@@ -31,8 +32,19 @@ export default function QrisPaymentPage({
     };
   }, []);
 
-  // 2. Fallback order data jika dibuka langsung dari URL
-  const activeOrder = order || {
+  // 2. Fallback order data jika dibuka langsung dari URL atau refresh
+  const storedOrder = React.useMemo(() => {
+    if (order) return order;
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('chaiz_active_payment');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [order]);
+
+  const activeOrder = storedOrder || {
     id: hashParams.trx || `CHZ-${Date.now().toString().slice(-6)}`,
     amount: hashParams.total || 3000,
     items: [{ name: 'Produk Digital ChaizStore', price: hashParams.total || 3000, qty: 1 }],
@@ -117,12 +129,16 @@ export default function QrisPaymentPage({
   };
 
   // 3. Helper Konfirmasi Pembayaran Sukses (HANYA KETIKA JANSPAYMENT MENGONFIRMASI LUNAS)
-  const handlePaymentSuccess = (checkData) => {
+  const handlePaymentSuccess = async (checkData) => {
     if (isPaidRef.current) return;
     isPaidRef.current = true;
     setIsPaid(true);
 
-    const paymentMethodTitle = isGopay ? 'JansPayment GoPay (Otomatis)' : 'JansPayment QRIS (Otomatis)';
+    const paymentMethodTitle = activeOrder.voucherCode
+      ? `${isGopay ? 'JansPayment GoPay' : 'JansPayment QRIS'} (Otomatis • Voucher ${activeOrder.voucherCode})`
+      : isGopay
+      ? 'JansPayment GoPay (Otomatis)'
+      : 'JansPayment QRIS (Otomatis)';
     const proofFileTitle = `JansPayment_${jansData?.paymentId || activeOrder.id}`;
 
     // Simpan transaksi lunas ke database & emit ke admin via socket
@@ -130,9 +146,10 @@ export default function QrisPaymentPage({
       ? activeOrder.items
       : [{ name: activeOrder.productName || 'Produk Digital', price: baseAmount, qty: 1 }];
 
+    const createdOrderIds = [];
     itemsList.forEach((it) => {
-      createTransaction({
-        id: activeOrder.id,
+      const created = createTransaction({
+        id: itemsList.length === 1 ? activeOrder.id : undefined,
         productId: it.productId || it.id || null,
         productName: it.name || activeOrder.productName || 'Produk Digital',
         productDuration: it.duration || activeOrder.productDuration || 'Reguler',
@@ -148,13 +165,27 @@ export default function QrisPaymentPage({
         paymentStatus: 'Lunas',
         isGatewayPaid: true,
         gatewayKey: JANSPAYMENT_API_KEY,
+        voucherCode: activeOrder.voucherCode || null,
+        voucherDiscount: Number(activeOrder.voucherDiscount) || 0,
+        voucherName: activeOrder.voucherName || null,
+        voucherDescription: activeOrder.voucherDescription || null,
         status: 'processing',
         proofUrl: 'JANSPAYMENT_SETTLED',
         proofFileName: proofFileTitle,
         proofSize: `Lunas (${formatRupiah(payableAmount)})`,
         warrantyPeriod: 'Garansi Penuh'
       });
+      if (created?.id) createdOrderIds.push(created.id);
     });
+
+    // Jika pembayaran memakai voucher, hanguskan voucher secara realtime (1x pakai) di Admin & Cloud
+    if (activeOrder.voucherCode) {
+      await markVoucherAsUsed(
+        activeOrder.voucherCode,
+        activeOrder.customerEmail || activeOrder.customerName || 'Pelanggan',
+        createdOrderIds[0] || activeOrder.id
+      ).catch(() => {});
+    }
 
     playUserNoticeSound();
     onShowToast?.(
