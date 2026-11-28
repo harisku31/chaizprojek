@@ -50,6 +50,7 @@ export default function Footer({ onOpenLogin, onOpenInstall, onOpenTestimonials,
         <div className="footer-col">
           <h4>Kategori Populer</h4>
           <ul>
+            <li><a href="#mobile-legends"><i className="fa-solid fa-gem text-cyan"></i> Diamonds Mobile Legends</a></li>
             <li><a href="#katalog"><i className="fa-solid fa-cube text-danger"></i> Robux & Roblox Kilat</a></li>
             <li><a href="#katalog"><i className="fa-brands fa-steam text-cyan"></i> Steam Key Resmi Valve</a></li>
             <li><a href="#katalog"><i className="fa-solid fa-film text-danger"></i> Netflix Premium 4K UHD</a></li>

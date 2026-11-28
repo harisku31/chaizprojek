@@ -190,7 +190,7 @@ export default function AdminAnalyticsTab({
       if (raw.includes('LOGIN') || raw.includes('LOGOUT') || raw.includes('AUTH')) group = 'Login & Sesi';
       else if (raw.includes('CHECKOUT') || raw.includes('ORDER') || raw.includes('FULFILLED')) group = 'Checkout & Pesanan';
       else if (raw.includes('CART')) group = 'Keranjang Belanja';
-      else if (raw.includes('TOPUP') || raw.includes('DEPOSIT') || raw.includes('STEAM') || raw.includes('ROBLOX')) group = 'Top Up & ChaizMoney';
+      else if (raw.includes('TOPUP') || raw.includes('DEPOSIT') || raw.includes('STEAM') || raw.includes('ROBLOX') || raw.includes('MLBB') || raw.includes('MOBILE')) group = 'Top Up & ChaizMoney';
       else if (raw.includes('VIEW') || raw.includes('SEARCH') || raw.includes('PRODUCT')) group = 'Jelajah Katalog';
       else if (raw.includes('BAN')) group = 'Sanksi & Keamanan';
       actTypeCounts.set(group, (actTypeCounts.get(group) || 0) + 1);

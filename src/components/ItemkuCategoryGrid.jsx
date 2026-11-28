@@ -7,6 +7,14 @@ export default function ItemkuCategoryGrid({
 }) {
   const categories = [
     {
+      id: 'mlbb',
+      name: 'Mobile Legends DM',
+      badge: '24 JAM INSTANT',
+      badgeColor: 'blue',
+      image: '/mobilelegends.jpg',
+      action: () => onSwitchTab('mlbb')
+    },
+    {
       id: 'roblox',
       name: 'Roblox & Robux',
       badge: 'RATE TERMURAH',

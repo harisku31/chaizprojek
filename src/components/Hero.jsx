@@ -5,7 +5,7 @@ export default function Hero({ onSwitchTab }) {
   const touchStartXRef = useRef(null);
   const touchEndXRef = useRef(null);
 
-  const SLIDES_COUNT = 4;
+  const SLIDES_COUNT = 5;
   const SLIDE_INTERVAL = 4000;
 
   useEffect(() => {
@@ -62,9 +62,23 @@ export default function Hero({ onSwitchTab }) {
       },
       tagPill: 'Diskon s/d 70%'
     },
-    // Slide 2: Robux Roblox
+    // Slide 2: Mobile Legends Diamonds
     {
       id: 2,
+      bgImage: '/mobilelegends.jpg',
+      fallbackImage: '/banner.jpg',
+      badge: 'MOBILE LEGENDS INDONESIA',
+      badgeColor: 'cyan',
+      title: 'Top Up Diamonds MLBB 24 Jam Proses Instant!',
+      desc: 'Cukup masukkan User ID dan Zone ID dengan benar. 36 pilihan nominal mulai 10 Diamonds Rp 5.000!',
+      btnText: 'Top Up MLBB',
+      btnIcon: 'fa-gem',
+      action: () => onSwitchTab?.('mlbb'),
+      tagPill: 'Mulai Rp 5.000'
+    },
+    // Slide 3: Robux Roblox
+    {
+      id: 3,
       bgImage: '/roblox.png',
       fallbackImage: '/banner.jpg',
       badge: 'TOP UP GAME TERLARIS',
@@ -76,9 +90,9 @@ export default function Hero({ onSwitchTab }) {
       action: () => onSwitchTab?.('roblox'),
       tagPill: 'Rate Termurah'
     },
-    // Slide 3: Steam Key Valve
+    // Slide 4: Steam Key Valve
     {
-      id: 3,
+      id: 4,
       bgImage: '/banner-steam.png',
       fallbackImage: '/steamori.png',
       badge: 'GAME RESMI VALVE',
@@ -90,9 +104,9 @@ export default function Hero({ onSwitchTab }) {
       action: () => onSwitchTab?.('steam'),
       tagPill: 'Mulai Rp 1.500'
     },
-    // Slide 4: Netflix 4K
+    // Slide 5: Netflix 4K
     {
-      id: 4,
+      id: 5,
       bgImage: '/banner-netflix.png',
       fallbackImage: '/netflix.png',
       badge: 'STREAMING FAVORIT',

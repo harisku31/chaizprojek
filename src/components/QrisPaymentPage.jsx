@@ -157,10 +157,14 @@ export default function QrisPaymentPage({
         price: it.price || baseAmount,
         qty: it.qty || 1,
         total: payableAmount,
+        userId: activeOrder.userId || authUser?.id || null,
+        userEmail: activeOrder.userEmail || authUser?.email || null,
         customerName: activeOrder.customerName || 'Pelanggan',
         customerEmail: activeOrder.customerEmail || '-',
         customerPhone: activeOrder.customerPhone || '-',
         customerUsername: activeOrder.customerUsername || '',
+        customerMlUserId: activeOrder.customerMlUserId || null,
+        customerMlZoneId: activeOrder.customerMlZoneId || null,
         paymentMethod: paymentMethodTitle,
         paymentStatus: 'Lunas',
         isGatewayPaid: true,
@@ -173,7 +177,7 @@ export default function QrisPaymentPage({
         proofUrl: 'JANSPAYMENT_SETTLED',
         proofFileName: proofFileTitle,
         proofSize: `Lunas (${formatRupiah(payableAmount)})`,
-        warrantyPeriod: 'Garansi Penuh'
+        warrantyPeriod: it.warrantyPeriod || activeOrder.warrantyPeriod || 'Garansi Penuh'
       });
       if (created?.id) createdOrderIds.push(created.id);
     });

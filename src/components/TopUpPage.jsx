@@ -45,6 +45,7 @@ export default function TopUpPage({
   onBackToStore,
   onOpenSteamMenu,
   onOpenRobloxMenu,
+  onOpenMobileLegendsMenu,
   onShowToast,
   authUser,
   isBanned = false,
@@ -55,13 +56,37 @@ export default function TopUpPage({
   const [searchQuery, setSearchQuery] = useState('');
 
   const categories = [
-    { id: 'all', label: 'Semua Layanan (2)', icon: 'fa-border-all' },
+    { id: 'all', label: 'Semua Layanan (3)', icon: 'fa-border-all' },
+    { id: 'mlbb', label: 'Mobile Legends (36 Paket)', icon: 'fa-solid fa-gem' },
     { id: 'steam', label: 'Steam Games (4 Varian)', icon: 'fa-brands fa-steam' },
     { id: 'roblox', label: 'Roblox & Robux (6 Paket)', icon: 'fa-solid fa-cube' }
   ];
 
-  // Daftar Layanan Top Up Resmi (Hanya 2 Layanan: Steam & Roblox)
+  // Daftar Layanan Top Up Resmi (Steam, Roblox & Mobile Legends)
   const TOPUP_SERVICES = [
+    {
+      id: 'topup-mlbb',
+      name: 'MOBILE LEGENDS INDONESIA (Diamonds)',
+      category: 'mlbb',
+      badge: '36 Paket DM',
+      badgeClass: 'badge-flash',
+      image: 'mobilelegends.jpg',
+      desc: 'Layanan 24 Jam Proses Instant. Pilih nominal Diamonds lengkap (10 s/d 4404 Diamonds), masukkan User ID dan Zone ID dengan benar (Contoh: 1268190411 (15148)), pilih pembayaran dan Diamonds langsung masuk!',
+      features: [
+        'Layanan 24 Jam & Proses Instant Langsung Masuk Akun MLBB',
+        '36 Paket Diamonds Resmi (10 DM Rp 5.000 s/d 4404 DM)',
+        'Cukup User ID dan Zone ID — Contoh: 1268190411 (15148)',
+        'Termurah & Bergaransi 100% Tanpa Password Akun'
+      ],
+      price: 5000,
+      priceNote: 'Mulai Rp 5.000 / 10 DM',
+      unit: 'diamonds',
+      stock: 9999,
+      isMlbbMenuTrigger: true,
+      buttonText: 'Buka Menu Mobile Legends (36 Paket)',
+      buttonIcon: 'fa-solid fa-gem',
+      accentColor: '#38bdf8'
+    },
     {
       id: 'steam-game-valve',
       name: 'Steam Key Game Resmi Valve',
@@ -124,7 +149,10 @@ export default function TopUpPage({
   });
 
   const handleCardClick = (service) => {
-    if (service.isSteamMenuTrigger) {
+    if (service.isMlbbMenuTrigger) {
+      if (onOpenMobileLegendsMenu) onOpenMobileLegendsMenu();
+      else window.location.hash = 'mobile-legends';
+    } else if (service.isSteamMenuTrigger) {
       if (onOpenSteamMenu) onOpenSteamMenu();
       else window.location.hash = 'steam';
     } else if (service.isRobloxMenuTrigger) {
@@ -229,19 +257,19 @@ export default function TopUpPage({
               </div>
 
               <h2 className="catalog-hero-banner-title">
-                Pusat Top Up Steam & Roblox Resmi
+                Pusat Top Up Steam, Roblox &amp; Mobile Legends
               </h2>
 
               <p className="catalog-hero-banner-desc">
-                Pusat isi saldo game resmi termurah dengan garansi 100%. Pilihan lengkap Steam Key game Valve resmi (Original, Epic Tier, NSFW 18+, Hanimetai) dan Robux Roblox instant via Username tanpa password dengan proses kilat 1-3 menit langsung masuk!
+                Pusat isi saldo game resmi termurah dengan layanan 24 jam &amp; proses instant. Pilihan lengkap Diamonds Mobile Legends Indonesia (36 nominal via User ID &amp; Zone ID), Steam Key game Valve resmi, dan Robux Roblox instant tanpa password!
               </p>
 
               <div className="catalog-hero-banner-perks">
                 <span className="catalog-hero-perk">
-                  <i className="fa-solid fa-bolt text-warning"></i> Proses Kilat 1-3 Menit
+                  <i className="fa-solid fa-bolt text-warning"></i> Proses Instant 24 Jam
                 </span>
                 <span className="catalog-hero-perk">
-                  <i className="fa-solid fa-shield-halved text-success"></i> 100% Legal & Bergaransi
+                  <i className="fa-solid fa-shield-halved text-success"></i> 100% Legal &amp; Bergaransi
                 </span>
                 <span className="catalog-hero-perk">
                   <i className="fa-solid fa-qrcode text-cyan"></i> QRIS All Payment (0% Fee)
@@ -286,7 +314,16 @@ export default function TopUpPage({
                     <i className="fa-solid fa-bolt text-cyan"></i> Layanan Kilat 24 Jam Online
                   </span>
                 </div>
-                <div className="catalog-visual-apps topup-visual-apps" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                <div className="catalog-visual-apps topup-visual-apps" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                  <div
+                    className="catalog-v-app"
+                    onClick={onOpenMobileLegendsMenu}
+                    style={{ cursor: 'pointer' }}
+                    title="Buka Menu Mobile Legends"
+                  >
+                    <i className="fa-solid fa-gem text-cyan"></i>
+                    <span>MLBB DM</span>
+                  </div>
                   <div
                     className="catalog-v-app"
                     onClick={onOpenSteamMenu}
@@ -336,7 +373,7 @@ export default function TopUpPage({
             <input
               type="text"
               className="topup-search-input"
-              placeholder="Cari Steam Key, Robux Roblox, atau layanan top up..."
+              placeholder="Cari Mobile Legends, Steam Key, Robux Roblox..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -373,9 +410,9 @@ export default function TopUpPage({
           className="product-grid"
           style={{
             minHeight: '360px',
-            maxWidth: '960px',
+            maxWidth: '1120px',
             margin: '0 auto',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '24px'
           }}
         >
@@ -392,14 +429,28 @@ export default function TopUpPage({
                     className="product-category-pill"
                     style={{
                       margin: 0,
-                      background: `rgba(${svc.category === 'steam' ? '102, 192, 244' : '168, 85, 247'}, 0.18)`,
+                      background: `rgba(${
+                        svc.category === 'mlbb'
+                          ? '56, 189, 248'
+                          : svc.category === 'steam'
+                          ? '102, 192, 244'
+                          : '168, 85, 247'
+                      }, 0.18)`,
                       color: svc.accentColor || '#38bdf8',
-                      borderColor: `rgba(${svc.category === 'steam' ? '102, 192, 244' : '168, 85, 247'}, 0.35)`
+                      borderColor: `rgba(${
+                        svc.category === 'mlbb'
+                          ? '56, 189, 248'
+                          : svc.category === 'steam'
+                          ? '102, 192, 244'
+                          : '168, 85, 247'
+                      }, 0.35)`
                     }}
                   >
                     <i
                       className={
-                        svc.category === 'steam'
+                        svc.category === 'mlbb'
+                          ? 'fa-solid fa-gem'
+                          : svc.category === 'steam'
                           ? 'fa-brands fa-steam'
                           : 'fa-solid fa-cube'
                       }
@@ -443,7 +494,7 @@ export default function TopUpPage({
                   <span className="stock-mkt-label">Status Layanan:</span>
                 </div>
                 <span className="stock-mkt-badge badge-available">
-                  <strong>Ready Stock</strong> • Auto 1-3 Mnt
+                  <strong>Ready Stock</strong> • Proses Instant
                 </span>
               </div>
 
@@ -463,7 +514,7 @@ export default function TopUpPage({
                 <span className="price-unit">/ {svc.unit}</span>
               </div>
 
-              {/* Action Button: Buka Menu Steam atau Roblox */}
+              {/* Action Button: Buka Menu MLBB, Steam atau Roblox */}
               <div className="card-actions" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
@@ -471,10 +522,11 @@ export default function TopUpPage({
                   style={{
                     width: '100%',
                     justifyContent: 'center',
-                    background:
-                      svc.isSteamMenuTrigger
-                        ? 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)'
-                        : 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
+                    background: svc.isMlbbMenuTrigger
+                      ? 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)'
+                      : svc.isSteamMenuTrigger
+                      ? 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)'
+                      : 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
                     borderColor: '#38bdf8',
                     gap: '8px',
                     boxShadow: '0 4px 16px rgba(6, 182, 212, 0.25)'

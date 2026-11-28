@@ -18,6 +18,7 @@ import TopUpModal from './components/TopUpModal';
 import TopUpPage from './components/TopUpPage';
 import SteamPage from './components/SteamPage';
 import RobloxPage from './components/RobloxPage';
+import MobileLegendsPage from './components/MobileLegendsPage';
 import TransactionsPage from './components/TransactionsPage';
 import TestimonialsPage from './components/TestimonialsPage';
 import UserProfilePage from './components/UserProfilePage';
@@ -163,11 +164,12 @@ export default function App() {
   const [currentCategory, setCurrentCategory] = useState('all');
   const [highlightedProductId, setHighlightedProductId] = useState(null);
 
-  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'roblox' (Menu Robux) | 'transaksi' | 'testimoni' | 'profile' | 'pembayaran'
+  // Active View Tab: 'store' (Akun Premium) | 'topup' (Top Up Center) | 'steam' (Menu Khusus Steam Key) | 'roblox' (Menu Robux) | 'mlbb' (Menu Mobile Legends) | 'transaksi' | 'testimoni' | 'profile' | 'pembayaran'
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.hash.startsWith('#pembayaran')) return 'pembayaran';
     if (window.location.hash === '#steam') return 'steam';
     if (window.location.hash === '#roblox') return 'roblox';
+    if (window.location.hash === '#mobile-legends' || window.location.hash === '#mlbb') return 'mlbb';
     if (window.location.hash === '#topup') return 'topup';
     if (window.location.hash === '#transaksi') return 'transaksi';
     if (window.location.hash === '#testimoni') return 'testimoni';
@@ -187,6 +189,8 @@ export default function App() {
         setActiveTab('steam');
       } else if (window.location.hash === '#roblox') {
         setActiveTab('roblox');
+      } else if (window.location.hash === '#mobile-legends' || window.location.hash === '#mlbb') {
+        setActiveTab('mlbb');
       } else if (window.location.hash === '#topup') {
         setActiveTab('topup');
       } else if (window.location.hash === '#transaksi') {
@@ -230,6 +234,14 @@ export default function App() {
       if (authUser) {
         recordUserActivity(authUser, 'VIEW_ROBLOX', 'Membuka menu Robux Roblox');
       }
+    } else if (tab === 'mlbb') {
+      if (window.location.hash !== '#mobile-legends') {
+        window.location.hash = 'mobile-legends';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (authUser) {
+        recordUserActivity(authUser, 'VIEW_MOBILE_LEGENDS', 'Membuka menu Diamonds Mobile Legends Indonesia');
+      }
     } else if (tab === 'topup') {
       if (window.location.hash !== '#topup') {
         window.location.hash = 'topup';
@@ -266,6 +278,8 @@ export default function App() {
         window.location.hash === '#topup' ||
         window.location.hash === '#steam' ||
         window.location.hash === '#roblox' ||
+        window.location.hash === '#mobile-legends' ||
+        window.location.hash === '#mlbb' ||
         window.location.hash === '#profile' ||
         window.location.hash === '#testimoni' ||
         window.location.hash === '#transaksi'
@@ -1224,11 +1238,24 @@ export default function App() {
             onOpenBannedModal={() => setIsBannedModalOpen(true)}
             onGoToTransactions={() => handleSwitchTab('transaksi')}
           />
+        ) : activeTab === 'mlbb' ? (
+          <MobileLegendsPage
+            onBackToTopUp={() => handleSwitchTab('topup')}
+            onBackToStore={() => handleSwitchTab('store')}
+            onShowToast={showToast}
+            authUser={authUser}
+            isBanned={isCurrentBanned}
+            onOpenLogin={() => setIsLoginOpen(true)}
+            onOpenBannedModal={() => setIsBannedModalOpen(true)}
+            onGoToTransactions={() => handleSwitchTab('transaksi')}
+            onProceedToPayment={handleProceedToPayment}
+          />
         ) : activeTab === 'topup' ? (
           <TopUpPage
             onBackToStore={() => handleSwitchTab('store')}
             onOpenSteamMenu={() => handleSwitchTab('steam')}
             onOpenRobloxMenu={() => handleSwitchTab('roblox')}
+            onOpenMobileLegendsMenu={() => handleSwitchTab('mlbb')}
             onShowToast={showToast}
             authUser={authUser}
             isBanned={isCurrentBanned}

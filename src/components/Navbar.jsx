@@ -42,6 +42,7 @@ export default function Navbar({
 
   const quickCategories = [
     { id: 'all', label: 'Semua Kategori', icon: 'fa-solid fa-border-all' },
+    { id: 'mlbb', label: 'Mobile Legends DM', icon: 'fa-solid fa-gem', isTab: 'mlbb' },
     { id: 'roblox', label: 'Robux & Roblox', icon: 'fa-solid fa-cube', isTab: 'roblox' },
     { id: 'steam', label: 'Steam Games', icon: 'fa-brands fa-steam', isTab: 'steam' },
     { id: 'topup', label: 'Top Up Kilat', icon: 'fa-solid fa-bolt', isTab: 'topup' },

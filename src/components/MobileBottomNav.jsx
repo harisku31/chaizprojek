@@ -25,7 +25,7 @@ export default function MobileBottomNav({
       {/* 2. Top Up Game */}
       <button
         type="button"
-        className={`bottom-nav-item ${activeTab === 'topup' ? 'active' : ''}`}
+        className={`bottom-nav-item ${['topup', 'steam', 'roblox', 'mlbb'].includes(activeTab) ? 'active' : ''}`}
         onClick={() => onSwitchTab('topup')}
       >
         <div className="bottom-nav-icon">

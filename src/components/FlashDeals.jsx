@@ -72,6 +72,17 @@ export default function FlashDeals({
       stock: 2000
     },
     {
+      id: 'topup-mlbb',
+      name: 'Top Up Mobile Legends (36 Paket)',
+      category: 'topup',
+      image: 'mobilelegends.jpg',
+      currentPrice: 5000,
+      oldPrice: 8000,
+      stock: 99,
+      isTopUp: true,
+      isMlbbSpecial: true
+    },
+    {
       id: 'topup-robux',
       name: 'Top Up Robux (Roblox)',
       category: 'topup',
@@ -96,7 +107,9 @@ export default function FlashDeals({
   ];
 
   const handleItemClick = (prod) => {
-    if (prod.isSteamSpecial) {
+    if (prod.isMlbbSpecial) {
+      if (onSwitchTab) onSwitchTab('mlbb');
+    } else if (prod.isSteamSpecial) {
       if (onSwitchTab) onSwitchTab('steam');
     } else if (prod.isRobuxSpecial) {
       if (onSwitchTab) onSwitchTab('roblox');
