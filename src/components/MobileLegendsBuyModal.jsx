@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/format';
-import { PAYMENT_INFO } from '../data/config';
-import { createTransaction, getUserKey } from '../utils/transactions';
-import { playUserNoticeSound, unlockAudio } from '../utils/audioNotification';
-import { QrisLogo, GopayLogo } from './PaymentLogos';
+import { formatRupiah } from '../utils/format';
 
 export const MLBB_PACKAGES = [
   { id: '10d', amount: 10, base: 9, bonus: 1, name: '10 Diamonds', breakdown: '9+1 Bonus', price: 5000, category: 'hemat', badge: 'Termurah', badgeClass: 'badge-bestseller' },
@@ -45,49 +41,86 @@ export const MLBB_PACKAGES = [
 ];
 
 /**
- * Modal Checkout Top Up Diamond Mobile Legends Indonesia
+ * Helper membangun payload item keranjang untuk paket Mobile Legends
+ */
+export function buildMlbbCartItem(pkg, userId, zoneId) {
+  const cleanUserId = String(userId || '').trim();
+  const cleanZoneId = String(zoneId || '').trim();
+  const formattedGameId = `${cleanUserId} (${cleanZoneId})`;
+  return {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    productId: `mlbb-${pkg.id}`,
+    productName: `Mobile Legends ${pkg.name} (${pkg.breakdown})`,
+    durationName: `${pkg.name} (${pkg.breakdown}) • ID: ${formattedGameId}`,
+    viaType: `User ID: ${formattedGameId}`,
+    category: 'Top Up Game',
+    price: pkg.price,
+    originalPrice: pkg.price,
+    customerUsername: formattedGameId,
+    customerMlUserId: cleanUserId,
+    customerMlZoneId: cleanZoneId,
+    warrantyPeriod: 'Garansi Diamond Masuk 100%'
+  };
+}
+
+/**
+ * Helper membangun payload CheckoutModal standar ChaizStore untuk Mobile Legends
+ */
+export function buildMlbbCheckoutItem(pkg, userId, zoneId) {
+  const cleanUserId = String(userId || '').trim();
+  const cleanZoneId = String(zoneId || '').trim();
+  const formattedGameId = `${cleanUserId} (${cleanZoneId})`;
+  return {
+    productId: `mlbb-${pkg.id}`,
+    name: `Mobile Legends ${pkg.name} (${pkg.breakdown})`,
+    duration: `${pkg.name} (${pkg.breakdown}) • ID: ${formattedGameId}`,
+    via: `User ID: ${formattedGameId}`,
+    category: 'Top Up Game',
+    price: pkg.price,
+    qty: 1,
+    total: pkg.price,
+    customerUsername: formattedGameId,
+    customerMlUserId: cleanUserId,
+    customerMlZoneId: cleanZoneId,
+    warrantyPeriod: 'Garansi Diamond Masuk 100%'
+  };
+}
+
+/**
+ * Modal Pemilihan Paket & Masukan Data Akun Mobile Legends (terhubung langsung ke Keranjang & CheckoutModal)
  */
 export default function MobileLegendsBuyModal({
   isOpen,
   onClose,
-  authUser,
   isBanned = false,
-  onOpenLogin,
   onOpenBannedModal,
   onShowToast,
-  onGoToTransactions,
+  onAddToCart,
+  onProceedCheckout,
   onProceedToPayment,
   initialPackageId = '10d',
   initialUserId = '',
-  initialZoneId = ''
+  initialZoneId = '',
+  focusAccountInput = false
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(initialPackageId);
   const [mlUserId, setMlUserId] = useState(initialUserId);
   const [mlZoneId, setMlZoneId] = useState(initialZoneId);
-  const [buyerName, setBuyerName] = useState('');
-  const [buyerEmail, setBuyerEmail] = useState('');
-  const [buyerWa, setBuyerWa] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState('qris');
-  const [uploadedProof, setUploadedProof] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fileInputRef = useRef(null);
+  const userIdInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       if (initialPackageId) setSelectedPkgId(initialPackageId);
-      if (initialUserId) setMlUserId(initialUserId);
-      if (initialZoneId) setMlZoneId(initialZoneId);
-      setSelectedMethod('qris');
-      setUploadedProof(null);
-
-      if (authUser) {
-        setBuyerName(authUser.name || '');
-        setBuyerEmail(authUser.email || '');
-        setBuyerWa(authUser.phone || authUser.whatsapp || '');
+      setMlUserId(initialUserId || '');
+      setMlZoneId(initialZoneId || '');
+      if (focusAccountInput || !initialUserId) {
+        setTimeout(() => {
+          userIdInputRef.current?.focus();
+        }, 120);
       }
     }
-  }, [isOpen, initialPackageId, initialUserId, initialZoneId, authUser]);
+  }, [isOpen, initialPackageId, initialUserId, initialZoneId, focusAccountInput]);
 
   if (!isOpen) return null;
 
@@ -96,7 +129,6 @@ export default function MobileLegendsBuyModal({
   const totalPrice = currentPkg.price;
 
   const handleUserIdInput = (rawValue) => {
-    // Izinkan tempel format "1268190411 (15148)" lalu pisah otomatis menjadi User ID & Zone ID
     const comboMatch = rawValue.match(/^\s*(\d+)\s*\((\d+)\)\s*$/);
     if (comboMatch) {
       setMlUserId(comboMatch[1]);
@@ -110,46 +142,6 @@ export default function MobileLegendsBuyModal({
     setMlZoneId(rawValue.replace(/\D/g, ''));
   };
 
-  const handleCopyRekening = async (number, label) => {
-    const success = await copyToClipboard(number);
-    if (success) {
-      onShowToast?.(`Nomor ${label} (${number}) berhasil disalin!`, 'fa-copy text-success');
-    }
-  };
-
-  const handleProofChange = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      onShowToast?.('Harap pilih file foto bukti transfer (JPG / PNG / WEBP)', 'fa-triangle-exclamation');
-      e.target.value = '';
-      return;
-    }
-
-    try {
-      const compressedDataUrl = await compressImageFile(file, 900, 1200, 0.72);
-      const sizeKb = (((compressedDataUrl?.length || file.size) * 0.75) / 1024).toFixed(1);
-      setUploadedProof({
-        file,
-        name: file.name,
-        size: `${sizeKb} KB (Ringan & Cepat)`,
-        dataUrl: compressedDataUrl,
-        uploadedUrl: compressedDataUrl
-      });
-      onShowToast?.('Foto bukti transfer berhasil di-upload!', 'fa-circle-check text-success');
-    } catch {
-      onShowToast?.('Gagal memproses foto bukti transfer', 'fa-triangle-exclamation');
-    }
-  };
-
-  const handleRemoveProof = (e) => {
-    e.stopPropagation();
-    setUploadedProof(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    onShowToast?.('Foto bukti transfer dihapus', 'fa-trash-can');
-  };
-
   const cleanUserId = mlUserId.trim();
   const cleanZoneId = mlZoneId.trim();
   const formattedGameId =
@@ -157,157 +149,63 @@ export default function MobileLegendsBuyModal({
       ? `${cleanUserId} (${cleanZoneId})`
       : cleanUserId || '(Belum diisi)';
 
-  const handleSubmitOrder = async (e) => {
-    e.preventDefault();
-    unlockAudio();
+  const validateGameAccount = () => {
+    if (!cleanUserId || cleanUserId.length < 4) {
+      onShowToast?.('Silakan isi User ID Mobile Legends dengan benar (contoh: 1268190411)!', 'fa-triangle-exclamation', 'warning');
+      userIdInputRef.current?.focus();
+      userIdInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    if (!cleanZoneId || cleanZoneId.length < 2) {
+      onShowToast?.('Silakan isi Zone ID / Server dengan benar (contoh: 15148)!', 'fa-triangle-exclamation', 'warning');
+      const zoneEl = document.getElementById('mlInputZoneId');
+      zoneEl?.focus();
+      zoneEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    return true;
+  };
 
+  const handleAddCurrentToCart = () => {
     if (isBanned) {
       onOpenBannedModal?.();
       onShowToast?.('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
       return;
     }
+    if (!validateGameAccount()) return;
 
-    if (!authUser) {
-      onOpenLogin?.();
-      onShowToast?.('Silakan login terlebih dahulu untuk top up Diamond Mobile Legends!', 'fa-right-to-bracket text-warning');
+    if (typeof onAddToCart === 'function') {
+      onAddToCart(buildMlbbCartItem(currentPkg, cleanUserId, cleanZoneId));
+      onClose();
+    }
+  };
+
+  const handleBayarSekarang = (e) => {
+    if (e) e.preventDefault();
+    if (isBanned) {
+      onOpenBannedModal?.();
+      onShowToast?.('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
       return;
     }
+    if (!validateGameAccount()) return;
 
-    if (!cleanUserId || cleanUserId.length < 4) {
-      onShowToast?.('User ID Mobile Legends wajib diisi dengan benar (contoh: 1268190411)!', 'fa-triangle-exclamation', 'warning');
-      document.getElementById('mlInputUserId')?.focus();
-      return;
-    }
-    if (!cleanZoneId || cleanZoneId.length < 2) {
-      onShowToast?.('Zone ID / Server Mobile Legends wajib diisi dengan benar (contoh: 15148)!', 'fa-triangle-exclamation', 'warning');
-      document.getElementById('mlInputZoneId')?.focus();
-      return;
-    }
+    const checkoutItem = buildMlbbCheckoutItem(currentPkg, cleanUserId, cleanZoneId);
+    onClose();
 
-    const name = buyerName.trim();
-    const email = buyerEmail.trim();
-    const wa = buyerWa.trim();
-
-    if (!name) {
-      onShowToast?.('Silakan masukkan Nama Lengkap Anda!', 'fa-triangle-exclamation');
-      return;
-    }
-    if (!wa) {
-      onShowToast?.('⚠️ Jangan lupa isi nomor telepon / WhatsApp kamu!', 'fa-phone text-warning', 'warning');
-      const el = document.getElementById('mlBuyerWa');
-      el?.focus();
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    if (!email) {
-      onShowToast?.('Silakan masukkan Email / Gmail Anda!', 'fa-triangle-exclamation');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
-      const finalUserId =
-        authUser?.id ||
-        getUserKey(authUser) ||
-        (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
-
-      const durationLabel = `${currentPkg.name} (${currentPkg.breakdown}) • ID: ${formattedGameId}`;
-
-      // 1. Alur Otomatis JansPayment QRIS / GoPay Instant
-      if (selectedMethod === 'qris' || selectedMethod === 'gopay') {
-        const orderId = `MLBB-${Date.now().toString().slice(-6)}`;
-        const orderPayload = {
-          id: orderId,
-          amount: totalPrice,
-          total: totalPrice,
-          originalTotal: totalPrice,
-          productDuration: durationLabel,
-          warrantyPeriod: 'Garansi Diamond Masuk 100%',
-          items: [
-            {
-              id: 'mlbb-' + currentPkg.id,
-              productId: 'mlbb-' + currentPkg.id,
-              name: `Mobile Legends ${currentPkg.name} (${currentPkg.breakdown})`,
-              duration: durationLabel,
-              category: 'Top Up Game',
-              price: currentPkg.price,
-              qty: 1,
-              warrantyPeriod: 'Garansi Diamond Masuk 100%'
-            }
-          ],
-          userId: finalUserId,
-          userEmail: finalEmail !== '-' ? finalEmail : null,
-          customerName: name || authUser?.name || 'Pelanggan ChaizStore',
-          customerPhone: wa,
-          customerEmail: finalEmail !== '-' ? finalEmail : 'order@chaizstore.my.id',
-          customerUsername: formattedGameId,
-          customerMlUserId: cleanUserId,
-          customerMlZoneId: cleanZoneId,
-          paymentMethod:
-            selectedMethod === 'gopay'
-              ? 'GoPay Instant Otomatis'
-              : 'QRIS Payment Gateway Otomatis',
-          subMethod: selectedMethod,
-          source: 'mlbb'
-        };
-
-        setIsSubmitting(false);
-        onClose();
-        if (typeof onProceedToPayment === 'function') {
-          onProceedToPayment(orderPayload);
-        } else {
-          try {
-            localStorage.setItem('chaiz_active_payment', JSON.stringify(orderPayload));
-            window.location.hash = `#pembayaran?trx=${orderId}&total=${totalPrice}&method=${selectedMethod}`;
-          } catch {}
-        }
-        return;
-      }
-
-      // 2. Alur Transfer Manual (DANA / E-Wallet / Bank Muamalat)
-      const proofImg = uploadedProof?.dataUrl || uploadedProof?.uploadedUrl || null;
-      const newTrx = createTransaction({
-        productId: 'mlbb-' + currentPkg.id,
-        productName: `Mobile Legends ${currentPkg.name} (${currentPkg.breakdown})`,
-        productDuration: durationLabel,
-        productCategory: 'Top Up Game',
-        price: currentPkg.price,
-        qty: 1,
+    if (typeof onProceedCheckout === 'function') {
+      onProceedCheckout(checkoutItem);
+    } else if (typeof onProceedToPayment === 'function') {
+      const orderId = `MLBB-${Date.now().toString().slice(-6)}`;
+      onProceedToPayment({
+        id: orderId,
+        amount: totalPrice,
         total: totalPrice,
-        userId: finalUserId,
-        userEmail: finalEmail !== '-' ? finalEmail : null,
+        items: [checkoutItem],
         customerUsername: formattedGameId,
         customerMlUserId: cleanUserId,
         customerMlZoneId: cleanZoneId,
-        customerName: name,
-        customerEmail: finalEmail,
-        customerPhone: wa,
-        paymentMethod: PAYMENT_INFO[selectedMethod]?.name || 'Transfer Manual',
-        paymentStatus: 'Pending',
-        isGatewayPaid: false,
-        proofUrl: proofImg,
-        proofFileName: uploadedProof?.name || (proofImg ? 'Bukti_Transfer_MLBB.png' : null),
-        proofSize: uploadedProof?.size || null,
-        warrantyPeriod: 'Garansi Diamond Masuk 100%'
+        subMethod: 'qris'
       });
-
-      playUserNoticeSound();
-      onShowToast?.(
-        `🎉 Pesanan MLBB #${newTrx.id} berhasil dibuat! Silakan pantau proses pengiriman di halaman Transaksi.`,
-        'fa-circle-check text-success'
-      );
-
-      onClose();
-      if (typeof onGoToTransactions === 'function') {
-        setTimeout(() => onGoToTransactions(), 150);
-      }
-    } catch (err) {
-      console.error('Error creating MLBB transaction:', err);
-      onShowToast?.('Gagal membuat pesanan Mobile Legends, coba sesaat lagi.', 'fa-triangle-exclamation', 'danger');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -332,15 +230,15 @@ export default function MobileLegendsBuyModal({
             MOBILE LEGENDS INDONESIA • 24 JAM PROSES INSTANT
           </span>
           <h3 className="modal-title-centered roblox-modal-title">
-            Checkout Top Up Diamonds MLBB
+            Top Up Diamonds MLBB
           </h3>
           <p className="modal-desc roblox-modal-desc">
-            Isi nominal Diamonds, masukkan User ID &amp; Zone ID dengan benar, lalu selesaikan pembayaran untuk proses masuk instant ke akun Anda.
+            Pilih nominal Diamonds dan isi Data Akun sebelum memasukkan ke Keranjang atau Bayar Sekarang.
           </p>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmitOrder} className="steam-modal-body roblox-modal-body">
+        <form onSubmit={handleBayarSekarang} className="steam-modal-body roblox-modal-body">
           {/* 1. Pilih Nominal Diamonds */}
           <div className="roblox-section-group">
             <label className="roblox-form-label-header">
@@ -376,13 +274,12 @@ export default function MobileLegendsBuyModal({
             </div>
           </div>
 
-          {/* 2. Input User ID dan Zone ID */}
-          <div className="roblox-username-card mlbb-id-card">
-            <div className="roblox-username-header">
-              <label className="roblox-form-label" htmlFor="mlInputUserId">
-                <i className="fa-solid fa-id-card text-cyan"></i>
-                <strong>2. Masukkan User ID dan Zone ID dengan benar:</strong>
-              </label>
+          {/* 2. Masukan Data Akun (User ID & Zone ID + Catatan WA) */}
+          <div className="mlbb-account-box">
+            <div className="mlbb-account-box-header">
+              <span className="mlbb-account-step-pill">
+                <i className="fa-solid fa-user-check"></i> Masukan Data Akun
+              </span>
               {cleanUserId && cleanZoneId && (
                 <span className="roblox-verified-badge">
                   <i className="fa-solid fa-circle-check"></i> {formattedGameId}
@@ -390,302 +287,84 @@ export default function MobileLegendsBuyModal({
               )}
             </div>
 
-            <div className="mlbb-id-input-row">
-              <div className="mlbb-id-field-col mlbb-userid-col">
-                <label className="roblox-input-label" htmlFor="mlInputUserId">
+            <div className="mlbb-account-fields-grid">
+              <div className="mlbb-account-field">
+                <label className="mlbb-account-label" htmlFor="mlInputUserId">
                   User ID
                 </label>
                 <input
+                  ref={userIdInputRef}
                   id="mlInputUserId"
                   type="text"
                   inputMode="numeric"
-                  className={`form-control roblox-input ${cleanUserId.length >= 4 ? 'is-valid' : ''}`}
-                  placeholder="1268190411"
+                  className={`mlbb-account-input ${cleanUserId.length >= 4 ? 'is-valid' : ''}`}
+                  placeholder="User ID (cth: 1268190411)"
                   value={mlUserId}
                   onChange={(e) => handleUserIdInput(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="mlbb-id-field-col mlbb-zoneid-col">
-                <label className="roblox-input-label" htmlFor="mlInputZoneId">
-                  Zone ID (Server)
+              <div className="mlbb-account-field">
+                <label className="mlbb-account-label" htmlFor="mlInputZoneId">
+                  Zone ID
                 </label>
-                <div className="mlbb-zone-input-wrap">
-                  <span className="mlbb-zone-paren">(</span>
-                  <input
-                    id="mlInputZoneId"
-                    type="text"
-                    inputMode="numeric"
-                    className={`form-control roblox-input mlbb-zone-input ${cleanZoneId.length >= 2 ? 'is-valid' : ''}`}
-                    placeholder="15148"
-                    value={mlZoneId}
-                    onChange={(e) => handleZoneIdInput(e.target.value)}
-                    required
-                  />
-                  <span className="mlbb-zone-paren">)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="roblox-field-helper">
-              <i className="fa-solid fa-circle-info text-cyan"></i>
-              <span>
-                Contoh: <strong>1268190411 (15148)</strong>. Untuk mengecek User ID, klik foto profil di pojok kiri atas lobby Mobile Legends.
-              </span>
-            </div>
-          </div>
-
-          {/* 3. Data Pemesan */}
-          <div className="roblox-section-group roblox-buyer-details">
-            <label className="roblox-form-label-header">
-              <i className="fa-solid fa-address-card text-cyan"></i> <strong>Data Pemesan:</strong>
-            </label>
-
-            <div className="roblox-form-grid-2">
-              <div>
-                <label className="roblox-input-label" htmlFor="mlBuyerName">Nama Lengkap:</label>
                 <input
-                  id="mlBuyerName"
+                  id="mlInputZoneId"
                   type="text"
-                  className="form-control roblox-input"
-                  placeholder="Nama Lengkap"
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <div className="roblox-input-label-row">
-                  <label className="roblox-input-label" htmlFor="mlBuyerWa">
-                    No. WhatsApp / HP:
-                  </label>
-                  {!buyerWa.trim() && (
-                    <span className="roblox-required-hint">*Jangan lupa isi</span>
-                  )}
-                </div>
-                <input
-                  id="mlBuyerWa"
-                  type="tel"
-                  className={`form-control roblox-input ${!buyerWa.trim() ? 'border-warning' : ''}`}
-                  placeholder="Contoh: 08123456789"
-                  value={buyerWa}
-                  onChange={(e) => setBuyerWa(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="roblox-full-col">
-                <label className="roblox-input-label" htmlFor="mlBuyerEmail">Email / Gmail:</label>
-                <input
-                  id="mlBuyerEmail"
-                  type="email"
-                  className="form-control roblox-input"
-                  placeholder="alamat.email@gmail.com"
-                  value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  inputMode="numeric"
+                  className={`mlbb-account-input ${cleanZoneId.length >= 2 ? 'is-valid' : ''}`}
+                  placeholder="Zone ID (cth: 15148)"
+                  value={mlZoneId}
+                  onChange={(e) => handleZoneIdInput(e.target.value)}
                   required
                 />
               </div>
             </div>
+
+            <ul className="mlbb-account-notes">
+              <li>Kami akan menghubungi nomor WhatsApp terdaftar jika ada kendala.</li>
+              <li>Kode Voucher akan dikirimkan melalui nomor WhatsApp terdaftar.</li>
+            </ul>
           </div>
 
-          {/* 4. Pilih Metode Pembayaran */}
-          <div className="roblox-section-group roblox-payment-section">
-            <label className="roblox-form-label-header">
-              <i className="fa-solid fa-wallet text-warning"></i> <strong>3. Pilih Metode Pembayaran yang di inginkan:</strong>
-            </label>
-
-            <div className="mlbb-method-grid">
-              <button
-                type="button"
-                className={`roblox-method-card qris ${selectedMethod === 'qris' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('qris')}
-              >
-                <QrisLogo style={{ marginBottom: '6px' }} />
-                <strong className="method-title">QRIS Gateway</strong>
-                <small className="method-sub">Otomatis 24 Jam</small>
-              </button>
-
-              <button
-                type="button"
-                className={`roblox-method-card ${selectedMethod === 'gopay' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('gopay')}
-              >
-                <GopayLogo style={{ marginBottom: '6px' }} />
-                <strong className="method-title">GoPay Instant</strong>
-                <small className="method-sub">Verifikasi Kilat</small>
-              </button>
-
-              <button
-                type="button"
-                className={`roblox-method-card ewallet ${selectedMethod === 'ewallet' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('ewallet')}
-              >
-                <i className="fa-solid fa-wallet method-icon text-cyan"></i>
-                <strong className="method-title">DANA / E-Wallet</strong>
-                <small className="method-sub">0818-0973-0331</small>
-              </button>
-
-              <button
-                type="button"
-                className={`roblox-method-card bank ${selectedMethod === 'bank' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('bank')}
-              >
-                <i className="fa-solid fa-building-columns method-icon text-purple"></i>
-                <strong className="method-title">Bank Muamalat</strong>
-                <small className="method-sub">1080010996</small>
-              </button>
-            </div>
-
-            {/* Detail Metode Pembayaran */}
-            <div className="roblox-method-detail-box">
-              {(selectedMethod === 'qris' || selectedMethod === 'gopay') && (
-                <div className="mlbb-gateway-notice">
-                  <i className="fa-solid fa-bolt text-warning"></i>
-                  <div>
-                    <strong>Pembayaran Otomatis 24 Jam ({selectedMethod === 'gopay' ? 'GoPay' : 'QRIS All Payment'})</strong>
-                    <p>
-                      Setelah klik tombol di bawah, Anda akan diarahkan ke halaman QRIS Gateway resmi untuk menyelesaikan pembayaran <strong>{formatRupiah(totalPrice)}</strong> dan Diamond langsung diproses.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMethod === 'ewallet' && (
-                <div>
-                  <div className="roblox-rekening-row">
-                    <div>
-                      <strong className="roblox-rek-title">DANA / GoPay / OVO</strong>
-                      <span className="roblox-rek-sub text-cyan">0818-0973-0331 (a.n Haris)</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm roblox-btn-copy"
-                      onClick={() => handleCopyRekening('081809730331', 'Nomor E-Wallet')}
-                    >
-                      <i className="fa-solid fa-copy"></i> Salin Nomor
-                    </button>
-                  </div>
-
-                  <div className="mlbb-proof-upload-row">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleProofChange}
-                    />
-                    {uploadedProof ? (
-                      <div className="mlbb-proof-preview">
-                        <span><i className="fa-solid fa-circle-check text-emerald"></i> {uploadedProof.name}</span>
-                        <button type="button" className="btn btn-outline btn-sm" onClick={handleRemoveProof}>
-                          Hapus
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm roblox-btn-copy"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <i className="fa-solid fa-cloud-arrow-up"></i> Upload Bukti Transfer (Opsional)
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {selectedMethod === 'bank' && (
-                <div>
-                  <div className="roblox-rekening-row">
-                    <div>
-                      <strong className="roblox-rek-title">Bank Muamalat</strong>
-                      <span className="roblox-rek-sub text-purple">1080010996 (a.n Haris)</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm roblox-btn-copy"
-                      onClick={() => handleCopyRekening('1080010996', 'Nomor Rekening')}
-                    >
-                      <i className="fa-solid fa-copy"></i> Salin Rekening
-                    </button>
-                  </div>
-
-                  <div className="mlbb-proof-upload-row">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleProofChange}
-                    />
-                    {uploadedProof ? (
-                      <div className="mlbb-proof-preview">
-                        <span><i className="fa-solid fa-circle-check text-emerald"></i> {uploadedProof.name}</span>
-                        <button type="button" className="btn btn-outline btn-sm" onClick={handleRemoveProof}>
-                          Hapus
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm roblox-btn-copy"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <i className="fa-solid fa-cloud-arrow-up"></i> Upload Bukti Transfer (Opsional)
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 5. Ringkasan Pesanan */}
+          {/* 3. Ringkasan Pesanan (Gaya ProductModal Akun Premium) */}
           <div className="roblox-order-summary-box">
             <div className="summary-row">
-              <span className="summary-label">Item Pesanan:</span>
+              <span className="summary-label">Paket Terpilih:</span>
               <strong className="summary-val">Mobile Legends {currentPkg.name} ({currentPkg.breakdown})</strong>
             </div>
             <div className="summary-row">
-              <span className="summary-label">Tujuan User ID (Zone ID):</span>
+              <span className="summary-label">Data Akun (User ID &amp; Zone ID):</span>
               <strong className="summary-val text-cyan">{formattedGameId}</strong>
             </div>
-            <div className="summary-row">
-              <span className="summary-label">Metode Pembayaran:</span>
-              <span className="summary-val text-cyan">{selectedMethod.toUpperCase()}</span>
-            </div>
             <div className="summary-total-row">
-              <span className="total-label">Total Tagihan:</span>
+              <span className="total-label">Total Pembayaran:</span>
               <strong className="total-val">{formatRupiah(totalPrice)}</strong>
             </div>
           </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            className="btn btn-primary roblox-modal-submit-btn"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <i className="fa-solid fa-spinner fa-spin"></i>
-                <span>Memproses Pesanan Diamonds...</span>
-              </>
-            ) : (
-              <>
-                <i className={selectedMethod === 'qris' || selectedMethod === 'gopay' ? 'fa-solid fa-bolt' : 'fa-solid fa-gem'}></i>
-                <span>
-                  {selectedMethod === 'qris' || selectedMethod === 'gopay'
-                    ? `Lanjut Bayar Sekarang (${formatRupiah(totalPrice)})`
-                    : `Konfirmasi & Beli Sekarang (${formatRupiah(totalPrice)})`}
-                </span>
-                <i className="fa-solid fa-arrow-right"></i>
-              </>
+          {/* Dual Actions Persis Akun Premium: Masukkan Keranjang & Bayar Sekarang */}
+          <div className="modal-dual-actions">
+            {typeof onAddToCart === 'function' && (
+              <button
+                type="button"
+                className="btn btn-cart-action"
+                onClick={handleAddCurrentToCart}
+              >
+                <i className="fa-solid fa-cart-plus"></i> Masukkan Keranjang
+              </button>
             )}
-          </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-buy-action"
+            >
+              <i className="fa-solid fa-bolt"></i> Bayar Sekarang ({formatRupiah(totalPrice)})
+            </button>
+          </div>
+          <p className="order-note" style={{ marginTop: '10px', textAlign: 'center' }}>
+            <i className="fa-solid fa-shield-halved"></i> Pembayaran lengkap (QRIS Gateway, GoPay, DANA, Bank &amp; Voucher Promo) sama seperti produk Akun Premium.
+          </p>
         </form>
       </div>
     </div>

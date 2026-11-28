@@ -22,6 +22,8 @@ export default function CheckoutModal({
   const [buyerWa, setBuyerWa] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [capcutAccount, setCapcutAccount] = useState('');
+  const [mlUserId, setMlUserId] = useState('');
+  const [mlZoneId, setMlZoneId] = useState('');
 
   // Voucher states
   const [voucherCodeInput, setVoucherCodeInput] = useState('');
@@ -37,33 +39,52 @@ export default function CheckoutModal({
       setAppliedVoucher(null);
       setSelectedBonusItem('Canva Pro (1 Bulan)');
       setSelectedMethod('qris');
+      setMlUserId('');
+      setMlZoneId('');
     } else {
       syncVouchersFromCloud().catch(() => {});
       if (initialVoucher) {
         setAppliedVoucher(initialVoucher);
         setVoucherCodeInput(initialVoucher.code);
       }
+      const mlItem = (items || []).find(
+        (it) =>
+          String(it.productId || '').startsWith('mlbb-') ||
+          String(it.name || '').toLowerCase().includes('mobile legends') ||
+          it.customerMlUserId
+      );
+      if (mlItem) {
+        setMlUserId(mlItem.customerMlUserId || '');
+        setMlZoneId(mlItem.customerMlZoneId || '');
+      }
     }
-  }, [isOpen, initialVoucher]);
+  }, [isOpen, initialVoucher, items]);
 
-  // Auto-fill dari akun login (Google / Member / Chaiz)
+  // Auto-fill dari akun login (Google / Member / Chaiz) atau item keranjang top-up
   useEffect(() => {
     if (isOpen) {
+      const presetAccountItem = (items || []).find(
+        (it) => it.customerUsername && !it.customerMlUserId
+      );
       if (authUser) {
-        setBuyerUsername(authUser.username || (authUser.name ? authUser.name.toLowerCase().replace(/\s+/g, '_') : ''));
+        setBuyerUsername(
+          presetAccountItem?.customerUsername ||
+            authUser.username ||
+            (authUser.name ? authUser.name.toLowerCase().replace(/\s+/g, '_') : '')
+        );
         setBuyerName(authUser.name || '');
         setBuyerEmail(authUser.email || '');
         if (authUser.phone) {
           setBuyerWa(authUser.phone);
         }
       } else {
-        setBuyerUsername('');
+        setBuyerUsername(presetAccountItem?.customerUsername || '');
         setBuyerName('');
         setBuyerEmail('');
         setBuyerWa('');
       }
     }
-  }, [isOpen, authUser]);
+  }, [isOpen, authUser, items]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
@@ -129,6 +150,34 @@ export default function CheckoutModal({
       (item.via || '').toLowerCase().includes('akun sendiri');
     return nameMatch && durMatch;
   });
+
+  const hasMlbbItem = (items || []).some(
+    (item) =>
+      String(item.productId || '').startsWith('mlbb-') ||
+      String(item.name || '').toLowerCase().includes('mobile legends') ||
+      Boolean(item.customerMlUserId)
+  );
+
+  const hasRobloxItem = (items || []).some(
+    (item) =>
+      String(item.productId || '').startsWith('roblox-') ||
+      String(item.name || '').toLowerCase().includes('roblox') ||
+      String(item.name || '').toLowerCase().includes('robux') ||
+      Boolean(item.customerRobloxId)
+  );
+
+  const hasSteamItem = (items || []).some(
+    (item) =>
+      String(item.productId || '').startsWith('steam-') ||
+      String(item.name || '').toLowerCase().includes('steam')
+  );
+
+  const robloxPresetItem = (items || []).find(
+    (it) =>
+      String(it.productId || '').startsWith('roblox-') ||
+      String(it.name || '').toLowerCase().includes('roblox') ||
+      Boolean(it.customerRobloxId)
+  );
 
   const handleMethodSelect = (methodKey) => {
     setSelectedMethod(methodKey);
@@ -252,6 +301,75 @@ export default function CheckoutModal({
       return;
     }
 
+    const cleanMlU = mlUserId.replace(/\D/g, '').trim();
+    const cleanMlZ = mlZoneId.replace(/\D/g, '').trim();
+    if (hasMlbbItem && (cleanMlU.length < 4 || cleanMlZ.length < 2)) {
+      onShowToast('Silakan lengkapi Masukan Data Akun Mobile Legends (User ID & Zone ID)!', 'fa-id-card text-warning');
+      const targetEl = document.getElementById(cleanMlU.length < 4 ? 'checkoutMlUserId' : 'checkoutMlZoneId');
+      targetEl?.focus();
+      targetEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const cleanRobloxCheckoutUser = username.replace(/^@/, '').trim();
+    if (hasRobloxItem && cleanRobloxCheckoutUser.length < 3) {
+      onShowToast('Silakan isi Username Roblox pada Masukan Data Akun terlebih dahulu!', 'fa-id-card text-warning');
+      const targetEl = document.getElementById('checkoutRobloxUsername') || document.getElementById('checkoutBuyerUsername');
+      targetEl?.focus();
+      targetEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const formattedMlId = hasMlbbItem ? `${cleanMlU} (${cleanMlZ})` : '';
+    const preparedItems = (items || []).map((it) => {
+      const isItemMlbb =
+        String(it.productId || '').startsWith('mlbb-') ||
+        String(it.name || '').toLowerCase().includes('mobile legends') ||
+        Boolean(it.customerMlUserId);
+      if (isItemMlbb) {
+        const baseDur = String(it.duration || '').split('• ID:')[0].trim();
+        return {
+          ...it,
+          category: it.category || 'Top Up Game',
+          duration: `${baseDur || it.name} • ID: ${formattedMlId}`,
+          via: `User ID: ${formattedMlId}`,
+          customerUsername: formattedMlId,
+          customerMlUserId: cleanMlU,
+          customerMlZoneId: cleanMlZ,
+          warrantyPeriod: it.warrantyPeriod || 'Garansi Diamond Masuk 100%'
+        };
+      }
+
+      const isItemRoblox =
+        String(it.productId || '').startsWith('roblox-') ||
+        String(it.name || '').toLowerCase().includes('roblox') ||
+        Boolean(it.customerRobloxId);
+      if (isItemRoblox) {
+        const finalRobloxUser = cleanRobloxCheckoutUser || it.customerUsername || '';
+        return {
+          ...it,
+          category: it.category || 'Top Up Game',
+          via: `Username: @${finalRobloxUser}`,
+          customerUsername: finalRobloxUser,
+          warrantyPeriod: it.warrantyPeriod || 'Garansi Robux Masuk 100%'
+        };
+      }
+
+      const isItemSteam =
+        String(it.productId || '').startsWith('steam-') ||
+        String(it.name || '').toLowerCase().includes('steam');
+      if (isItemSteam) {
+        return {
+          ...it,
+          category: it.category || 'Steam Key',
+          customerUsername: username || it.customerUsername || authUser?.username || '',
+          warrantyPeriod: it.warrantyPeriod || 'Garansi Resmi Valve 100% Valid'
+        };
+      }
+
+      return it;
+    });
+
     setIsSubmitting(true);
 
     // Validasi ulang status voucher secara realtime sebelum pesanan diproses (cegah double-use)
@@ -287,11 +405,21 @@ export default function CheckoutModal({
         amount: finalTotal,
         total: finalTotal,
         originalTotal: totalAmount,
-        items,
+        items: preparedItems,
         customerName: name || authUser?.name || 'Pelanggan ChaizStore',
         customerPhone: wa,
         customerEmail: finalEmail !== '-' ? finalEmail : 'order@chaizstore.my.id',
-        customerUsername: username || authUser?.username || '',
+        customerUsername: hasMlbbItem
+          ? formattedMlId
+          : hasRobloxItem
+          ? cleanRobloxCheckoutUser
+          : (username || authUser?.username || ''),
+        customerMlUserId: hasMlbbItem ? cleanMlU : null,
+        customerMlZoneId: hasMlbbItem ? cleanMlZ : null,
+        customerRobloxAvatar: robloxPresetItem?.customerRobloxAvatar || null,
+        customerRobloxFullAvatar: robloxPresetItem?.customerRobloxFullAvatar || null,
+        customerRobloxDisplayName: robloxPresetItem?.customerRobloxDisplayName || null,
+        customerRobloxId: robloxPresetItem?.customerRobloxId || null,
         paymentMethod: selectedMethod === 'gopay' ? 'GoPay Instant Otomatis' : 'QRIS Payment Gateway Otomatis',
         subMethod: selectedMethod,
         source: source,
@@ -325,7 +453,7 @@ export default function CheckoutModal({
       methodTitle = 'Bank Muamalat (1410043224)';
     }
 
-    const itemsText = items
+    const itemsText = preparedItems
       .map((item, idx) => {
         return `• Item ${idx + 1}: *${item.name}*\n  - Tipe/Durasi: ${item.duration} (${item.via})\n  - Harga Satuan: ${formatRupiah(item.price)}\n  - Jumlah: ${item.qty}x\n  - Subtotal: ${formatRupiah(item.total)}`;
       })
@@ -354,18 +482,25 @@ export default function CheckoutModal({
     // Simpan otomatis ke sistem Transaksi Pelanggan & Admin secara lokal & cloud
     try {
       const createdOrderIds = [];
-      items.forEach((item) => {
+      preparedItems.forEach((item) => {
+        const isItemMlbb = Boolean(item.customerMlUserId) || String(item.productId || '').startsWith('mlbb-');
         const created = createTransaction({
           productId: item.productId || null,
           productName: item.name,
           productDuration: item.duration || 'Reguler',
-          productCategory: 'Akun Premium',
+          productCategory: item.category || (isItemMlbb ? 'Top Up Game' : 'Akun Premium'),
           price: item.price || 0,
           qty: item.qty || 1,
-          total: items.length === 1 ? finalTotal : (item.total || item.price || 0),
+          total: preparedItems.length === 1 ? finalTotal : (item.total || item.price || 0),
           userId: finalUserId,
           userEmail: finalEmail !== '-' ? finalEmail : null,
-          customerUsername: username || authUser?.username || '',
+          customerUsername: item.customerUsername || username || authUser?.username || '',
+          customerMlUserId: item.customerMlUserId || null,
+          customerMlZoneId: item.customerMlZoneId || null,
+          customerRobloxAvatar: item.customerRobloxAvatar || null,
+          customerRobloxFullAvatar: item.customerRobloxFullAvatar || null,
+          customerRobloxDisplayName: item.customerRobloxDisplayName || null,
+          customerRobloxId: item.customerRobloxId || null,
           customerName: name,
           customerEmail: finalEmail || email,
           customerPhone: wa,
@@ -378,7 +513,7 @@ export default function CheckoutModal({
           proofUrl: null,
           proofFileName: null,
           proofSize: null,
-          warrantyPeriod: `Garansi Full ${item.duration || 'Aktif'}`
+          warrantyPeriod: item.warrantyPeriod || `Garansi Full ${item.duration || 'Aktif'}`
         });
         if (created?.id) createdOrderIds.push(created.id);
       });
@@ -717,6 +852,135 @@ export default function CheckoutModal({
                       onChange={(e) => setCapcutAccount(e.target.value)}
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Masukan Data Akun Mobile Legends (jika ada item MLBB di keranjang) */}
+              {hasMlbbItem && (
+                <div className="mlbb-account-box" style={{ marginTop: '10px', marginBottom: 0 }}>
+                  <div className="mlbb-account-box-header">
+                    <span className="mlbb-account-step-pill">
+                      <i className="fa-solid fa-user-check"></i> Masukan Data Akun
+                    </span>
+                    {mlUserId && mlZoneId && (
+                      <span className="roblox-verified-badge">
+                        <i className="fa-solid fa-circle-check"></i> {mlUserId} ({mlZoneId})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mlbb-account-fields-grid">
+                    <div className="mlbb-account-field">
+                      <label className="mlbb-account-label" htmlFor="checkoutMlUserId">
+                        User ID
+                      </label>
+                      <input
+                        id="checkoutMlUserId"
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        className={`mlbb-account-input ${mlUserId.trim().length >= 4 ? 'is-valid' : ''}`}
+                        placeholder="User ID (cth: 1268190411)"
+                        value={mlUserId}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const m = raw.match(/^\s*(\d+)\s*\((\d+)\)\s*$/);
+                          if (m) {
+                            setMlUserId(m[1]);
+                            setMlZoneId(m[2]);
+                          } else {
+                            setMlUserId(raw.replace(/\D/g, ''));
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div className="mlbb-account-field">
+                      <label className="mlbb-account-label" htmlFor="checkoutMlZoneId">
+                        Zone ID
+                      </label>
+                      <input
+                        id="checkoutMlZoneId"
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        className={`mlbb-account-input ${mlZoneId.trim().length >= 2 ? 'is-valid' : ''}`}
+                        placeholder="Zone ID (cth: 15148)"
+                        value={mlZoneId}
+                        onChange={(e) => setMlZoneId(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </div>
+                  </div>
+
+                  <ul className="mlbb-account-notes">
+                    <li>Kami akan menghubungi nomor WhatsApp terdaftar jika ada kendala.</li>
+                    <li>Kode Voucher akan dikirimkan melalui nomor WhatsApp terdaftar.</li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Masukan Data Akun Roblox (jika ada item Robux Roblox di keranjang/checkout) */}
+              {hasRobloxItem && (
+                <div className="mlbb-account-box" style={{ marginTop: '10px', marginBottom: 0 }}>
+                  <div className="mlbb-account-box-header">
+                    <span className="mlbb-account-step-pill">
+                      <i className="fa-solid fa-cube"></i> Masukan Data Akun (Roblox)
+                    </span>
+                    {buyerUsername.trim().length >= 3 && (
+                      <span className="roblox-verified-badge">
+                        <i className="fa-solid fa-circle-check"></i> @{buyerUsername.replace(/^@/, '').trim()}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mlbb-account-field">
+                    <label className="mlbb-account-label" htmlFor="checkoutRobloxUsername">
+                      Username Akun Roblox (Wajib)
+                    </label>
+                    <input
+                      id="checkoutRobloxUsername"
+                      type="text"
+                      required
+                      className={`mlbb-account-input ${buyerUsername.trim().length >= 3 ? 'is-valid' : ''}`}
+                      placeholder="Masukkan username akun Roblox kamu..."
+                      value={buyerUsername}
+                      onChange={(e) => setBuyerUsername(e.target.value)}
+                    />
+                  </div>
+
+                  <ul className="mlbb-account-notes">
+                    <li>Kami akan menghubungi nomor WhatsApp terdaftar jika ada kendala.</li>
+                    <li>Kode Voucher akan dikirimkan melalui nomor WhatsApp terdaftar.</li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Masukan Data Akun Steam (jika checkout Steam Key tanpa MLBB/Roblox) */}
+              {hasSteamItem && !hasRobloxItem && !hasMlbbItem && (
+                <div className="mlbb-account-box" style={{ marginTop: '10px', marginBottom: 0 }}>
+                  <div className="mlbb-account-box-header">
+                    <span className="mlbb-account-step-pill">
+                      <i className="fa-brands fa-steam"></i> Masukan Data Akun (Steam Key)
+                    </span>
+                    <span className="clean-field-badge badge-opt">Opsional</span>
+                  </div>
+                  <div className="mlbb-account-field">
+                    <label className="mlbb-account-label" htmlFor="checkoutSteamUsername">
+                      Username Steam / ID Akun
+                    </label>
+                    <input
+                      id="checkoutSteamUsername"
+                      type="text"
+                      className="mlbb-account-input"
+                      placeholder="Masukkan Username Steam atau SteamID (Opsional)..."
+                      value={buyerUsername}
+                      onChange={(e) => setBuyerUsername(e.target.value)}
+                    />
+                  </div>
+                  <ul className="mlbb-account-notes">
+                    <li>Kami akan menghubungi nomor WhatsApp terdaftar jika ada kendala.</li>
+                    <li>Kode Voucher / Steam Key akan dikirimkan melalui nomor WhatsApp terdaftar.</li>
+                  </ul>
                 </div>
               )}
             </div>

@@ -10,7 +10,9 @@ export default function RobloxPage({
   isBanned = false,
   onOpenLogin,
   onOpenBannedModal,
-  onGoToTransactions
+  onGoToTransactions,
+  onAddToCart,
+  onProceedCheckout
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -270,16 +272,23 @@ export default function RobloxPage({
                   <span className="price-unit">/ {pkg.symbol}</span>
                 </div>
 
-                {/* Action Button: Beli Robux */}
-                <div className="card-actions roblox-card-actions" onClick={(e) => e.stopPropagation()}>
+                {/* Action Buttons: Keranjang & Bayar */}
+                <div className="card-actions roblox-card-actions mlbb-card-actions-row" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    className="btn btn-primary roblox-buy-btn"
+                    className="btn btn-outline mlbb-cart-btn"
                     onClick={() => handleOpenBuyModal(pkg.id)}
                   >
-                    <i className="fa-solid fa-cube"></i>
-                    <span>Beli Robux ({formatRupiah(pkg.price)})</span>
-                    <i className="fa-solid fa-arrow-right"></i>
+                    <i className="fa-solid fa-cart-plus"></i>
+                    <span>Keranjang</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary roblox-buy-btn mlbb-buy-now-btn"
+                    onClick={() => handleOpenBuyModal(pkg.id)}
+                  >
+                    <i className="fa-solid fa-bolt"></i>
+                    <span>Bayar ({formatRupiah(pkg.price)})</span>
                   </button>
                 </div>
               </div>
@@ -298,6 +307,8 @@ export default function RobloxPage({
         onOpenBannedModal={onOpenBannedModal}
         onShowToast={onShowToast}
         onGoToTransactions={onGoToTransactions}
+        onAddToCart={onAddToCart}
+        onProceedCheckout={onProceedCheckout}
         initialPackageId={modalPackageId}
       />
     </div>

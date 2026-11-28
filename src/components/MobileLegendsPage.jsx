@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { formatRupiah } from '../utils/format';
-import MobileLegendsBuyModal, { MLBB_PACKAGES } from './MobileLegendsBuyModal';
+import MobileLegendsBuyModal, {
+  MLBB_PACKAGES,
+  buildMlbbCartItem,
+  buildMlbbCheckoutItem
+} from './MobileLegendsBuyModal';
 
 /**
  * Halaman Khusus Top Up Mobile Legends Indonesia (Diamonds)
@@ -14,7 +18,9 @@ export default function MobileLegendsPage({
   onOpenLogin,
   onOpenBannedModal,
   onGoToTransactions,
-  onProceedToPayment
+  onProceedToPayment,
+  onAddToCart,
+  onProceedCheckout
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,6 +28,9 @@ export default function MobileLegendsPage({
   const [quickZoneId, setQuickZoneId] = useState('');
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [selectedPkgId, setSelectedPkgId] = useState('10d');
+  const [modalFocusAccount, setModalFocusAccount] = useState(false);
+
+  const userIdRef = useRef(null);
 
   const categories = [
     { id: 'all', label: `Semua Nominal (${MLBB_PACKAGES.length})`, icon: 'fa-solid fa-border-all' },
@@ -38,13 +47,13 @@ export default function MobileLegendsPage({
     },
     {
       num: 2,
-      title: 'Masukkan User ID & Zone ID',
+      title: 'Masukan Data Akun (User ID & Zone ID)',
       desc: 'Masukkan User ID dan Zone ID dengan benar. Contoh: 1268190411 (15148)'
     },
     {
       num: 3,
       title: 'Pilih Metode Pembayaran',
-      desc: 'Pilih Metode Pembayaran yang di inginkan (QRIS Otomatis, GoPay, DANA, atau Bank).'
+      desc: 'Masukkan ke Keranjang atau klik Bayar Sekarang lalu pilih metode pembayaran.'
     },
     {
       num: 4,
@@ -76,13 +85,51 @@ export default function MobileLegendsPage({
     );
   });
 
-  const handleOpenBuyModal = (pkgId) => {
+  const selectedPkg =
+    MLBB_PACKAGES.find((p) => p.id === selectedPkgId) || MLBB_PACKAGES[0];
+
+  const cleanU = quickUserId.trim();
+  const cleanZ = quickZoneId.trim();
+  const isAccountReady = cleanU.length >= 4 && cleanZ.length >= 2;
+
+  const handleOpenBuyModal = (pkgId, focusAccount = false) => {
     setSelectedPkgId(pkgId);
+    setModalFocusAccount(focusAccount);
     setIsBuyModalOpen(true);
   };
 
+  const handleActionWithPackage = (pkg, mode) => {
+    if (isBanned) {
+      onOpenBannedModal?.();
+      onShowToast?.('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
+      return;
+    }
+
+    setSelectedPkgId(pkg.id);
+
+    if (!isAccountReady) {
+      onShowToast?.('Silakan isi Masukan Data Akun (User ID & Zone ID) terlebih dahulu!', 'fa-id-card text-cyan');
+      handleOpenBuyModal(pkg.id, true);
+      return;
+    }
+
+    if (mode === 'cart') {
+      if (typeof onAddToCart === 'function') {
+        onAddToCart(buildMlbbCartItem(pkg, cleanU, cleanZ));
+      }
+      return;
+    }
+
+    // Mode 'buy': buka CheckoutModal ChaizStore persis sama dengan Akun Premium
+    if (typeof onProceedCheckout === 'function') {
+      onProceedCheckout(buildMlbbCheckoutItem(pkg, cleanU, cleanZ));
+    } else {
+      handleOpenBuyModal(pkg.id, false);
+    }
+  };
+
   return (
-    <div className="roblox-page-container mlbb-page-container" style={{ paddingTop: '16px', paddingBottom: '60px' }}>
+    <div className="roblox-page-container mlbb-page-container" style={{ paddingTop: '16px', paddingBottom: '72px' }}>
       {/* Hero Banner Header Mobile Legends */}
       <div
         className="catalog-hero-banner roblox-page-hero mlbb-page-hero"
@@ -155,7 +202,7 @@ export default function MobileLegendsPage({
               Top Up <span className="roblox-text-accent">Mobile Legends Indonesia</span>
             </h1>
             <p className="roblox-hero-sub">
-              Cara Top Up ML Termurah &amp; Proses Cepat! Pilih nominal Diamonds favoritmu mulai dari 10 Diamonds sampai 4404 Diamonds, cukup masukkan User ID dan Zone ID tanpa password akun.
+              Cara Top Up ML Termurah &amp; Proses Cepat! Pilih nominal Diamonds (10 s/d 4404 Diamonds), isi Masukan Data Akun (User ID dan Zone ID), lalu klik Masukkan Keranjang atau Bayar Sekarang.
             </p>
 
             <div className="roblox-hero-stats">
@@ -194,8 +241,85 @@ export default function MobileLegendsPage({
 
       {/* Main Content Container */}
       <div className="container roblox-katalog-section">
-        {/* Panduan 4 Langkah + Input Cepat User ID & Zone ID */}
+        {/* Masukan Data Akun (+ Keranjang & Bayar) + Panduan 4 Langkah */}
         <div className="mlbb-info-grid">
+          <div className="mlbb-account-box mlbb-page-account-card" id="mlPageAccountSection">
+            <div className="mlbb-account-box-header">
+              <span className="mlbb-account-step-pill">
+                <i className="fa-solid fa-user-check"></i> Masukan Data Akun
+              </span>
+              {isAccountReady && (
+                <span className="roblox-verified-badge">
+                  <i className="fa-solid fa-circle-check"></i> {cleanU} ({cleanZ})
+                </span>
+              )}
+            </div>
+
+            <div className="mlbb-account-fields-grid">
+              <div className="mlbb-account-field">
+                <label className="mlbb-account-label" htmlFor="mlQuickUserId">
+                  User ID
+                </label>
+                <input
+                  ref={userIdRef}
+                  id="mlQuickUserId"
+                  type="text"
+                  inputMode="numeric"
+                  className={`mlbb-account-input ${cleanU.length >= 4 ? 'is-valid' : ''}`}
+                  placeholder="User ID (cth: 1268190411)"
+                  value={quickUserId}
+                  onChange={(e) => handleQuickUserIdChange(e.target.value)}
+                />
+              </div>
+
+              <div className="mlbb-account-field">
+                <label className="mlbb-account-label" htmlFor="mlQuickZoneId">
+                  Zone ID
+                </label>
+                <input
+                  id="mlQuickZoneId"
+                  type="text"
+                  inputMode="numeric"
+                  className={`mlbb-account-input ${cleanZ.length >= 2 ? 'is-valid' : ''}`}
+                  placeholder="Zone ID (cth: 15148)"
+                  value={quickZoneId}
+                  onChange={(e) => setQuickZoneId(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            </div>
+
+            <div className="mlbb-id-example-pill">
+              <i className="fa-solid fa-circle-info text-cyan"></i>
+              <span>
+                Contoh: <strong>1268190411 (15148)</strong> &bull; Nominal dipilih:{' '}
+                <strong>{selectedPkg.name} ({formatRupiah(selectedPkg.price)})</strong>
+              </span>
+            </div>
+
+            <ul className="mlbb-account-notes">
+              <li>Kami akan menghubungi nomor WhatsApp terdaftar jika ada kendala.</li>
+              <li>Kode Voucher akan dikirimkan melalui nomor WhatsApp terdaftar.</li>
+            </ul>
+
+            {/* Tombol Masukkan Keranjang & Bayar Sekarang Langsung */}
+            <div className="modal-dual-actions mlbb-page-dual-actions">
+              <button
+                type="button"
+                className="btn btn-cart-action"
+                onClick={() => handleActionWithPackage(selectedPkg, 'cart')}
+              >
+                <i className="fa-solid fa-cart-plus"></i> Masukkan Keranjang
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-buy-action"
+                onClick={() => handleActionWithPackage(selectedPkg, 'buy')}
+              >
+                <i className="fa-solid fa-bolt"></i> Bayar Sekarang ({formatRupiah(selectedPkg.price)})
+              </button>
+            </div>
+          </div>
+
           <div className="mlbb-guide-card">
             <div className="mlbb-guide-header">
               <span className="roblox-subheading">
@@ -215,64 +339,6 @@ export default function MobileLegendsPage({
               ))}
             </ol>
           </div>
-
-          <div className="mlbb-quick-id-card">
-            <div className="mlbb-guide-header">
-              <span className="roblox-subheading">
-                <i className="fa-solid fa-id-card"></i> DATA AKUN TUJUAN
-              </span>
-              <h3>Isi User ID &amp; Zone ID Lebih Dulu (Opsional)</h3>
-              <p className="mlbb-quick-sub">
-                Isi ID di bawah ini untuk otomatis terpasang saat Anda memilih nominal Diamonds, atau isi langsung saat checkout.
-              </p>
-            </div>
-
-            <div className="mlbb-id-input-row">
-              <div className="mlbb-id-field-col mlbb-userid-col">
-                <label className="roblox-input-label" htmlFor="mlQuickUserId">
-                  User ID
-                </label>
-                <input
-                  id="mlQuickUserId"
-                  type="text"
-                  inputMode="numeric"
-                  className="form-control roblox-input"
-                  placeholder="1268190411"
-                  value={quickUserId}
-                  onChange={(e) => handleQuickUserIdChange(e.target.value)}
-                />
-              </div>
-
-              <div className="mlbb-id-field-col mlbb-zoneid-col">
-                <label className="roblox-input-label" htmlFor="mlQuickZoneId">
-                  Zone ID
-                </label>
-                <div className="mlbb-zone-input-wrap">
-                  <span className="mlbb-zone-paren">(</span>
-                  <input
-                    id="mlQuickZoneId"
-                    type="text"
-                    inputMode="numeric"
-                    className="form-control roblox-input mlbb-zone-input"
-                    placeholder="15148"
-                    value={quickZoneId}
-                    onChange={(e) => setQuickZoneId(e.target.value.replace(/\D/g, ''))}
-                  />
-                  <span className="mlbb-zone-paren">)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mlbb-id-example-pill">
-              <i className="fa-solid fa-circle-info text-cyan"></i>
-              <span>
-                Contoh: <strong>1268190411 (15148)</strong>
-                {quickUserId && quickZoneId ? (
-                  <span className="mlbb-ready-tag"> &bull; Tujuan: {quickUserId} ({quickZoneId})</span>
-                ) : null}
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Section Header + Search + Category Tabs */}
@@ -284,7 +350,7 @@ export default function MobileLegendsPage({
             Pilih Nominal Top Up Diamonds ({MLBB_PACKAGES.length} Varian)
           </h2>
           <p className="section-desc roblox-section-p">
-            Klik paket Diamonds di bawah untuk langsung menyelesaikan pembayaran dan mengisi Diamond ke akun Mobile Legends Anda.
+            Klik kartu untuk memilih nominal, lalu klik <strong>Keranjang</strong> atau <strong>Bayar</strong>. Metode pembayaran sama persis dengan semua produk Akun Premium.
           </p>
         </div>
 
@@ -328,83 +394,91 @@ export default function MobileLegendsPage({
 
         {/* Product Grid: 36 Paket Diamonds */}
         <div className="mlbb-packages-catalog-grid">
-          {filteredPackages.map((pkg) => (
-            <div
-              key={pkg.id}
-              className="product-card roblox-card mlbb-diamond-card"
-              onClick={() => handleOpenBuyModal(pkg.id)}
-            >
-              <div className="card-top-bar">
-                <div className="card-top-left">
-                  <span className="product-category-pill roblox-card-pill">
-                    <i className="fa-solid fa-gem"></i> DIAMONDS
+          {filteredPackages.map((pkg) => {
+            const isSelected = selectedPkgId === pkg.id;
+            return (
+              <div
+                key={pkg.id}
+                className={`product-card roblox-card mlbb-diamond-card ${isSelected ? 'mlbb-card-selected' : ''}`}
+                onClick={() => setSelectedPkgId(pkg.id)}
+              >
+                <div className="card-top-bar">
+                  <div className="card-top-left">
+                    <span className="product-category-pill roblox-card-pill">
+                      <i className="fa-solid fa-gem"></i> {isSelected ? 'TERPILIH' : 'DIAMONDS'}
+                    </span>
+                  </div>
+                  <span className={`badge-status ${pkg.badgeClass}`}>{pkg.badge}</span>
+                </div>
+
+                <div className="roblox-card-banner mlbb-card-banner">
+                  <img
+                    src="/mobilelegends.jpg"
+                    alt={`Mobile Legends ${pkg.name}`}
+                    className="roblox-card-bg-img"
+                  />
+                  <div className="roblox-card-icon-wrap mlbb-card-icon">
+                    <i className="fa-solid fa-gem"></i>
+                  </div>
+                  <h3 className="roblox-card-title">{pkg.name}</h3>
+                  <span className="roblox-card-symbol">({pkg.breakdown})</span>
+                </div>
+
+                <ul className="product-banner-features roblox-card-features">
+                  <li>
+                    <i className="fa-regular fa-clock"></i>
+                    <span>Layanan 24 Jam &amp; Proses Instant</span>
+                  </li>
+                  <li>
+                    <i className="fa-solid fa-id-card"></i>
+                    <span>Via User ID &amp; Zone ID (Tanpa Password)</span>
+                  </li>
+                  <li>
+                    <i className="fa-solid fa-circle-check"></i>
+                    <span>{pkg.base} Diamond + {pkg.bonus} Bonus Resmi</span>
+                  </li>
+                </ul>
+
+                <div className="card-stock-marketing roblox-card-stock">
+                  <div className="stock-mkt-left">
+                    <i className="fa-solid fa-bolt text-emerald"></i>
+                    <span className="stock-mkt-label">Status:</span>
+                  </div>
+                  <span className="stock-mkt-badge badge-available">
+                    <strong>Ready</strong> &bull; Instant
                   </span>
                 </div>
-                <span className={`badge-status ${pkg.badgeClass}`}>{pkg.badge}</span>
-              </div>
 
-              <div className="roblox-card-banner mlbb-card-banner">
-                <img
-                  src="/mobilelegends.jpg"
-                  alt={`Mobile Legends ${pkg.name}`}
-                  className="roblox-card-bg-img"
-                />
-                <div className="roblox-card-icon-wrap mlbb-card-icon">
-                  <i className="fa-solid fa-gem"></i>
+                <div className="product-price-box roblox-card-price-box">
+                  <div>
+                    <span className="price-label">Harga Resmi</span>
+                    <div className="current-price">{formatRupiah(pkg.price)}</div>
+                  </div>
+                  <span className="price-unit">/ {pkg.amount} DM</span>
                 </div>
-                <h3 className="roblox-card-title">{pkg.name}</h3>
-                <span className="roblox-card-symbol">({pkg.breakdown})</span>
-              </div>
 
-              <ul className="product-banner-features roblox-card-features">
-                <li>
-                  <i className="fa-regular fa-clock"></i>
-                  <span>Layanan 24 Jam &amp; Proses Instant</span>
-                </li>
-                <li>
-                  <i className="fa-solid fa-id-card"></i>
-                  <span>Via User ID &amp; Zone ID (Tanpa Password)</span>
-                </li>
-                <li>
-                  <i className="fa-solid fa-circle-check"></i>
-                  <span>{pkg.base} Diamond + {pkg.bonus} Bonus Resmi</span>
-                </li>
-              </ul>
-
-              <div className="card-stock-marketing roblox-card-stock">
-                <div className="stock-mkt-left">
-                  <i className="fa-solid fa-bolt text-emerald"></i>
-                  <span className="stock-mkt-label">Status:</span>
+                <div className="card-actions roblox-card-actions mlbb-card-actions-row" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="btn btn-outline mlbb-cart-btn"
+                    onClick={() => handleActionWithPackage(pkg, 'cart')}
+                    title={`Masukkan ${pkg.name} ke keranjang`}
+                  >
+                    <i className="fa-solid fa-cart-plus"></i>
+                    <span>Keranjang</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary roblox-buy-btn mlbb-buy-now-btn"
+                    onClick={() => handleActionWithPackage(pkg, 'buy')}
+                  >
+                    <i className="fa-solid fa-bolt"></i>
+                    <span>Bayar</span>
+                  </button>
                 </div>
-                <span className="stock-mkt-badge badge-available">
-                  <strong>Ready</strong> &bull; Instant
-                </span>
               </div>
-
-              <div className="product-price-box roblox-card-price-box">
-                <div>
-                  <span className="price-label">Harga Resmi</span>
-                  <div className="current-price">{formatRupiah(pkg.price)}</div>
-                </div>
-                <span className="price-unit">/ {pkg.amount} DM</span>
-              </div>
-
-              <div className="card-actions roblox-card-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary roblox-buy-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenBuyModal(pkg.id);
-                  }}
-                >
-                  <i className="fa-solid fa-bolt"></i>
-                  <span>Beli {pkg.name}</span>
-                  <i className="fa-solid fa-arrow-right" style={{ fontSize: '11px', marginLeft: '2px' }}></i>
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {filteredPackages.length === 0 && (
@@ -424,9 +498,45 @@ export default function MobileLegendsPage({
             </button>
           </div>
         )}
+
+        {/* Bar Konfirmasi Bawah Halaman: Keranjang & Bayar Sekarang */}
+        <div className="mlbb-bottom-checkout-bar">
+          <div className="mlbb-bottom-bar-info">
+            <span className="mlbb-bottom-bar-tag">
+              <i className="fa-solid fa-gem text-cyan"></i> Paket Dipilih
+            </span>
+            <strong>{selectedPkg.name} ({selectedPkg.breakdown})</strong>
+            <small>
+              {isAccountReady
+                ? `Tujuan: ${cleanU} (${cleanZ})`
+                : 'Belum isi User ID & Zone ID — isi di Masukan Data Akun atau klik tombol di samping'}
+            </small>
+          </div>
+
+          <div className="mlbb-bottom-bar-actions">
+            <div className="mlbb-bottom-bar-price">
+              <span>Total</span>
+              <strong>{formatRupiah(selectedPkg.price)}</strong>
+            </div>
+            <button
+              type="button"
+              className="btn btn-cart-action"
+              onClick={() => handleActionWithPackage(selectedPkg, 'cart')}
+            >
+              <i className="fa-solid fa-cart-plus"></i> Masukkan Keranjang
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-buy-action"
+              onClick={() => handleActionWithPackage(selectedPkg, 'buy')}
+            >
+              <i className="fa-solid fa-bolt"></i> Bayar Sekarang
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Modal Checkout Diamonds Mobile Legends */}
+      {/* Modal Pemilihan & Masukan Data Akun Mobile Legends */}
       <MobileLegendsBuyModal
         isOpen={isBuyModalOpen}
         onClose={() => setIsBuyModalOpen(false)}
@@ -437,9 +547,12 @@ export default function MobileLegendsPage({
         onShowToast={onShowToast}
         onGoToTransactions={onGoToTransactions}
         onProceedToPayment={onProceedToPayment}
+        onAddToCart={onAddToCart}
+        onProceedCheckout={onProceedCheckout}
         initialPackageId={selectedPkgId}
         initialUserId={quickUserId}
         initialZoneId={quickZoneId}
+        focusAccountInput={modalFocusAccount}
       />
     </div>
   );

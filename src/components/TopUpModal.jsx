@@ -8,7 +8,9 @@ export default function TopUpModal({
   authUser,
   isBanned = false,
   onOpenLogin,
-  onOpenBannedModal
+  onOpenBannedModal,
+  onAddToCart,
+  onProceedCheckout
 }) {
   return (
     <SteamKeyModal
@@ -19,6 +21,8 @@ export default function TopUpModal({
       isBanned={isBanned}
       onOpenLogin={onOpenLogin}
       onOpenBannedModal={onOpenBannedModal}
+      onAddToCart={onAddToCart}
+      onProceedCheckout={onProceedCheckout}
       initialKeyId="original"
     />
   );

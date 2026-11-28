@@ -9,7 +9,9 @@ export default function SteamPage({
   authUser,
   isBanned = false,
   onOpenLogin,
-  onOpenBannedModal
+  onOpenBannedModal,
+  onAddToCart,
+  onProceedCheckout
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,15 +263,38 @@ export default function SteamPage({
                   <span className="price-unit">/ {pkg.unit}</span>
                 </div>
 
-                {/* Action Button: Beli Langsung */}
-                <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+                {/* Action Buttons: Keranjang & Bayar */}
+                <div className="card-actions mlbb-card-actions-row" onClick={(e) => e.stopPropagation()}>
+                  {typeof onAddToCart === 'function' && (
+                    <button
+                      type="button"
+                      className="btn btn-outline mlbb-cart-btn"
+                      onClick={() => {
+                        onAddToCart({
+                          id: Date.now() + Math.floor(Math.random() * 1000),
+                          productId: `steam-${pkg.id}`,
+                          productName: `Steam Key (${pkg.name})`,
+                          durationName: '1 Key Resmi Valve',
+                          viaType: 'Kode Dikirim via WhatsApp & Email',
+                          category: 'Steam Key',
+                          price: pkg.price,
+                          originalPrice: pkg.price,
+                          customerUsername: authUser?.username || '',
+                          warrantyPeriod: 'Garansi Resmi Valve 100% Valid'
+                        });
+                      }}
+                    >
+                      <i className="fa-solid fa-cart-plus"></i>
+                      <span>Keranjang</span>
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)', borderColor: '#38bdf8' }}
+                    className="btn btn-primary mlbb-buy-now-btn"
+                    style={{ justifyContent: 'center', background: 'linear-gradient(135deg, #1075bb 0%, #06b6d4 100%)', borderColor: '#38bdf8' }}
                     onClick={() => handleOpenKeyModal(pkg.id)}
                   >
-                    <i className="fa-solid fa-bag-shopping"></i> Beli {pkg.name.replace('KEY ', '')}
+                    <i className="fa-solid fa-bolt"></i> Bayar ({formatRupiah(pkg.price)})
                   </button>
                 </div>
               </div>
@@ -358,7 +383,12 @@ export default function SteamPage({
         onClose={() => setIsSteamModalOpen(false)}
         initialKeyId={modalKeyId}
         authUser={authUser}
+        isBanned={isBanned}
+        onOpenLogin={onOpenLogin}
+        onOpenBannedModal={onOpenBannedModal}
         onShowToast={onShowToast}
+        onAddToCart={onAddToCart}
+        onProceedCheckout={onProceedCheckout}
       />
     </div>
   );

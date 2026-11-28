@@ -1099,12 +1099,22 @@ export default function App() {
     }
     recordUserActivity(authUser, 'OPEN_CHECKOUT', `Membuka checkout keranjang (${cartItems.length} produk)`);
     const formatted = cartItems.map((it) => ({
+      productId: it.productId || null,
       name: it.productName,
       duration: it.durationName,
       via: it.viaType,
+      category: it.category || 'Akun Premium',
       price: it.price,
-      qty: 1,
-      total: it.price
+      qty: it.qty || 1,
+      total: it.total || it.price,
+      customerUsername: it.customerUsername || '',
+      customerMlUserId: it.customerMlUserId || null,
+      customerMlZoneId: it.customerMlZoneId || null,
+      customerRobloxAvatar: it.customerRobloxAvatar || null,
+      customerRobloxFullAvatar: it.customerRobloxFullAvatar || null,
+      customerRobloxDisplayName: it.customerRobloxDisplayName || null,
+      customerRobloxId: it.customerRobloxId || null,
+      warrantyPeriod: it.warrantyPeriod || null
     }));
     setIsCartOpen(false);
     setCheckoutData({
@@ -1226,6 +1236,8 @@ export default function App() {
             isBanned={isCurrentBanned}
             onOpenLogin={() => setIsLoginOpen(true)}
             onOpenBannedModal={() => setIsBannedModalOpen(true)}
+            onAddToCart={handleAddToCart}
+            onProceedCheckout={handleProceedCheckoutFromModal}
           />
         ) : activeTab === 'roblox' ? (
           <RobloxPage
@@ -1237,6 +1249,8 @@ export default function App() {
             onOpenLogin={() => setIsLoginOpen(true)}
             onOpenBannedModal={() => setIsBannedModalOpen(true)}
             onGoToTransactions={() => handleSwitchTab('transaksi')}
+            onAddToCart={handleAddToCart}
+            onProceedCheckout={handleProceedCheckoutFromModal}
           />
         ) : activeTab === 'mlbb' ? (
           <MobileLegendsPage
@@ -1249,6 +1263,8 @@ export default function App() {
             onOpenBannedModal={() => setIsBannedModalOpen(true)}
             onGoToTransactions={() => handleSwitchTab('transaksi')}
             onProceedToPayment={handleProceedToPayment}
+            onAddToCart={handleAddToCart}
+            onProceedCheckout={handleProceedCheckoutFromModal}
           />
         ) : activeTab === 'topup' ? (
           <TopUpPage
@@ -1418,6 +1434,8 @@ export default function App() {
         isBanned={isCurrentBanned}
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenBannedModal={() => setIsBannedModalOpen(true)}
+        onAddToCart={handleAddToCart}
+        onProceedCheckout={handleProceedCheckoutFromModal}
       />
 
       {/* Gemini AI Customer Service Chat Widget */}

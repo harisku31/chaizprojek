@@ -1,14 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { formatRupiah, copyToClipboard, compressImageFile } from '../utils/format';
-import { PAYMENT_INFO } from '../data/config';
-import { createTransaction, getUserKey } from '../utils/transactions';
-import { unlockAudio } from '../utils/audioNotification';
-import {
-  generateQrisDataUrl,
-  QRIS_GATEWAY_CLIENT_KEY,
-  MERCHANT_NMID,
-  verifyGatewayPayment
-} from '../utils/qrisGateway';
+import React, { useState, useEffect } from 'react';
+import { formatRupiah } from '../utils/format';
 
 export const STEAM_KEY_PACKAGES = [
   {
@@ -61,41 +52,22 @@ export default function SteamKeyModal({
   onOpenLogin,
   onOpenBannedModal,
   onShowToast,
+  onAddToCart,
+  onProceedCheckout,
   initialKeyId = 'original'
 }) {
   const [selectedKeyId, setSelectedKeyId] = useState(initialKeyId);
   const [quantity, setQuantity] = useState(1);
   const [buyerUsername, setBuyerUsername] = useState('');
-  const [buyerName, setBuyerName] = useState('');
-  const [buyerEmail, setBuyerEmail] = useState('');
-  const [buyerWa, setBuyerWa] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState('qris');
-  const [uploadedProof, setUploadedProof] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dynamicQrisUrl, setDynamicQrisUrl] = useState(null);
-  const [isGeneratingQris, setIsGeneratingQris] = useState(false);
-  const [qrisTimerSeconds, setQrisTimerSeconds] = useState(900);
 
-  const fileInputRef = useRef(null);
-
-  // Auto-fill dari akun login & reset saat modal terbuka
   useEffect(() => {
     if (isOpen) {
       if (initialKeyId) setSelectedKeyId(initialKeyId);
       setQuantity(1);
-      setSelectedMethod('qris');
-      setUploadedProof(null);
-
       if (authUser) {
         setBuyerUsername(authUser.username || authUser.name?.toLowerCase().replace(/\s+/g, '_') || '');
-        setBuyerName(authUser.name || '');
-        setBuyerEmail(authUser.email || '');
-        setBuyerWa(authUser.phone || '');
       } else {
         setBuyerUsername('');
-        setBuyerName('');
-        setBuyerEmail('');
-        setBuyerWa('');
       }
     }
   }, [isOpen, initialKeyId, authUser]);
@@ -105,194 +77,65 @@ export default function SteamKeyModal({
   const currentKey =
     STEAM_KEY_PACKAGES.find((k) => k.id === selectedKeyId) ||
     STEAM_KEY_PACKAGES[0];
-
   const totalPrice = currentKey.price * quantity;
+  const cleanUser = buyerUsername.trim();
 
-  // Generate Dynamic QRIS Otomatis Sesuai Total Tagihan
-  useEffect(() => {
-    let isCancelled = false;
-    if (isOpen && totalPrice > 0) {
-      setIsGeneratingQris(true);
-      generateQrisDataUrl({
-        amount: totalPrice,
-        orderId: `STM-${Date.now().toString().slice(-6)}`
-      })
-        .then((res) => {
-          if (!isCancelled) {
-            setDynamicQrisUrl(res.dataUrl);
-            setIsGeneratingQris(false);
-          }
-        })
-        .catch(() => {
-          if (!isCancelled) setIsGeneratingQris(false);
-        });
-    }
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, totalPrice]);
-
-  // Countdown timer 15 Menit
-  useEffect(() => {
-    if (!isOpen) {
-      setQrisTimerSeconds(900);
-      return;
-    }
-    const timer = setInterval(() => {
-      setQrisTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isOpen]);
-
-  const handleCopyRekening = async (number, label) => {
-    const success = await copyToClipboard(number);
-    if (success) {
-      onShowToast?.(`Nomor ${label} (${number}) berhasil disalin!`, 'fa-copy text-success');
-    }
-  };
-
-  const handleDownloadQris = (e) => {
-    e.preventDefault();
-    const qrUrl = dynamicQrisUrl || '/Qris.png';
-    const a = document.createElement('a');
-    a.href = qrUrl;
-    a.download = `QRIS-ChaizStore-SteamKey.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    onShowToast?.(`Foto QRIS Dinamis (${formatRupiah(totalPrice)}) berhasil di-download!`, 'fa-circle-check text-success');
-  };
-
-  const handleProofChange = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      onShowToast?.('Harap pilih file foto bukti transfer (JPG / PNG / WEBP)', 'fa-triangle-exclamation');
-      e.target.value = '';
-      return;
-    }
-
-    try {
-      const compressedDataUrl = await compressImageFile(file, 900, 1200, 0.72);
-      const sizeKb = ((compressedDataUrl?.length || file.size) * 0.75 / 1024).toFixed(1);
-      const proofObj = {
-        file,
-        name: file.name,
-        size: `${sizeKb} KB (Ringan & Cepat)`,
-        dataUrl: compressedDataUrl,
-        uploadedUrl: compressedDataUrl
-      };
-
-      setUploadedProof(proofObj);
-      onShowToast?.('Foto bukti transfer berhasil di-upload!', 'fa-circle-check text-success');
-    } catch {
-      onShowToast?.('Gagal memproses foto bukti transfer', 'fa-triangle-exclamation');
-    }
-  };
-
-  const handleRemoveProof = (e) => {
-    e.stopPropagation();
-    setUploadedProof(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    onShowToast?.('Foto bukti transfer dihapus', 'fa-trash-can');
-  };
-
-  const handleSubmitOrder = async (e) => {
-    e.preventDefault();
-    unlockAudio();
-
-    // 1. Cek status banned
+  const validateAccess = () => {
     if (isBanned) {
       onOpenBannedModal?.();
       onShowToast?.('Akses Ditolak: Akun Anda sedang di-banned!', 'fa-ban text-danger');
-      return;
+      return false;
     }
-
-    // 2. Cek apakah sudah login
     if (!authUser) {
       onOpenLogin?.();
-      onShowToast?.('Silakan login terlebih dahulu untuk melakukan pembelian Steam Key!', 'fa-right-to-bracket text-warning');
-      return;
+      onShowToast?.('Silakan login terlebih dahulu untuk membeli Steam Key!', 'fa-right-to-bracket text-warning');
+      return false;
     }
+    return true;
+  };
 
-    // 3. Validasi form
-    const username = buyerUsername.trim();
-    const name = buyerName.trim();
-    const email = buyerEmail.trim();
-    const wa = buyerWa.trim();
-
-    if (!name) {
-      onShowToast?.('Silakan masukkan Nama Lengkap Anda!', 'fa-triangle-exclamation');
-      return;
-    }
-    if (!email) {
-      onShowToast?.('Silakan masukkan Email / Gmail Anda untuk pengiriman kode!', 'fa-triangle-exclamation');
-      return;
-    }
-    if (!wa) {
-      onShowToast?.('⚠️ Jangan lupa isi nomor telepon / WhatsApp kamu!', 'fa-phone text-warning');
-      const el = document.getElementById('steamBuyerWa');
-      el?.focus();
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-
-    if (!selectedMethod) {
-      onShowToast?.('Silakan pilih salah satu metode pembayaran!', 'fa-triangle-exclamation');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      if (selectedMethod === 'qris') {
-        await verifyGatewayPayment({
-          orderId: `steam-${currentKey.id}`,
-          amount: totalPrice
-        });
-      }
-
-      const finalEmail = (authUser?.email || email || '').toLowerCase().trim();
-      const finalUserId =
-        authUser?.id ||
-        getUserKey(authUser) ||
-        (finalEmail && finalEmail !== '-' ? getUserKey({ email: finalEmail }) : null);
-
-      const isGateway = selectedMethod === 'qris';
-      const proofImg = isGateway ? 'GATEWAY_SUCCESS' : (uploadedProof?.dataUrl || uploadedProof?.uploadedUrl || null);
-
-      createTransaction({
-        productId: 'steam-' + currentKey.id,
+  const handleAddCurrentToCart = () => {
+    if (!validateAccess()) return;
+    if (typeof onAddToCart === 'function') {
+      onAddToCart({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        productId: `steam-${currentKey.id}`,
         productName: `Steam Key (${currentKey.name})`,
-        productDuration: `${quantity} Key`,
-        productCategory: 'Steam Key',
+        durationName: `${quantity} Key Resmi Valve`,
+        viaType: cleanUser ? `Steam: ${cleanUser}` : 'Kode Dikirim via WhatsApp & Email',
+        category: 'Steam Key',
         price: currentKey.price,
         qty: quantity,
         total: totalPrice,
-        userId: finalUserId,
-        userEmail: finalEmail !== '-' ? finalEmail : null,
-        customerUsername: username || authUser?.username || '',
-        customerName: name,
-        customerEmail: finalEmail || email,
-        customerPhone: wa,
-        paymentMethod: isGateway ? 'QRIS Payment Gateway Otomatis' : (PAYMENT_INFO[selectedMethod]?.name || 'Transfer Bank'),
-        paymentStatus: isGateway ? 'Lunas' : 'Pending',
-        isGatewayPaid: isGateway,
-        gatewayKey: isGateway ? QRIS_GATEWAY_CLIENT_KEY : null,
-        proofUrl: proofImg,
-        proofFileName: isGateway ? 'Verifikasi_Otomatis_Gateway' : (uploadedProof?.name || (proofImg ? 'Bukti_Steam_Key.png' : null)),
-        proofSize: isGateway ? `Lunas (${QRIS_GATEWAY_CLIENT_KEY.slice(0, 10)}...)` : (uploadedProof?.size || null),
+        originalPrice: totalPrice,
+        customerUsername: cleanUser || authUser?.username || '',
         warrantyPeriod: 'Garansi Resmi Valve 100% Valid'
       });
-    } catch (err) {}
+      onClose();
+    }
+  };
 
-    setIsSubmitting(false);
+  const handleProceedOrder = (e) => {
+    if (e) e.preventDefault();
+    if (!validateAccess()) return;
+
+    const checkoutItem = {
+      productId: `steam-${currentKey.id}`,
+      name: `Steam Key (${currentKey.name})`,
+      duration: `${quantity} Key Resmi Valve`,
+      via: cleanUser ? `Steam: ${cleanUser}` : 'Kode Dikirim via WhatsApp & Email',
+      category: 'Steam Key',
+      price: currentKey.price,
+      qty: quantity,
+      total: totalPrice,
+      customerUsername: cleanUser || authUser?.username || '',
+      warrantyPeriod: 'Garansi Resmi Valve 100% Valid'
+    };
+
     onClose();
-    onShowToast?.(
-      '🎉 Pesanan Steam Key berhasil dikirim ke Admin! Anda dapat memantau statusnya di menu Transaksi.',
-      'fa-circle-check text-success'
-    );
+    if (typeof onProceedCheckout === 'function') {
+      onProceedCheckout(checkoutItem);
+    }
   };
 
   return (
@@ -327,7 +170,7 @@ export default function SteamKeyModal({
           </p>
         </div>
 
-        <form onSubmit={handleSubmitOrder} className="steam-modal-form">
+        <form onSubmit={handleProceedOrder} className="steam-modal-form">
           {/* 1. Pilihan Paket Steam Key */}
           <div className="steam-form-section">
             <label className="steam-section-title">
@@ -350,42 +193,32 @@ export default function SteamKeyModal({
                         loading="lazy"
                       />
                     </div>
-                    <div className="steam-pkg-top">
-                      <span className={`badge-status ${pkg.badgeClass}`}>{pkg.badge}</span>
-                      {isSelected && (
-                        <span className="steam-pkg-check">
-                          <i className="fa-solid fa-circle-check"></i>
-                        </span>
-                      )}
+                    <div className="steam-pkg-info">
+                      <strong>{pkg.name}</strong>
+                      <span className="steam-pkg-price">{formatRupiah(pkg.price)}</span>
                     </div>
-                    <div className="steam-pkg-name">{pkg.name}</div>
-                    <div className="steam-pkg-desc">{pkg.desc}</div>
-                    <div className="steam-pkg-price">
-                      <strong>{formatRupiah(pkg.price)}</strong>
-                      <span>/ {pkg.unit}</span>
-                    </div>
+                    <i className={isSelected ? 'fa-solid fa-circle-check text-cyan' : 'fa-regular fa-circle'}></i>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* 2. Pengatur Jumlah Key */}
+          {/* 2. Jumlah Pembelian */}
           <div className="steam-form-section">
             <div className="steam-qty-row">
               <label className="steam-section-title" style={{ margin: 0 }}>
-                <i className="fa-solid fa-layer-group text-cyan"></i> 2. Jumlah Key:
+                <i className="fa-solid fa-cubes text-cyan"></i> 2. Jumlah Steam Key:
               </label>
-              <div className="steam-qty-control">
+              <div className="steam-qty-controls">
                 <button
                   type="button"
                   className="steam-qty-btn"
                   onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                  disabled={quantity <= 1}
                 >
                   <i className="fa-solid fa-minus"></i>
                 </button>
-                <span className="steam-qty-value">{quantity} Key</span>
+                <span className="steam-qty-val">{quantity}</span>
                 <button
                   type="button"
                   className="steam-qty-btn"
@@ -396,279 +229,61 @@ export default function SteamKeyModal({
               </div>
             </div>
             <div className="steam-total-bar">
-              <span>Total Harga:</span>
+              <span>Total Harga ({quantity}x {currentKey.name}):</span>
               <strong className="steam-total-price">{formatRupiah(totalPrice)}</strong>
             </div>
           </div>
 
-          {/* 3. Form Data Pembeli (Lurus ke bawah, rapi, bersih) */}
-          <div className="steam-form-section">
-            <label className="steam-section-title">
-              <i className="fa-solid fa-id-card text-emerald"></i> 3. Data Pengiriman:
-            </label>
-
-            <div className="clean-vertical-form">
-              {/* 1. Username Steam */}
-              <div className="clean-field-group">
-                <label htmlFor="steamBuyerUsername" className="clean-field-label">
-                  <i className="fa-brands fa-steam text-cyan"></i>
-                  <span>Username Steam / ID</span>
-                  <span className="clean-field-badge badge-opt">Opsional</span>
-                </label>
-                <div className="clean-input-wrapper">
-                  <i className="fa-solid fa-at clean-input-lead-icon text-cyan"></i>
-                  <input
-                    type="text"
-                    id="steamBuyerUsername"
-                    className="clean-field-control"
-                    placeholder="Masukkan Username Steam atau SteamID..."
-                    value={buyerUsername}
-                    onChange={(e) => setBuyerUsername(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* 2. Nama Lengkap */}
-              <div className="clean-field-group">
-                <label htmlFor="steamBuyerName" className="clean-field-label">
-                  <i className="fa-solid fa-user text-emerald"></i>
-                  <span>Nama Lengkap</span>
-                  <span className="clean-field-badge badge-req">*Wajib</span>
-                </label>
-                <div className="clean-input-wrapper">
-                  <i className="fa-solid fa-user clean-input-lead-icon text-emerald"></i>
-                  <input
-                    type="text"
-                    id="steamBuyerName"
-                    required
-                    className="clean-field-control"
-                    placeholder="Contoh: Andi Pratama"
-                    value={buyerName}
-                    onChange={(e) => setBuyerName(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* 3. Email / Gmail */}
-              <div className="clean-field-group">
-                <label htmlFor="steamBuyerEmail" className="clean-field-label">
-                  <i className="fa-brands fa-google text-amber"></i>
-                  <span>Email / Gmail</span>
-                  <span className="clean-field-badge badge-req">*Wajib</span>
-                </label>
-                <div className="clean-input-wrapper">
-                  <i className="fa-solid fa-envelope clean-input-lead-icon text-amber"></i>
-                  <input
-                    type="email"
-                    id="steamBuyerEmail"
-                    required
-                    className="clean-field-control"
-                    placeholder="Contoh: emailkamu@gmail.com"
-                    value={buyerEmail}
-                    onChange={(e) => setBuyerEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* 4. Nomor WhatsApp */}
-              <div className="clean-field-group">
-                <label htmlFor="steamBuyerWa" className="clean-field-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-brands fa-whatsapp text-success"></i>
-                    <span>Nomor Telepon / WhatsApp Aktif</span>
-                  </div>
-                  {!buyerWa.trim() ? (
-                    <span className="clean-field-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.5)', fontWeight: 700, fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px' }}>
-                      <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '4px' }}></i>Jangan Lupa Diisi
-                    </span>
-                  ) : (
-                    <span className="clean-field-badge badge-req" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-                      <i className="fa-solid fa-check" style={{ marginRight: '4px' }}></i>Sudah Terisi
-                    </span>
-                  )}
-                </label>
-                <div className="clean-input-wrapper" style={!buyerWa.trim() ? { borderColor: 'rgba(245, 158, 11, 0.65)', boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.15)' } : {}}>
-                  <i className="fa-brands fa-whatsapp clean-input-lead-icon text-success"></i>
-                  <input
-                    type="tel"
-                    id="steamBuyerWa"
-                    required
-                    className="clean-field-control"
-                    placeholder="Contoh: 081234567890 (Wajib diisi)"
-                    value={buyerWa}
-                    onChange={(e) => setBuyerWa(e.target.value)}
-                  />
-                </div>
-                <div style={{ marginTop: '6px', fontSize: '0.78rem', color: !buyerWa.trim() ? '#fbbf24' : 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className={!buyerWa.trim() ? 'fa-solid fa-bullhorn text-warning' : 'fa-solid fa-circle-info'}></i>
-                  <span><strong>Arahan:</strong> Jangan lupa isi nomor telepon kamu agar Admin dapat mengirimkan kode Steam Key!</span>
-                </div>
-              </div>
+          {/* 3. Masukan Data Akun Steam */}
+          <div className="mlbb-account-box">
+            <div className="mlbb-account-box-header">
+              <span className="mlbb-account-step-pill">
+                <i className="fa-solid fa-user-check"></i> Masukan Data Akun
+              </span>
+              <span className="clean-field-badge badge-opt">Opsional</span>
             </div>
+
+            <div className="mlbb-account-field">
+              <label className="mlbb-account-label" htmlFor="steamBuyerUsername">
+                Username Steam / ID Akun Tujuan
+              </label>
+              <input
+                type="text"
+                id="steamBuyerUsername"
+                className="mlbb-account-input"
+                placeholder="Masukkan Username Steam atau SteamID (Opsional)..."
+                value={buyerUsername}
+                onChange={(e) => setBuyerUsername(e.target.value)}
+              />
+            </div>
+
+            <ul className="mlbb-account-notes">
+              <li>Kami akan menghubungi nomor WhatsApp terdaftar jika ada kendala.</li>
+              <li>Kode Voucher / Steam Key akan dikirimkan melalui nomor WhatsApp terdaftar.</li>
+            </ul>
           </div>
 
-          {/* 4. Pilihan Metode Pembayaran (Sama persis seperti Akun Premium) */}
-          <div className="steam-form-section">
-            <label className="steam-section-title">
-              <i className="fa-solid fa-wallet text-amber"></i> 4. Metode Pembayaran:
-            </label>
-
-            <div className="steam-payment-tabs">
+          {/* Dual Actions Persis Akun Premium: Masukkan Keranjang & Bayar Sekarang */}
+          <div className="modal-dual-actions">
+            {typeof onAddToCart === 'function' && (
               <button
                 type="button"
-                className={`steam-pay-tab ${selectedMethod === 'qris' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('qris')}
+                className="btn btn-cart-action"
+                onClick={handleAddCurrentToCart}
               >
-                <i className="fa-solid fa-qrcode"></i> QRIS Gateway (Otomatis)
+                <i className="fa-solid fa-cart-plus"></i> Masukkan Keranjang
               </button>
-              <button
-                type="button"
-                className={`steam-pay-tab ${selectedMethod === 'ewallet' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('ewallet')}
-              >
-                <i className="fa-solid fa-wallet"></i> E-Wallet
-              </button>
-              <button
-                type="button"
-                className={`steam-pay-tab ${selectedMethod === 'bank' ? 'active' : ''}`}
-                onClick={() => setSelectedMethod('bank')}
-              >
-                <i className="fa-solid fa-building-columns"></i> Transfer Bank
-              </button>
-            </div>
-
-            {/* Konten Metode Pembayaran */}
-            <div className="steam-payment-body">
-              {selectedMethod === 'qris' && (
-                <div className="steam-qris-box">
-                  <div className="dynamic-qris-nominal-box" style={{ margin: '0 0 10px', padding: '10px 14px' }}>
-                    <div className="nominal-header">
-                      <div className="nominal-tag">
-                        <i className="fa-solid fa-bolt text-warning"></i>
-                        <span>DYNAMIC QRIS GATEWAY</span>
-                      </div>
-                      <div className="nominal-timer">
-                        <i className="fa-regular fa-clock"></i>
-                        <span>Sesi: {Math.floor(qrisTimerSeconds / 60)}:{('0' + (qrisTimerSeconds % 60)).slice(-2)}</span>
-                      </div>
-                    </div>
-                    <div className="nominal-amount-wrap" style={{ marginTop: '4px' }}>
-                      <span className="nominal-label-text">Total Tagihan Otomatis:</span>
-                      <strong className="nominal-val">{formatRupiah(totalPrice)}</strong>
-                    </div>
-                  </div>
-
-                  <div className="qris-img-wrap">
-                    {isGeneratingQris ? (
-                      <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
-                        <i className="fa-solid fa-spinner fa-spin text-cyan" style={{ fontSize: '1.8rem', marginBottom: '8px' }}></i>
-                        <p style={{ margin: 0, fontSize: '0.8rem' }}>Membuat QRIS Dinamis {formatRupiah(totalPrice)}...</p>
-                      </div>
-                    ) : (
-                      <img
-                        src={dynamicQrisUrl || '/Qris.png'}
-                        alt={`QRIS ChaizStore Steam ${formatRupiah(totalPrice)}`}
-                        className="qris-preview-img"
-                      />
-                    )}
-                  </div>
-                  <div style={{ textAlign: 'center', margin: '4px 0 10px', fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>
-                    <span>NMID: {MERCHANT_NMID} &bull; CHAIZSTORE &bull; {QRIS_GATEWAY_CLIENT_KEY.slice(0, 16)}...</span>
-                  </div>
-                  <div className="qris-actions">
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={handleDownloadQris}
-                    >
-                      <i className="fa-solid fa-download"></i> Download QRIS ({formatRupiah(totalPrice)})
-                    </button>
-                    <p className="qris-note">
-                      Scan kode QRIS di atas menggunakan BCA, Mandiri, BRI, DANA, GoPay, OVO, ShopeePay, atau m-Banking Anda.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMethod === 'ewallet' && (
-                <div className="steam-account-box">
-                  <div className="account-row">
-                    <div>
-                      <span className="account-label">Nomor E-Wallet (DANA / GoPay / OVO / ShopeePay):</span>
-                      <strong className="account-number">{PAYMENT_INFO.ewallet.account.number}</strong>
-                      <span className="account-owner">{PAYMENT_INFO.ewallet.account.owner}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={() => handleCopyRekening(PAYMENT_INFO.ewallet.account.number, 'E-Wallet')}
-                    >
-                      <i className="fa-solid fa-copy"></i> Salin
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedMethod === 'bank' && (
-                <div className="steam-account-box">
-                  <div className="account-row">
-                    <div>
-                      <span className="account-label">Rekening Bank Muamalat:</span>
-                      <strong className="account-number">{PAYMENT_INFO.bank.account.number}</strong>
-                      <span className="account-owner">{PAYMENT_INFO.bank.account.owner}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={() => handleCopyRekening(PAYMENT_INFO.bank.account.number, 'Rekening')}
-                    >
-                      <i className="fa-solid fa-copy"></i> Salin
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Informasi Garansi & Aktivasi */}
-              <div className="steam-proof-upload">
-                <div
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.06))',
-                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}
-                >
-                  <i className="fa-solid fa-bolt text-warning" style={{ fontSize: '1.2rem' }}></i>
-                  <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                    <strong style={{ color: '#34d399', display: 'block' }}>Key 100% Original & Bergaransi Resmi</strong>
-                    Kode lisensi CD Key game Steam akan langsung dikirimkan ke Email & WhatsApp Anda setelah pembayaran.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Modal Action Buttons */}
-          <div className="steam-modal-actions">
+            )}
             <button
               type="submit"
-              className="btn btn-primary btn-block btn-lg btn-steam-submit"
-              disabled={isSubmitting}
+              className="btn btn-primary btn-buy-action"
             >
-              <i className={selectedMethod === 'qris' ? 'fa-solid fa-bolt' : 'fa-solid fa-paper-plane'}></i>{' '}
-              {selectedMethod === 'qris' ? `Bayar Sekarang via QRIS Gateway (${formatRupiah(totalPrice)})` : 'Kirim Pesanan Steam Key ke Admin'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline btn-block"
-              onClick={onClose}
-            >
-              Batal
+              <i className="fa-solid fa-bolt"></i> Bayar Sekarang ({formatRupiah(totalPrice)})
             </button>
           </div>
+          <p className="order-note" style={{ marginTop: '10px', textAlign: 'center' }}>
+            <i className="fa-solid fa-shield-halved"></i> Pembayaran lengkap (QRIS Gateway, GoPay, DANA, Bank Muamalat &amp; Voucher Promo) sama seperti produk Akun Premium.
+          </p>
         </form>
       </div>
     </div>

@@ -7119,3 +7119,305 @@ body {
 [data-theme="dark"] .mlbb-gateway-notice {
   color: #cbd5e1 !important;
 }
+
+/* ==========================================================================
+   MASUKAN DATA AKUN (USER ID & ZONE ID + WA NOTES) & DUAL CART/BUY BUTTONS
+   ========================================================================== */
+.mlbb-account-box {
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+
+.mlbb-page-account-card {
+  margin-bottom: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.mlbb-account-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mlbb-account-step-pill {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mlbb-account-step-pill i {
+  color: #0284c7;
+}
+
+.mlbb-account-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mlbb-account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mlbb-account-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  padding-left: 4px;
+}
+
+.mlbb-account-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mlbb-account-input:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.16);
+}
+
+.mlbb-account-input.is-valid {
+  border-color: #10b981;
+}
+
+.mlbb-account-notes {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.mlbb-account-notes li + li {
+  margin-top: 4px;
+}
+
+.mlbb-card-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mlbb-cart-btn {
+  flex: 1;
+  padding: 10px 10px !important;
+  border-radius: 10px !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px solid #0284c7 !important;
+  color: #0284c7 !important;
+  background: #ffffff !important;
+  cursor: pointer;
+}
+
+.mlbb-cart-btn:hover {
+  background: #f0f9ff !important;
+}
+
+.mlbb-buy-now-btn {
+  flex: 1;
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+}
+
+.mlbb-modal-actions-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.mlbb-modal-cart-btn {
+  flex: 0.42;
+  padding: 14px 12px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border: 1.5px solid #0284c7 !important;
+  color: #0284c7 !important;
+  background: #ffffff !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.mlbb-modal-cart-btn:hover {
+  background: #f0f9ff !important;
+}
+
+.mlbb-modal-buy-btn {
+  flex: 1;
+}
+
+@media (max-width: 560px) {
+  .mlbb-account-fields-grid {
+    grid-template-columns: 1fr;
+  }
+  .mlbb-modal-actions-row {
+    flex-direction: column;
+  }
+}
+
+[data-theme="dark"] .mlbb-account-box {
+  background: #162032 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .mlbb-account-step-pill {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlbb-account-label,
+[data-theme="dark"] .mlbb-account-notes {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mlbb-account-input {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlbb-cart-btn,
+[data-theme="dark"] .mlbb-modal-cart-btn {
+  background: #0f172a !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .mlbb-cart-btn:hover,
+[data-theme="dark"] .mlbb-modal-cart-btn:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+}
+
+/* Selected MLBB card state & page-level checkout actions */
+.mlbb-card-selected {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.22), 0 12px 28px rgba(2, 132, 199, 0.16) !important;
+}
+
+.mlbb-page-dual-actions {
+  margin-top: 16px;
+}
+
+.mlbb-bottom-checkout-bar {
+  margin-top: 28px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.mlbb-bottom-bar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mlbb-bottom-bar-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0284c7;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.mlbb-bottom-bar-info strong {
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.mlbb-bottom-bar-info small {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.mlbb-bottom-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mlbb-bottom-bar-price {
+  display: flex;
+  flex-direction: column;
+  padding-right: 10px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.mlbb-bottom-bar-price span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mlbb-bottom-bar-price strong {
+  font-size: 18px;
+  color: #0284c7;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .mlbb-bottom-checkout-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mlbb-bottom-bar-actions {
+    width: 100%;
+  }
+  .mlbb-bottom-bar-actions .btn {
+    flex: 1;
+  }
+}
+
+[data-theme="dark"] .mlbb-bottom-checkout-bar {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .mlbb-bottom-bar-info strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlbb-bottom-bar-info small,
+[data-theme="dark"] .mlbb-bottom-bar-price span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mlbb-bottom-bar-price {
+  border-right-color: #1e293b !important;
+}
+
+[data-theme="dark"] .mlbb-bottom-bar-price strong {
+  color: #38bdf8 !important;
+}
